@@ -1,0 +1,9 @@
+defaults:
+  - experimentation: experiment
+  - provider: openai
+  - tracing: phoenix
+  - database: postgres
+  - _self_
+
+# top level configuration
+logging: logging.yaml

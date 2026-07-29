@@ -1,0 +1,28 @@
+name: First Workflow
+
+# triggers for the workflow, branches to apply workflow
+# e.g., on: [push, pull_request, workflow_dispatch, scheduled, fork, issue]
+on:
+  workflow_dispatch:
+
+jobs:
+  first_job:
+    # define runner with 'runs-on'
+    runs-on: self-hosted
+    steps:
+      - name:  First Job Script
+        shell: sh
+        run:   echo Hello World!  This is the first Job.
+
+
+  second_job:
+    # define runner with 'runs-on'
+    runs-on: ubuntu-latest
+    steps:
+      - name:  Second Job Script
+        shell: bash
+        run:   |
+          echo This is the Second Job Script
+          echo This is a Multi-line Script
+
+  

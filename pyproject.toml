@@ -1,0 +1,44 @@
+[project]
+name            = "velari-github-workflows"
+authors         = [{name = "Ari Kamlani", email = "akamlani@gmail.com"}]
+description     = "Add your description here"
+version         = "0.1.0"
+requires-python = ">=3.12"
+readme          = "README.md"
+license         = {text = "Apache-2.0"}
+keywords        = ["ai", "experiments", "incubation", "innovation"]
+dependencies    = [
+    "hydra-core>=1.3",
+    "omegaconf>=2.3",
+    "pyyaml>=6.0",
+    "rich>=13.0",
+]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=6.0",
+    "ipython>=8.0",
+    "pytest>=8.0",
+    "ruff>=0.9",
+]
+
+[tool.setuptools.packages.find]
+where         = ["."]
+include       = ["velari*"]
+
+[tool.ruff]
+line-length     = 120
+exclude         = [".git", "__pycache__"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+# "E999": unexpected token Newline
+# "F401": module imported but unused
+# "E731": do not assign a lambda expression, use a def
+ignore = ["F841", "F401", "E731", "F821", "F722"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "projects"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"

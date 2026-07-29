@@ -1,0 +1,18 @@
+info:
+  name:        Data Service Connector
+  description: SQL execution API for the velari PostgreSQL connector
+  version:     0.1.0
+  docs_url:    /docs
+  redoc_url:   /redoc
+connection:
+  host:        localhost
+  port:        8001
+cors:
+  allow_origins:     ["*"]
+  allow_credentials: true
+  allow_methods:     ["*"]  # e.g., ["GET", "POST", "OPTIONS"]
+  allow_headers:     ["*"]  # e.g., ["User-Agent", "Accept", "Origin", "Content-Type", "Authorization"]
+  expose_headers:    []
+templates:
+  directory: "templates/services"
+  filename:  "index.html"

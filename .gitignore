@@ -1,0 +1,26 @@
+# Dotfiles: Ignore symlinked dotfiles directories
+_build/
+outputs/
+logs/
+/stores/
+/experiments/
+# for dotfiles
+# .vscode
+# .vscode/
+# .github
+# .github/
+# Environment
+.env
+# Python Virtual Environments
+.venv/
+# Build artifacts
+*.egg-info/
+dist/
+build/
+# Byte-compiled / optimized / DLL files
+__pycache__/
+.pytest_cache/
+*.py[codz]
+*$py.class
+# Jupyter Notebook
+.ipynb_checkpoints

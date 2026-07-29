@@ -1,0 +1,4 @@
+provider:
+  name:      gemini
+  model:     gemini-2.0-flash
+  embedding: text-embedding-004

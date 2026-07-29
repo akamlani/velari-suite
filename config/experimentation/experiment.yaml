@@ -1,0 +1,35 @@
+# for experiment local directory structure
+experiment:
+  # is this for 'dev/staging' or 'production'
+  name:         template-experiment-name
+  tags:         {}
+  install:
+    uri:        .
+    author:     arikamlani
+    dir:        ${experiment.install.uri}/experiments/snapshots
+  project:
+    # change the {name} of the project
+    name:       template-project-name
+    path:       ${experiment.install.dir}/${experiment.project.name}
+  sources:
+    path:       ${experiment.project.path}/sources
+    config:     ${experiment.sources.path}/conf
+    data:       ${experiment.sources.path}/data
+    features:   ${experiment.sources.path}/featurestore
+  artifacts:
+    path:       ${experiment.project.path}/artifacts
+    storage:    ${experiment.artifacts.path}/storage
+    datasets:   ${experiment.artifacts.path}/datasets
+    transforms: ${experiment.artifacts.path}/datasets/transformations
+    features:   ${experiment.artifacts.path}/featurestore
+    models:     ${experiment.artifacts.path}/modelstore
+    ckpts:      ${experiment.artifacts.path}/ckpts
+    eval:       ${experiment.artifacts.path}/evaluationstore
+  reporting:
+    path:       ${experiment.project.path}/reporting
+    figures:    ${experiment.reporting.path}/figures
+    reports:    ${experiment.reporting.path}/reports
+    logs:       ${experiment.reporting.path}/logs
+    integrations:
+      tb:       ${experiment.reporting.path}/tensorboard
+      wandb:    ${experiment.reporting.path}/wandb

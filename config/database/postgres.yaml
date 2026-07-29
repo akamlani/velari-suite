@@ -1,0 +1,9 @@
+adapter:    sqlalchemy
+version:    17
+connection:
+  host:     localhost  #"postgres"
+  port:     5432
+  user:     ${oc.env:POSTGRES_USER}
+  password: ${oc.env:POSTGRES_PASSWORD}
+  database: ${oc.env:POSTGRES_DB}
+  schema:   ${oc.env:POSTGRES_SCHEMA}

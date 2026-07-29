@@ -1,0 +1,8 @@
+# api_key  = OPENAI_API_KEY
+# base_url = https://api.openai.com/v1
+provider:
+  name:       openai
+  base_url:   https://api.openai.com/v1
+  model:      gpt-4o-mini
+  embedding:  text-embedding-ada-002
+  moderation: omni-moderation-latest

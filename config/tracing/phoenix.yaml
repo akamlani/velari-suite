@@ -1,0 +1,11 @@
+phoenix:
+  project:
+    project_name: default
+  connection:
+    host: localhost
+    port: 6006
+  storage:
+    working_dir: ~/.phoenix
+    db_name: phoenix.db
+  options:
+    auto_instrument: true

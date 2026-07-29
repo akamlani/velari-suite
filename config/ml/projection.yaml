@@ -1,0 +1,9 @@
+umap:
+  n_neighbors:          15        # neighborhood size; sidebar overrides this
+  n_components:         2         # output dimensions; 2=2D, 3=3D; state overrides this
+  min_dist:             0.1       # min separation in low-dim space (0=packed clusters, 0.5=loose)
+  spread:               1.0       # effective scale of embedding; works with min_dist
+  metric:               cosine    # cosine for transformer/sentence-transformer embeddings
+  n_epochs:             ~         # null = auto (200 for large datasets, 500 for small)
+  learning_rate:        1.0       # step size for embedding optimisation
+  init:                 spectral  # "spectral" (stable, recommended) or "random" (faster)

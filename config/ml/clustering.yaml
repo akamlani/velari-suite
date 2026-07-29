@@ -1,0 +1,21 @@
+kmeans:
+  n_clusters: 3
+  init:       k-means++   # "k-means++" (smart seeding) or "random"
+  n_init:     auto        # "auto" resolves to 10 (sklearn >= 1.4)
+  max_iter:   300
+  tol:        1.0e-4
+  algorithm:  lloyd       # "lloyd" or "elkan"
+
+hdbscan:
+  min_cluster_size:              2         # floor — call site scales with max(2, n//20)
+  min_samples:                   2         # 2 neighbours to qualify as a core point; reduces noise in embedding spaces
+  cluster_selection_epsilon:     0.0       # merge clusters within this distance (0 = disabled)
+                                           # for L-2 normalized embeddings: 0.05-0.30
+  cluster_selection_persistence: 0.05      # filter clusters with short hierarchy lifetime
+  cluster_selection_method:      eom       # "eom" (stable) or "leaf" (fine-grained)
+  metric:                        cosine    # cosine distance for transformer/embedding spaces
+  max_cluster_size:              0         # cap on cluster size; 0 = unlimited
+  alpha:                         1.0       # aggressiveness of cluster split
+  allow_single_cluster:          false     # allow all points in one cluster when no structure found
+  core_dist_n_jobs:              4         # parallel workers for core distance computation
+  prediction_data:               true      # store data required for approximate_predict()
