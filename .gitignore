@@ -9,6 +9,7 @@ logs/
 # .vscode/
 # .github
 # .github/
+.github/copilot-instructions.md
 # Environment
 .env
 # Python Virtual Environments

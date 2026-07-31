@@ -1,4 +1,5 @@
 """velari package — sets up logging from config/logging.yaml."""
+
 import logging
 import logging.config
 from pathlib import Path
@@ -8,7 +9,7 @@ import yaml
 from .version import __version__
 
 _CONFIG_PATH = Path(__file__).parent.parent / "config" / "logging.yaml"
-_LOG_DIR     = Path(__file__).parent.parent / "logs"
+_LOG_DIR = Path(__file__).parent.parent / "logs"
 
 
 def setup_logging(config_path: Path = _CONFIG_PATH) -> None:

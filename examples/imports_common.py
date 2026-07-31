@@ -35,10 +35,10 @@ if __name__ == "__main__":
     parser.add_argument("--expname", "-e", type=str, required=True, help="Experiment Name")
     parser.add_argument("--rootdir", "-r", type=str, required=False, help="Root Directory Path to walk")
 
-    args       = parser.parse_args()
-    expname    = args.expname
-    rootdir    = args.rootdir
+    args = parser.parse_args()
+    expname = args.expname
+    rootdir = args.rootdir
     # execute experiment
-    exp        = Experiment(root_path=read_root_dir() if not rootdir else rootdir)
-    seed       = exp.seed_init()
+    exp = Experiment(root_path=read_root_dir() if not rootdir else rootdir)
+    seed = exp.seed_init()
     exp_config = exp.create(experiment_name=expname, tags=expname.split("-")).experiment

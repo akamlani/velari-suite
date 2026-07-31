@@ -49,19 +49,18 @@ info_dotfiles:
 
 
 #################### Installation
-.PHONY: install install_setup install_dotfiles link_dotfiles link_vaultspace
+.PHONY: install install_setup
 
 install:
 	@echo "Installing package $(PACKAGE_INSTALL_NAME) for development..."
 	$(MAKE) install_setup
 	$(MAKE) install_dotfiles
-	$(MAKE) link_vaultspace
+	$(MAKE) install_python
 
 install_setup:
 	@echo "Installing Setup for $(PACKAGE_NAME)..."
 	mkdir -p .$(PACKAGE_NAME)
-	mkdir -p _build config docs templates projects
-#	mkdir -p _build config data docs scripts apps projects examples templates
+	mkdir -p _build config data docs scripts templates examples apps
 	touch .env.template
 	touch docs/.gitkeep
 
@@ -75,10 +74,10 @@ install_dotfiles:
 	fi
 	$(MAKE) link_dotfiles
 
-# links dotfiles contents individually so existing entries (e.g. .github/workflows) are preserved
+# links dotfiles contents individually so any existing entries are preserved
 link_dotfiles:
 	@echo "Linking Dotfiles..."
-	@for dir in .vscode .github; do \
+	@for dir in .vscode; do \
 		mkdir -p $(GIT_ROOT)/$$dir; \
 		find $(GIT_ROOT)/$(DOTFILES_DIR)/$$dir -maxdepth 1 -mindepth 1 | \
 		while read src; do \
@@ -87,21 +86,17 @@ link_dotfiles:
 		done; \
 	done
 
-# links to obsidian vaults for contextlib, artifactlib, promptlib
-link_vaultspace:
-	@echo "Linking Vaultspace..."
-	mkdir -p stores
-	ln -sfn $(VAULTSPACE_ROOT)/contextlib 	stores/contextlib
-	ln -sfn $(VAULTSPACE_ROOT)/artifactlib 	stores/artifactlib
-	ln -sfn $(VAULTSPACE_ROOT)/promptlib 	stores/promptlib
-
 
 #################### Python / uv
-.PHONY: conda_config uv_download download_python
-.PHONY: install_python uv_sync_project_name
-.PHONY: format lint test clean_python run_app
+.PHONY: download_python conda_config uv_download 
+.PHONY: install_python 
+.PHONY: uv_install_python
+.PHONY: uv_sync_project_name clean_python
 
-APP ?= examples/apps/studio/app.py
+install_python:
+	$(MAKE) download_python
+	$(MAKE) uv_sync_project_name
+	$(MAKE) uv_install_python
 
 download_python:
 	@echo "Downloading Python version $(PYTHON_VERSION) with UV..."
@@ -124,27 +119,6 @@ uv_download:
 	uv   self update
 	@echo "UV version: $$(uv --version)"
 
-# not currently used
-# uv_init:
-# 	@echo "Initializing UV for project $(PACKAGE_INSTALL_NAME)..."
-# 	@echo "$(PYTHON_VERSION)" > .python-version
-# 	@if [ ! -f pyproject.toml ]; then uv init; fi
-# 	@uv python install $(PYTHON_VERSION)
-# 	@if [ ! -d "$(PYTHON_VENV_DIR)" ]; then uv venv "$(PYTHON_VENV_DIR)" --python $(PYTHON_VERSION); fi
-# 	@rm -f main.py
-
-install_python:
-	@echo "Installing Python environment with uv..."
-	uv python install $(PYTHON_VERSION)
-	@echo "$(PYTHON_VERSION)" > .python-version
-	$(MAKE) uv_sync_project_name
-	uv venv $(PYTHON_VENV_DIR) --python $(PYTHON_VERSION) --prompt "$(PYTHON_VENV_KERNEL_NAME)"
-	source $(PYTHON_VENV_DIR)/bin/activate && uv sync --all-extras --active
-	uv pip install -e .
-	uv pip install --upgrade pip ipython ipykernel
-	uv run python -m ipykernel install --user --name=$(PYTHON_VENV_KERNEL_NAME)
-	@echo "UV version: $$(uv --version)"
-
 uv_sync_project_name:
 	@test -f "$(RUNTIME_FILE)" || { echo "Missing $(RUNTIME_FILE)"; exit 1; }
 	@test -f "$(PYTHON_FILE)"  || { echo "Missing $(PYTHON_FILE)"; exit 1; }
@@ -157,11 +131,31 @@ uv_sync_project_name:
 	fi
 	@echo "After : $$(grep -E '^name[[:space:]]*=' pyproject.toml)"
 
-run_app:
-	@echo "Launching Streamlit app with auto-reload..."
-	uv run --group apps streamlit run $(APP) \
-		--server.runOnSave true \
-		--server.fileWatcherType watchdog
+uv_install_python:
+	@echo "Installing Python environment with uv..."
+	uv python install $(PYTHON_VERSION)
+	@echo "$(PYTHON_VERSION)" > .python-version
+	$(MAKE) uv_sync_project_name
+	uv venv $(PYTHON_VENV_DIR) --python $(PYTHON_VERSION) --prompt "$(PYTHON_VENV_KERNEL_NAME)"
+	source $(PYTHON_VENV_DIR)/bin/activate && uv sync --all-extras --active
+	uv pip install -e .
+	uv pip install --upgrade pip ipython ipykernel
+	uv run python -m ipykernel install --user --name=$(PYTHON_VENV_KERNEL_NAME)
+	@echo "UV version: $$(uv --version)"
+
+clean_python:
+	@echo "Cleaning Python artifacts for $(PACKAGE_INSTALL_NAME)..."
+#	rm -rf $(PYTHON_VENV_DIR)
+	rm -rf .pytest_cache dist
+	find . -not -path './.git/*' -type d -name "__pycache__" -exec rm -rf {} +
+	find . -not -path './.git/*' -type f -name "*.pyc" -delete
+
+
+
+
+#################### Utilties
+.PHONY: format lint test clean run_app
+APP ?= examples/apps/studio/app.py
 
 format:
 	@echo "Formatting $(PACKAGE_NAME)..."
@@ -175,104 +169,15 @@ test:
 	@echo "Running tests for $(PACKAGE_NAME)..."
 	uv run pytest
 
-clean_python:
-	@echo "Cleaning Python artifacts for $(PACKAGE_INSTALL_NAME)..."
-#	rm -rf $(PYTHON_VENV_DIR)
-	rm -rf .pytest_cache dist
-	find . -not -path './.git/*' -type d -name "__pycache__" -exec rm -rf {} +
-	find . -not -path './.git/*' -type f -name "*.pyc" -delete
-
-
-#################### Minimal Agents and Skills
-.PHONY: setup_agent setup_agent_claude
-.PHONY: install_agents install_local_skills
-
-install_agents:
-	@echo "Installing agents setup..."
-	$(MAKE) setup_agent
-	$(MAKE) setup_agent_claude
-	$(MAKE) install_local_skills
-	$(MAKE) -C $(SKILLS_DIR) install_plugin_local PROJECT_DIR=$(GIT_ROOT)
-	$(MAKE) -C $(SKILLS_DIR) install_marketplace_claude
-	$(MAKE) -C $(SKILLS_DIR) install_plugin_claude PROJECT_DIR=$(GIT_ROOT)
-
-install_local_skills:
-	@echo "Installing agent-skills from $(SKILLS_REPO)..."
-	@if [ ! -d $(SKILLS_DIR) ]; then \
-		git clone $(SKILLS_REPO) $(SKILLS_DIR); \
-	fi
-
-setup_agent:
-	@echo "Installing agents setup..."
-# General setup
-	mkdir -p .agents
-	touch AGENTS.md
-
-setup_agent_claude:
-	@echo "Installing Claude Coding Agent..."
-# repopulate claude directories
-	mkdir -p .claude
-	mkdir -p .claude-plugin
-	touch CLAUDE.md
-	echo @AGENTS.md > CLAUDE.md
-	touch .claude/CLAUDE.md
-	touch .claude/settings.json
-	touch .claude/settings.local.json
-
-
-#################### MCP Servers
-PROJECT_DIR ?= $(GIT_ROOT)
-.PHONY: install_mcp_servers
-
-install_mcp_servers:
-	@echo "Installing MCP Servers..."
-	@echo "MCP project scope directory: $(PROJECT_DIR)"
-	@cd $(PROJECT_DIR); \
-	for entry in $(MCP_SERVERS); do \
-		name=$$(echo $$entry | cut -d@ -f1); \
-		url=$$(echo $$entry | cut -d@ -f2-); \
-		claude mcp add --transport http --scope project $$name $$url; \
-	done; \
-	for entry in $(MCP_SERVERS_STDIO); do \
-		name=$$(echo $$entry | cut -d'^' -f1); \
-		command=$$(echo $$entry | cut -d'^' -f2); \
-		args_csv=$$(echo $$entry | cut -d'^' -f3-); \
-		args=$$(echo $$args_csv | tr ',' ' '); \
-		claude mcp add --scope project $$name -- $$command $$args; \
-	done
-
-
-#################### Development CLIs
-.PHONY: install_github_cli install_codex_cli install_claude_cli
-
-install_github_cli:
-	@echo "Installing GitHub CLIs for Development..."
-# gitub copilot
-	npm install -g @github/copilot
-	copilot update
-	@echo "Github Copilot Version: $$(copilot --version)"
-# github agentic workflows
-	gh extension install github/gh-aw
-	gh extension upgrade aw
-	@echo "Github Agentic Workflow Version: $$(gh aw --version)"
-	gh aw add githubnext/agentics/daily-repo-status
-
-install_claude_cli:
-	@echo "Installing Claude CLI for Development..."
-# npm install -g @anthropic-ai/claude-code
-	curl -fsSL https://claude.ai/install.sh | bash
-	@echo "Claude CLI Version: $$(claude --version)"
-
-install_codex_cli:
-	@echo "Installing OpenAI Codex CLI for Development..."
-	npm install -g @openai/codex
-	@echo "OpenAI Codex CLI Version: $$(codex --version)"
-
-#################### General
-.PHONY: clean
 clean:
 	@echo "Cleaning project files for installed package ..."
 	$(MAKE) clean_python
 	find . -not -path './.git/*' -type d -name "outputs" -exec rm -rf {} +
 	find . -not -path './.git/*' -name "*.out" -delete
 	find . -not -path './.git/*' -name ".DS_Store" -delete
+
+run_app:
+	@echo "Launching Streamlit app with auto-reload..."
+	uv run --group apps streamlit run $(APP) \
+		--server.runOnSave true \
+		--server.fileWatcherType watchdog
