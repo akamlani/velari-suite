@@ -1,23 +1,5 @@
-[project]
-name            = "velari-studios-suite"
-authors         = [{name = "Ari Kamlani", email = "akamlani@gmail.com"}]
-description     = "Suite of Velari Studios tools and utilities"
-version         = "0.1.0"
-requires-python = ">=3.12"
-readme          = "README.md"
-license         = {text = "Apache-2.0"}
-keywords        = ["ai", "experiments", "incubation", "innovation"]
-dependencies    = [
-    "appdirs>=1.4",
-    "hydra-core>=1.3",
-    "omegaconf>=2.3",
-    "pyyaml>=6.0",
-    "rich>=13.0",
-    "numpy>=1.26",
-    "pandas>=2.0",
-    "httpx[http2]>=0.27",
-    "python-dotenv>=1.2.2",
-]
+[tool.uv.workspace]
+members = ["packages/*"]
 
 [dependency-groups]
 dev = [
@@ -29,10 +11,6 @@ dev = [
     "pytest>=8.0",
     "ruff>=0.9",
 ]
-
-[tool.setuptools.packages.find]
-where         = ["."]
-include       = ["velari*", "examples*"]
 
 [tool.ruff]
 line-length     = 122
@@ -50,6 +28,9 @@ ignore = ["F841", "F401", "E731", "I001"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.pyright]
+extraPaths = ["packages/velari-core"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

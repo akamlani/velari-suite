@@ -3,7 +3,7 @@
 from pathlib import Path
 from omegaconf import OmegaConf
 
-from velari.core import read_root_dir
+from velari.core.utils.env_utils import read_root_dir
 
 
 CONFIG_PATH = Path(read_root_dir()) / "config" / "config.yaml"

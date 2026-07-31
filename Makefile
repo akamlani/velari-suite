@@ -5,8 +5,6 @@ PYTHON_FILE  := ./config/runtime/python.env
 include $(RUNTIME_FILE)
 include $(PYTHON_FILE)
 
-export PACKAGE_INSTALL_NAME
-
 #################### Makefile Configuration
 GIT_ROOT ?= $(shell git rev-parse --show-toplevel)
 # e.g., Darwin for MacOS
@@ -30,14 +28,14 @@ help:
 	@echo "Commands  : "
 	@echo "download  : downloads dependencies distribution"
 	@echo "system    : Installs System Libraries per $(PLATFORM_TYPE)"
-	@echo "install   : create environment based on project $(PACKAGE_INSTALL_NAME)"
-	@echo "format    : formatting and linting of project $(PACKAGE_NAME)"
-	@echo "clean     : cleans all files or project $(PACKAGE_INSTALL_NAME)"
+	@echo "install   : create environment for workspace $(PACKAGE_NAME)"
+	@echo "format    : formatting and linting of workspace $(PACKAGE_NAME)"
+	@echo "clean     : cleans all files for workspace $(PACKAGE_NAME)"
 	@echo "test      : execute unit testing"
 
 info:
 	@echo "Git Root:       $(GIT_ROOT)"
-	@echo "Package:        $(PACKAGE_INSTALL_NAME) - $(PACKAGE_NAME)"
+	@echo "Workspace:      $(PACKAGE_NAME)"
 	@echo "Platform:       ${PLATFORM_TYPE}"
 	@echo "Architecture:   $$(uname -m)"
 	@echo "Shell:          $(SHELL)"
@@ -52,7 +50,7 @@ info_dotfiles:
 .PHONY: install install_setup
 
 install:
-	@echo "Installing package $(PACKAGE_INSTALL_NAME) for development..."
+	@echo "Installing workspace $(PACKAGE_NAME) for development..."
 	$(MAKE) install_setup
 	$(MAKE) install_dotfiles
 	$(MAKE) install_python
@@ -60,7 +58,7 @@ install:
 install_setup:
 	@echo "Installing Setup for $(PACKAGE_NAME)..."
 	mkdir -p .$(PACKAGE_NAME)
-	mkdir -p _build config data docs scripts templates examples apps
+	mkdir -p _build config data docs scripts templates examples apps packages
 	touch .env.template
 	touch docs/.gitkeep
 
@@ -88,14 +86,13 @@ link_dotfiles:
 
 
 #################### Python / uv
-.PHONY: download_python conda_config uv_download 
-.PHONY: install_python 
+.PHONY: download_python conda_config uv_download
+.PHONY: install_python
 .PHONY: uv_install_python
-.PHONY: uv_sync_project_name clean_python
+.PHONY: clean_python
 
 install_python:
 	$(MAKE) download_python
-	$(MAKE) uv_sync_project_name
 	$(MAKE) uv_install_python
 
 download_python:
@@ -119,32 +116,18 @@ uv_download:
 	uv   self update
 	@echo "UV version: $$(uv --version)"
 
-uv_sync_project_name:
-	@test -f "$(RUNTIME_FILE)" || { echo "Missing $(RUNTIME_FILE)"; exit 1; }
-	@test -f "$(PYTHON_FILE)"  || { echo "Missing $(PYTHON_FILE)"; exit 1; }
-	@echo "Using PACKAGE_INSTALL_NAME=$(PACKAGE_INSTALL_NAME)"
-	@echo "Before: $$(grep -E '^name[[:space:]]*=' pyproject.toml)"
-	@if [ "$(PLATFORM_TYPE)" = "Darwin" ]; then \
-		sed -E -i '' "s|^name[[:space:]]*=.*|name = \"$(PACKAGE_INSTALL_NAME)\"|" pyproject.toml; \
-	else \
-		sed -E -i "s|^name[[:space:]]*=.*|name = \"$(PACKAGE_INSTALL_NAME)\"|" pyproject.toml; \
-	fi
-	@echo "After : $$(grep -E '^name[[:space:]]*=' pyproject.toml)"
-
 uv_install_python:
 	@echo "Installing Python environment with uv..."
 	uv python install $(PYTHON_VERSION)
 	@echo "$(PYTHON_VERSION)" > .python-version
-	$(MAKE) uv_sync_project_name
 	uv venv $(PYTHON_VENV_DIR) --python $(PYTHON_VERSION) --prompt "$(PYTHON_VENV_KERNEL_NAME)"
 	source $(PYTHON_VENV_DIR)/bin/activate && uv sync --all-extras --active
-	uv pip install -e .
 	uv pip install --upgrade pip ipython ipykernel
 	uv run python -m ipykernel install --user --name=$(PYTHON_VENV_KERNEL_NAME)
 	@echo "UV version: $$(uv --version)"
 
 clean_python:
-	@echo "Cleaning Python artifacts for $(PACKAGE_INSTALL_NAME)..."
+	@echo "Cleaning Python artifacts for workspace $(PACKAGE_NAME)..."
 #	rm -rf $(PYTHON_VENV_DIR)
 	rm -rf .pytest_cache dist
 	find . -not -path './.git/*' -type d -name "__pycache__" -exec rm -rf {} +

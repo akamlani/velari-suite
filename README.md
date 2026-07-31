@@ -34,19 +34,20 @@ project-template-velari/
 ├── logs/                             # Runtime log output (not tracked by git)
 ├── outputs/                          # Generated output artifacts, organized by date (not tracked by git)
 ├── templates/                        # Reusable project templates including spec scaffolds
-├── tests/                            # pytest test suite for the velari package
-├── velari/                           # Main Python package
-│   ├── ai/                           # AI agents, evals, retrieval pipelines, and vector stores
-│   ├── core/                         # Core utilities: I/O, filesystem, and experiment management
-│   ├── data/                         # Dataset loading and manipulation utilities
-│   └── integrations/                 # Third-party integrations: OpenAI, Arize, LangChain, DuckDB, Tavily
+├── tests/                            # pytest test suite for the workspace (centralized across all packages)
+├── packages/                         # uv workspace member packages
+│   └── velari-core/                  # velari-core package
+│       ├── pyproject.toml            # Package metadata and dependencies
+│       └── velari/
+│           ├── core/                 # Core utilities: I/O, filesystem, and experiment management
+│           └── integrations/         # Third-party integrations: Pydantic (FastAPI planned)
 ├── .env                              # Local environment variables and secrets; not tracked by git
 ├── AGENTS.md                         # AI agent context file
 ├── CLAUDE.md                         # Claude Code entry point
 ├── LICENSE                           # Apache-2.0
 ├── Makefile                          # Setup and automation targets
-├── pyproject.toml                    # Python project config (uv/ruff/pytest)
-└── uv.lock                           # Locked dependency versions
+├── pyproject.toml                    # Workspace root config (uv workspace members, ruff/pytest)
+└── uv.lock                           # Locked dependency versions, shared across the workspace
 ```
 
 ### Dotfiles & Agent Configuration

@@ -4,7 +4,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 try:
-    from IPython import get_ipython
+    from IPython.core.getipython import get_ipython
 
     from rich import print_json
     from rich.pretty import pprint as rpprint
@@ -28,7 +28,8 @@ except NameError:
 if __name__ == "__main__":
     # common imports for this aistudio library
     from omegaconf import DictConfig, OmegaConf
-    from velari.core import Experiment, read_env, read_root_dir
+    from velari.core.experiment import Experiment
+    from velari.core.utils.env_utils import read_env, read_root_dir
 
     # parse input arguments
     parser = argparse.ArgumentParser(description="Experiment Parameters")

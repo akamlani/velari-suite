@@ -32,7 +32,8 @@ Files an AI agent should read first to understand the project's conventions, con
 | `Makefile` | Primary automation: install, python, agents, dotfiles |
 | `config/runtime/runtime.env` | Package name, repo URLs, branch config |
 | `config/runtime/python.env` | Python version and venv config |
-| `pyproject.toml` | Python project metadata, ruff and pytest config |
+| `pyproject.toml` | Workspace root config: `[tool.uv.workspace]` members, shared ruff/pytest config, dev dependency-group |
+| `packages/velari-core/pyproject.toml` | `velari-core` package metadata and its runtime dependencies |
 | `.claude/rules/PREFERENCES.md` | Coding conventions: logging, type annotations, package structure |
 | `.vscode/settings.json` | Editor and code-style configuration (docstring format, formatter settings, etc.) — consult when writing or reviewing code |
 
@@ -48,12 +49,14 @@ Files an AI agent should read first to understand the project's conventions, con
 
 ## Package Structure
 
-| Sub-package | Description |
-|---|---|
-| `velari/ai/` | AI agents, evals, retrieval pipelines, and vector stores |
-| `velari/core/` | Core utilities: I/O, filesystem, partitioning, and experiment management |
-| `velari/data/` | Dataset loading and manipulation utilities |
-| `velari/integrations/` | Third-party integrations: OpenAI, Arize, LangChain, DuckDB, Tavily |
+This repo is a `uv` workspace monorepo (`[tool.uv.workspace] members = ["packages/*"]` in the root `pyproject.toml`) hosting multiple independently-versioned packages under `packages/`. The root `pyproject.toml` has no `[project]` table of its own — it is a virtual workspace root; each package under `packages/<name>/` has its own `pyproject.toml` with its own name and dependencies. A single `uv.lock` and shared `.venv` cover the whole workspace.
+
+| Package | Import path | Description |
+|---|---|---|
+| `packages/velari-core/` | `velari.core` | Core utilities: I/O, filesystem, partitioning, and experiment management |
+| `packages/velari-core/` | `velari.integrations.pydantic` | Third-party integrations: Pydantic tooling (FastAPI integration planned) |
+
+Future packages (e.g. `velari-ai`, `velari-data`) will be added under `packages/<name>/` following the same pattern as `packages/velari-core/`.
 
 ## Structure Notes
 
@@ -72,7 +75,8 @@ Files an AI agent should read first to understand the project's conventions, con
 | `logs/` | Runtime log output; not tracked by git |
 | `outputs/` | Generated output artifacts, organized by date; not tracked by git |
 | `templates/` | Reusable project templates including spec scaffolds |
-| `tests/` | pytest test suite for the `velari` package |
+| `tests/` | pytest test suite for the workspace, centralized regardless of package count (`testpaths = ["tests"]`) |
+| `packages/` | `uv` workspace member packages, one subdirectory per installable package |
 
 ### Dotfiles & Agent Configuration
 
