@@ -100,7 +100,7 @@ install_python:
 
 download_python:
 	@echo "Downloading Python version $(PYTHON_VERSION) with UV..."
-	$(MAKE) conda_config
+#	$(MAKE) conda_config
 	$(MAKE) uv_download
 
 conda_config:
