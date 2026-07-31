@@ -1,25 +1,21 @@
-import  httpx
-import  json
-import  logging
-import  mimetypes
-import  shutil
-import  tempfile
-import  yaml
-from    pathlib import Path
-from    typing import Any, Iterator, List, Optional, Tuple, Union
+import httpx
+import json
+import logging
+import mimetypes
+import shutil
+import tempfile
+import yaml
+from pathlib import Path
+from typing import Any, Iterator, List, Optional, Tuple, Union
 
-from    .types import ArtifactFormat, ArtifactKind, ArtifactProperties
+from .types import ArtifactFormat, ArtifactKind, ArtifactProperties
 
 logger = logging.getLogger(__name__)
 
-get_username  = lambda: Path.home().name
+get_username = lambda: Path.home().name
 get_user_home = lambda: str(Path.home())
 
-_ARCHIVE_FORMATS = {
-    suffix: name
-    for name, suffixes, _ in shutil.get_unpack_formats()
-    for suffix in suffixes
-}
+_ARCHIVE_FORMATS = {suffix: name for name, suffixes, _ in shutil.get_unpack_formats() for suffix in suffixes}
 
 
 class Filesystem(object):
@@ -75,9 +71,12 @@ class Filesystem(object):
         is_dir = exists and local_path.is_dir()
         suffix = Filesystem._archive_suffix(local_path)
         kind = (
-            ArtifactKind.DIRECTORY if is_dir
-            else ArtifactKind.ARCHIVE if suffix is not None
-            else ArtifactKind.FILE if exists
+            ArtifactKind.DIRECTORY
+            if is_dir
+            else ArtifactKind.ARCHIVE
+            if suffix is not None
+            else ArtifactKind.FILE
+            if exists
             else ArtifactKind.UNKNOWN
         )
 
@@ -85,7 +84,8 @@ class Filesystem(object):
         if exists:
             size = (
                 sum(f.stat().st_size for f in local_path.rglob("*") if f.is_file())
-                if is_dir else local_path.stat().st_size
+                if is_dir
+                else local_path.stat().st_size
             )
         disk_total, disk_used, disk_free = shutil.disk_usage(local_path) if exists else (None, None, None)
 

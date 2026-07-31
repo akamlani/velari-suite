@@ -6,7 +6,7 @@ import datetime
 from typing import Annotated
 
 QueryParam = Annotated[str, {"required": True}]
-DateStr    = Annotated[str, {"format": "MM/DD/YYYY"}]
+DateStr = Annotated[str, {"format": "MM/DD/YYYY"}]
 
 
 def serialize_date(date: datetime.date) -> DateStr:
@@ -30,20 +30,22 @@ class StrEnumBase(StrEnum):
     @classmethod
     def to_str(cls) -> str:
         """Return a comma-separated string of all member values."""
-        return ', '.join([c.value for c in cls])
+        return ", ".join([c.value for c in cls])
 
     def __str__(self) -> str:
         return self.value
 
+
 class IOFormat(StrEnumBase):
     """Enumerate supported document and data serialisation formats."""
-    DICT        = auto()
-    DICTCONFIG  = auto()
-    YAML        = auto()
-    JSON        = auto()
-    TEXT        = auto()
-    PDF         = auto()
-    DOCX        = auto()
-    HTML        = auto()
-    MARKDOWN    = auto()
-    DATAFRAME   = auto()
+
+    DICT = auto()
+    DICTCONFIG = auto()
+    YAML = auto()
+    JSON = auto()
+    TEXT = auto()
+    PDF = auto()
+    DOCX = auto()
+    HTML = auto()
+    MARKDOWN = auto()
+    DATAFRAME = auto()

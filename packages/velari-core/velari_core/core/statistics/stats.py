@@ -1,5 +1,6 @@
 import numpy as np
-from   typing import List
+from typing import List
+
 
 def calc_pct_change(base_value: float, new_value: float) -> float:
     """Compute the percent change from `base_value` to `new_value`.
@@ -27,6 +28,7 @@ def calc_pct_change(base_value: float, new_value: float) -> float:
         return ((new_value - base_value) / base_value) * 100
     except ZeroDivisionError as e:
         raise ValueError("base_value must be non-zero to calculate percent change") from e
+
 
 def calc_weighted_avg(values: List[float], weights: List[float]) -> float:
     """Compute the weighted average of `values`, weighted by `weights`.

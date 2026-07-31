@@ -8,6 +8,7 @@ from omegaconf import DictConfig, OmegaConf
 def _register_root_resolver() -> None:
     if not OmegaConf.has_resolver("root"):
         from ...utils.env_utils import read_root_dir
+
         OmegaConf.register_new_resolver("root", lambda rel: str(Path(read_root_dir()) / rel))
 
 
@@ -42,6 +43,7 @@ def read_hydra_defaults(config_dir: str, config_name: str) -> DictConfig:
         >>> cfg = read_hydra_defaults(str(config_dir), "config")
         >>> log_filename = cfg.logging  # resolve the logging config path
     """
+
     def resolve_tuple(*args):
         return tuple(args)
 
@@ -90,7 +92,7 @@ def read_hydra_compose(
         config_dir=str(Path(config_path).resolve()),
         version_base=None,
     ):
-        config      = hydra.compose(config_name=config_name, overrides=overrides or [])
+        config = hydra.compose(config_name=config_name, overrides=overrides or [])
         config_yaml = OmegaConf.to_yaml(config)
         return config, config_yaml
 

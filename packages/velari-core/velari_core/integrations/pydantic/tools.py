@@ -1,6 +1,6 @@
-import  logging
-from    typing import Type, Dict, Any, Callable
-from    pydantic import BaseModel
+import logging
+from typing import Type, Dict, Any, Callable
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 

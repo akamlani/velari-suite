@@ -3,7 +3,8 @@ import re
 
 import base64
 
-trsfrm_base64 = lambda data: base64.b64encode(data).decode('utf-8')
+trsfrm_base64 = lambda data: base64.b64encode(data).decode("utf-8")
+
 
 def trsfrm_camelcase_to_snakecase(col: str) -> str:
     """Transforms column naming from camelcase to snakecase

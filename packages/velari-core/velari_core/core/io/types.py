@@ -7,30 +7,30 @@ from typing import Any, Optional
 
 
 class ArtifactFormat(StrEnum):
-    PDF       = auto()
-    JSON      = auto()
-    TXT       = auto()
-    MARKDOWN  = auto()
-    YAML      = auto()
-    PY        = auto()
-    BLOB      = auto()
-    DUCKDB    = auto()
+    PDF = auto()
+    JSON = auto()
+    TXT = auto()
+    MARKDOWN = auto()
+    YAML = auto()
+    PY = auto()
+    BLOB = auto()
+    DUCKDB = auto()
     DATAFRAME = auto()
-    EXCEL     = auto()
-    WEB       = auto()
+    EXCEL = auto()
+    WEB = auto()
 
     @classmethod
     def from_ext(cls, extension: str) -> Optional[ArtifactFormat]:
         mapping = {
-            ".pdf":  cls.PDF,
+            ".pdf": cls.PDF,
             ".json": cls.JSON,
-            ".txt":  cls.TXT,
-            ".md":   cls.TXT,
+            ".txt": cls.TXT,
+            ".md": cls.TXT,
             ".yaml": cls.YAML,
-            ".yml":  cls.YAML,
-            ".py":   cls.PY,
+            ".yml": cls.YAML,
+            ".py": cls.PY,
             ".xlsx": cls.EXCEL,
-            ".xls":  cls.EXCEL,
+            ".xls": cls.EXCEL,
         }
         return mapping.get(extension.lower())
 
@@ -47,41 +47,41 @@ class ArtifactFormat(StrEnum):
 
 
 class ArtifactKind(StrEnum):
-    FILE      = auto()
+    FILE = auto()
     DIRECTORY = auto()
-    ARCHIVE   = auto()
-    UNKNOWN   = auto()
+    ARCHIVE = auto()
+    UNKNOWN = auto()
 
 
 @dataclass
 class ArtifactProperties:
     @dataclass
     class Location:
-        is_local:  bool
+        is_local: bool
         is_remote: bool
-        path:      Optional[str] = None
-        uri:       Optional[str] = None
+        path: Optional[str] = None
+        uri: Optional[str] = None
 
     @dataclass
     class Kind:
         exists: bool
-        type:   ArtifactKind
+        type: ArtifactKind
 
     @dataclass
     class Name:
-        parent:    str
+        parent: str
         base_name: str
         extension: str
         mime_type: str
 
     @dataclass
     class Stats:
-        size:       Optional[int] = None
+        size: Optional[int] = None
         disk_total: Optional[int] = None
-        disk_used:  Optional[int] = None
-        disk_free:  Optional[int] = None
+        disk_used: Optional[int] = None
+        disk_free: Optional[int] = None
 
     location: Location
-    kind:     Kind
-    name:     Name
-    stats:    Stats
+    kind: Kind
+    name: Name
+    stats: Stats
