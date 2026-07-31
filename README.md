@@ -36,11 +36,14 @@ project-template-velari/
 ├── templates/                        # Reusable project templates including spec scaffolds
 ├── tests/                            # pytest test suite for the workspace (centralized across all packages)
 ├── packages/                         # uv workspace member packages
-│   └── velari-core/                  # velari-core package
+│   ├── velari-core/                  # velari-core package
+│   │   ├── pyproject.toml            # Package metadata and dependencies
+│   │   └── velari_core/
+│   │       ├── core/                 # experiment.py, types.py, I/O, perf, statistics, transforms, utils
+│   │       └── integrations/         # Third-party integrations: Pydantic (FastAPI planned)
+│   └── velari-data/                  # velari-data package (depends on velari-core)
 │       ├── pyproject.toml            # Package metadata and dependencies
-│       └── velari/
-│           ├── core/                 # Core utilities: I/O, filesystem, and experiment management
-│           └── integrations/         # Third-party integrations: Pydantic (FastAPI planned)
+│       └── velari_data/              # Data utilities
 ├── .env                              # Local environment variables and secrets; not tracked by git
 ├── AGENTS.md                         # AI agent context file
 ├── CLAUDE.md                         # Claude Code entry point

@@ -1,4 +1,4 @@
-"""velari package — sets up logging from config/logging.yaml."""
+"""velari_core package — sets up logging from config/logging.yaml."""
 
 import logging
 import logging.config

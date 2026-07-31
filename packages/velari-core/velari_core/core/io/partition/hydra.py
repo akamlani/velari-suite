@@ -37,7 +37,7 @@ def read_hydra_defaults(config_dir: str, config_name: str) -> DictConfig:
 
         Retrieve the logging section and pass it downstream:
 
-        >>> from velari.studios.aistudio.core.utils.env_utils import read_root_dir
+        >>> from velari_core.core.utils.env_utils import read_root_dir
         >>> config_dir = Path(read_root_dir()) / "config"
         >>> cfg = read_hydra_defaults(str(config_dir), "config")
         >>> log_filename = cfg.logging  # resolve the logging config path
@@ -78,7 +78,7 @@ def read_hydra_compose(
         A tuple containing the composed DictConfig and its YAML string representation.
 
     Examples:
-        >>> from velari.core.utils.env_utils import read_root_dir
+        >>> from velari_core.core.utils.env_utils import read_root_dir
         >>> from pathlib import Path
         >>> config_path = str(Path(read_root_dir()) / "config")
         >>> cfg, cfg_yaml = read_hydra_compose(config_path, "config.yaml")
@@ -113,7 +113,7 @@ def read_hydra(filepath: str, *args: Tuple[Any, ...], **kwargs: Dict[str, Any]) 
 
         Load an experiment template then inject a run name before use:
 
-        >>> from velari.studios.aistudio.core.utils.env_utils import read_root_dir
+        >>> from velari_core.core.utils.env_utils import read_root_dir
         >>> yaml_path = Path(read_root_dir()) / "config" / "experimentation" / "experiment.yaml"
         >>> cfg = read_hydra(yaml_path)
         >>> cfg.experiment.name = "bert-finetune-v1"

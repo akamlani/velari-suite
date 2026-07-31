@@ -1,76 +1,59 @@
-# Monorepo Migration: velari-suite → uv Workspace (velari-core)
+# Python Monorepo Workspace: Migration & Package-Addition Template
 
-Executed migration plan for turning `velari-suite` from a single flat Python package into a `uv` workspace monorepo hosting multiple independently-installable packages, starting with `velari-core`. Kept as a reference for adding future workspace members (e.g. `velari-ai`, `velari-data`).
+Reusable template for two related situations:
+1. **Splitting a flat Python package into a multi-package workspace monorepo** (one distribution → several independently-installable distributions sharing a workspace).
+2. **Adding a new package to an already-existing workspace monorepo.**
 
-## Context
+Written to be tool-agnostic where the underlying concept is (namespace strategy, root detection, test placement); commands shown use `uv` as the reference implementation since that's the most common modern choice, with the Poetry/PDM/plain-setuptools equivalents noted where they differ meaningfully. The packaging mechanics referenced (PEP 420 namespace packages, PEP 660 editable installs) are Python-specific, so "any monorepo design" here means *any Python monorepo tooling*, not language-agnostic advice.
 
-`velari-suite` was a single flat package (`velari-studios-suite`) with `velari/core/` and `velari/integrations/` at the repo root. The goal was to make this repo host multiple independently-versioned libraries, starting with `velari-core`. Modeled loosely on how LangChain structures `langchain-ai/langchain` (a `uv`-workspace monorepo where `langchain-core`, `langchain-community`, etc. are independent top-level distributions) — but for this first pass, `velari-core` consolidates **both** existing subpackages (`velari/core/` and `velari/integrations/{pydantic,fastapi}/`) into one distribution, rather than splitting them apart.
+## Key decisions to make up front
 
-### Decisions made
+Make these decisions explicitly before moving any code — several are expensive to reverse once other packages depend on the choice.
 
-- **One distribution for now**: `velari-core` owns the whole `velari.*` dotted namespace (`velari.core`, `velari.integrations.pydantic`, `velari.integrations.fastapi`). Since only one distribution claims the `velari` top-level name, no PEP 420 cross-distribution namespace-package handling is needed — `velari/__init__.py` stays a normal package with its auto-run `setup_logging()` behavior unchanged. Future genuinely-separate libraries (e.g. a future `velari-ai`) would follow LangChain's pattern of an independent top-level import name (`velari_ai`, not `velari.ai` merged in via namespace packages) — that's a decision for when that package is actually created, not resolved here.
-- **Workspace directory name**: `packages/` (uv community convention), not `libs/` (which LangChain uses).
-- **Root-detection fix**: `read_root_dir()` must not assume "root = N directories above this file." Instead it walks up parsing each candidate `pyproject.toml` for a `[tool.uv.workspace]` table (via `tomllib`) to find the true monorepo root — a nested per-package `pyproject.toml` under `packages/velari-core/` would otherwise falsely look like the root.
+1. **Workspace directory convention.** `packages/` (uv community convention) vs. `libs/` (LangChain's convention) vs. something else. Pick one and use it consistently for every member.
 
-## Pre-migration state (verified)
+2. **Namespace strategy, per package.** Default recommendation: give each package an **independent top-level import name that mirrors its own distribution name** (`my-core` → `my_core`, `my-data` → `my_data`), following the convention used by LangChain (`langchain-core` → `langchain_core`) and Dagster (`dagster-aws` → `dagster_aws`). Reserve the *bare* top-level name (no suffix) for a possible future orchestration/meta package that sits above the others, the way `langchain` itself sits above `langchain-core`.
+   The alternative — every package sharing one dotted namespace (`myapp.core`, `myapp.data`) — requires genuine **PEP 420 namespace packages**, which only works if it's designed *uniformly across every distribution from the start* (no distribution ships a plain `__init__.py` for the shared root). It is **not** something you can retrofit later once one distribution already owns a real `__init__.py` for that namespace — trying to bolt it on after the fact is exactly the friction the independent-name convention avoids. Real examples of the from-day-one namespace-package approach: OpenTelemetry Python (`opentelemetry.*`), Apache Airflow providers (`airflow.providers.*`).
 
-- Root `pyproject.toml`: `name = "velari-studios-suite"`, single `[project].dependencies`, `[tool.setuptools.packages.find] where=["."], include=["velari*","examples*"]`.
-- `velari/__init__.py`: auto-ran `setup_logging()` on import; computed `_CONFIG_PATH`/`_LOG_DIR` as `Path(__file__).parent.parent / "config"/"logs"` — hardcoded "repo root is 2 dirs above this file."
-- `velari/version.py`: resolved `__version__` via `importlib.metadata.packages_distributions().get(module_name)` (first match) or by walking up for any `pyproject.toml` with a `[project].version`.
-- `velari/core/__init__.py`: a re-export shim (`from .experiment import Experiment`, etc.) that violated `.claude/rules/PREFERENCES.md`'s "no `__init__.py` for re-exports" rule, independent of this migration. Depended on by `examples/imports_common.py` and `tests/core/test_hydra_config.py`.
-- `velari/core/utils/env_utils.py::read_root_dir()`: walked up for *any* file named `pyproject.toml` — the root cause this migration had to fix.
-- `Makefile`: a `uv_sync_project_name` target `sed`-rewrote the root `pyproject.toml`'s `name =` line to `$(PACKAGE_INSTALL_NAME)` on every install — a single-package-rename hack.
+3. **Root-path / repo-root detection.** Any code that assumes "the repo root is N directories above this file" will break the moment that file moves deeper into `packages/<name>/`. Replace hardcoded depth assumptions with logic that walks up the directory tree looking for an authoritative marker (e.g. a workspace-declaration table in a manifest file) rather than matching on file existence/name alone — a per-package manifest file can otherwise be mistaken for the workspace root.
 
-## Migration steps (as executed)
+4. **Editable-install static analysis.** Modern editable installs (PEP 660 "new-style," used by `uv`/setuptools by default) register a `MetaPathFinder`-based import hook that remaps the import name to its real source location *by executing Python code* at import time. Static analyzers (Pyright/Pylance and similar) don't execute that hook — they only read plain directory-based search paths — so they'll show phantom "unresolved import" errors for a package that works fine at runtime and under pytest. Fix by adding each package's source directory to the type-checker's own extra-source-roots config (e.g. `[tool.pyright] extraPaths` in `pyproject.toml`). This setting typically does **not** support globs, so it needs one explicit entry per workspace member, updated every time a package is added.
 
-1. **Scaffold `packages/velari-core/`** with its own `pyproject.toml`: `[project]` name=`velari-core`, version=`0.1.0`, the dependency subset `velari.core`/`velari.integrations` actually import (numpy, pandas, pydantic, pydantic-core, httpx, pypdf, jinja2, hydra-core, omegaconf, pyyaml, rich, appdirs, python-dotenv, watermark). `[build-system]` = setuptools; `[tool.setuptools.packages.find] include=["velari*"]`. Added a minimal package-local `README.md` (required since `[project].readme` points at it and setuptools needs it to exist to build metadata).
+5. **Test placement.** Centralized `tests/<package-shortname>/` at the workspace root (simpler, one test-runner config) vs. per-package `packages/<name>/tests/` (better isolation if packages will ever be split into separate repos later). Pick one and apply it to every package.
 
-2. **Move code**: `git mv velari/core packages/velari-core/velari/core`, `git mv velari/integrations packages/velari-core/velari/integrations`, `git mv velari/__init__.py packages/velari-core/velari/__init__.py`, `git mv velari/version.py packages/velari-core/velari/version.py`. Deleted the now-empty root `velari/`.
+6. **Cross-package dependencies.** Decide how a package depends on a sibling package in the same workspace *before* writing code that would otherwise duplicate shared utilities. With `uv`, declare the dependency normally in `[project.dependencies]` and point it at the local copy via `[tool.uv.sources] <dep-name> = { workspace = true }`. Poetry and PDM have their own equivalent path/workspace-dependency mechanisms.
 
-3. **Deleted the re-export shim**: removed `packages/velari-core/velari/core/__init__.py`; updated `examples/imports_common.py` and `tests/core/test_hydra_config.py` (plus a docstring example in `velari/core/io/partition/hydra.py`) to import directly from the defining modules (`velari.core.experiment`, `velari.core.utils.env_utils`) instead of the `velari.core` shim.
+## Generic steps: flat package → workspace (first split)
 
-4. **Fixed root detection** in both places that depended on directory-depth assumptions:
-   - `velari/core/utils/env_utils.py::read_root_dir()` — added a private `_is_workspace_root(pyproject_path)` helper that parses the candidate file with `tomllib` and checks for `"workspace" in pyproject.get("tool", {}).get("uv", {})`; `read_root_dir()` now walks up until this returns true, instead of matching on file existence alone.
-   - `velari/__init__.py` — replaced the hardcoded `Path(__file__).parent.parent` for `_CONFIG_PATH`/`_LOG_DIR` with `_ROOT_DIR = Path(read_root_dir())` (imported from `.core.utils.env_utils`), so logging config/log-dir resolution is correct regardless of how deep the package lives under `packages/`.
+1. Scaffold `<workspace_root>/<packages_dir>/<package-dist-name>/` with its own manifest: distribution name, version, and only the dependency subset the code being moved actually imports. Add a package-local README if the manifest's readme field requires the file to exist for metadata to build.
+2. Move the code with history preserved (`git mv <old_location> <packages_dir>/<package-dist-name>/<package_import_name>/`), deleting the now-empty original location.
+3. Remove any re-export shim `__init__.py` that exists only to shorten import paths, and flatten any subpackage that stutters the distribution's own name (see the "redundant nesting" gotcha below) — update the handful of call sites that imported through the shim.
+4. Fix root/path-detection code (decision 3) to walk up dynamically instead of assuming a fixed depth.
+5. Convert the workspace root's manifest into a virtual/workspace-only root — no `[project]` table of its own, just the workspace-members declaration (e.g. `uv`'s `[tool.uv.workspace] members = [...]`) plus any repo-wide shared config (linting, test runner) that should apply regardless of member count.
+6. Update any install/build tooling (Makefile targets, CI scripts) that assumed a single installable root package — drop root-level install steps that no longer apply, and remove any single-package-name rewriting hacks.
+7. Add the static-analysis fix from decision 4.
+8. Update repo-level docs describing the layout (package tables, directory trees) to reflect the new workspace structure.
 
-5. **Converted root `pyproject.toml` to a virtual workspace root**: removed the `[project]` table and `[tool.setuptools.packages.find]` entirely; added:
-   ```toml
-   [tool.uv.workspace]
-   members = ["packages/*"]
-   ```
-   Kept `[dependency-groups] dev=[...]`, `[tool.ruff]`/`[tool.ruff.lint]`/`[tool.ruff.lint.pydocstyle]`, and `[tool.pytest.ini_options] testpaths=["tests"]` centralized at the root — these apply repo-wide regardless of workspace member count.
+Tests can generally stay wherever they already are (per decision 5) — only their imports need to change if the package's import path changed.
 
-6. **Makefile fixes**:
-   - Deleted the `uv_sync_project_name` target entirely (and its `.PHONY` entry and call sites in `install_python`/`uv_install_python`) — there's no `name =` line left at the root to rewrite.
-   - In `uv_install_python`, dropped `uv pip install -e .` (no root package to install); `uv sync --all-extras --active` installs all `[tool.uv.workspace]` members editable into the shared venv natively.
-   - `install_setup`'s `mkdir -p` list: added `packages` so a fresh clone scaffolds the dir.
-   - `PACKAGE_INSTALL_NAME` no longer named a real installable package once the root lost its `[project]` table — removed it entirely (from the `Makefile`'s `export` line, `help`/`info`/`install`/`clean_python` echo strings, and `config/runtime/runtime.env`), reworded those echoes to reference the workspace via `$(PACKAGE_NAME)` instead (e.g. `"install : create environment for workspace $(PACKAGE_NAME)"`).
+## Generic steps: adding a new package to an existing workspace
 
-7. **Docs**: updated `AGENTS.md`'s "Package Structure"/"Key Files" tables and `README.md`'s directory tree to describe the workspace model — root `pyproject.toml` as workspace config, `packages/velari-core/pyproject.toml` as package metadata, and the `packages/velari-core/velari/{core,integrations}/` layout.
+1. Create `<packages_dir>/<new-package-dist-name>/` with its own manifest — distribution name, dependencies, and package-discovery config scoped to `<new_package_import_name>*` only.
+2. Decide the namespace strategy (decision 2) explicitly for this package before writing any code — default to an independent top-level name mirroring its distribution name.
+3. If it depends on another workspace member, wire that up via your tool's intra-workspace dependency mechanism (decision 6) instead of duplicating shared utilities.
+4. Usually no change needed to the workspace-members glob (e.g. `members = ["packages/*"]` auto-discovers any new `packages/<name>/`).
+5. Add tests for the new package following the workspace's chosen test-placement convention (decision 5).
+6. Append the new package's source path to the static-analysis `extraPaths`-equivalent config (decision 4) — remember it won't be picked up by a glob.
+7. Update repo-level docs (package table, directory tree) to describe the new member.
 
-Tests stayed centralized at root `tests/` (unchanged location/config) — imports (`velari.core.*`) didn't change, so no test file moves were required beyond the shim-import fixes in step 3.
+## Gotchas checklist
 
-8. **Fixed Pylance/Pyright import resolution** (follow-on issue discovered after the migration): once `velari/` moved under `packages/velari-core/`, Pylance stopped resolving `from velari...`/`import velari` in `tests/` and `examples/`, even though `uv sync` installed `velari-core` correctly and pytest/runtime imports worked fine. Root cause: `uv`/setuptools installs workspace members as PEP 660 "new-style" editable installs — a `MetaPathFinder`-based `.pth` (`__editable___velari_core_0_1_0_finder.py`) that remaps `velari` → `packages/velari-core/velari` at import time by executing Python code. Pyright/Pylance don't execute that hook; they only read plain `sys.path`-style directories, so they never learn the real package location once it moved out of the repo root. Fix: added
-   ```toml
-   [tool.pyright]
-   extraPaths = ["packages/velari-core"]
-   ```
-   to the root `pyproject.toml` — not `.vscode/settings.json`, which is a symlink shared across projects via `_build/dotfiles/` and shouldn't carry project-specific paths.
+- **Root-detection hardcoded on directory depth** silently breaks the moment a file moves one level deeper into a workspace subdirectory. Always resolve the root dynamically.
+- **A subpackage that repeats its own distribution's name** (`mypackage/core/thing.py` inside a distribution already named `my-core`) is a smell once the distribution's whole purpose *is* "core" — flatten it (`mypackage/thing.py`) rather than keeping the stutter.
+- **PEP 660 editable installs break static analyzers silently.** Imports work at runtime and under pytest; the editor shows a phantom "unresolved import" error. Fix it in the type-checker's config (extra source roots), not by changing the install mode.
+- **Don't edit shared/symlinked editor config** (e.g. a dotfiles-managed `.vscode/settings.json`) to add project-specific paths — put that configuration in a project-tracked file instead (e.g. a `[tool.pyright]` table in the repo's own `pyproject.toml`).
+- **A shared dotted namespace across distributions is a from-day-one design commitment**, not a later patch. If even one distribution already owns a plain `__init__.py` for the shared root, default every sibling to an independent top-level name instead of retrofitting PEP 420 namespace packages.
 
-## Verification (results)
+## Worked example (`velari-suite`)
 
-- `uv sync` from repo root — workspace resolved, `velari-core` built and installed editable into `.venv`.
-- `uv run pytest` — all 7 existing tests passed, including `tests/core/test_velari.py` (`import velari`, `from velari.version import __version__`, `from velari import logger`) and the updated `tests/core/test_hydra_config.py`.
-- Manual check: `from velari.core.experiment import Experiment`, `from velari.integrations.pydantic import tools`, and `read_root_dir()` all resolved correctly — `read_root_dir()` returned the true repo root (not `packages/velari-core/`) even when called from a module nested three levels under `packages/velari-core/`.
-- `make test`, `make help`, `make info` all ran cleanly with the updated wording.
-- `uv run ruff check .` — one pre-existing long-docstring-line warning in `filesystem.py`, unrelated to this migration (file was moved, not edited).
-- **Not run**: full `make install`/`make install_python` — those clone/pull the dotfiles repo and register a global ipykernel spec, side effects beyond what's needed to verify this change. Worth running manually before relying on a completely fresh clone.
-
-## Applying this pattern to a new package
-
-To add another workspace member (e.g. `velari-ai`):
-1. Create `packages/velari-ai/pyproject.toml` with its own `[project]` name/deps and `[tool.setuptools.packages.find] include=["velari*"]`.
-2. Decide namespace strategy up front: if `velari-ai` should share the `velari.*` dotted namespace with `velari-core` (i.e. `velari.ai`), note that this now requires real PEP 420 cross-distribution namespace-package handling — `velari-core`'s `velari/__init__.py` currently owns the real `velari/__init__.py`, so a second distribution can't also ship one. Resolve this before implementing (see the "Namespace strategy" discussion referenced in this migration — it was deferred here because only one distribution existed). Alternatively, follow the LangChain precedent and give it a fully independent top-level name (`velari_ai`) to sidestep the issue entirely.
-3. No Makefile or root `pyproject.toml` `[tool.uv.workspace]` changes needed — `members = ["packages/*"]` already picks up any new `packages/<name>/`.
-4. Add package-specific tests under `tests/<name>/` (tests stay centralized at the root).
-5. Append the new package's path to `[tool.pyright] extraPaths` in the root `pyproject.toml` (see step 8 above) — Pyright's `extraPaths` doesn't support globs, so `packages/*` there won't auto-discover new members the way `[tool.uv.workspace]` does; each new package needs its own entry or Pylance won't resolve its imports in `tests/`/`examples/`.
+This template was extracted from a real migration in this repo: `velari-suite` was split into a `uv` workspace under `packages/`, starting with `velari-core` (later renamed from a bare `velari` import name to `velari_core`, flattening a redundant nested `core/` subpackage in the process, once a second package — `velari-data`, importing as the independent `velari_data` and depending on `velari-core` via `[tool.uv.sources] { workspace = true }` — made the naming inconsistency visible). Root-path detection was fixed to walk up parsing for `[tool.uv.workspace]` rather than matching on any `pyproject.toml`. Pylance's editable-install blind spot was fixed via `[tool.pyright] extraPaths` in the root `pyproject.toml`, updated each time a package was added. The internal layout was refined twice more afterward: infrastructure-style subpackages (I/O, perf, statistics, transforms, utils) were first regrouped under a `velari_core/core/` subdirectory while `experiment.py`/`types.py` stayed flat at the package root, then those two were moved into `core/` as well — leaving only `__init__.py`, `version.py`, and the `integrations/` sibling at `velari_core/`'s own root. Internal layout preferences like this are cheap to iterate on precisely because moving a whole subtree together preserves every relative import within it; only the few imports crossing the moved boundary need updating each time.

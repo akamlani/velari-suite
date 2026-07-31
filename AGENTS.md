@@ -34,6 +34,7 @@ Files an AI agent should read first to understand the project's conventions, con
 | `config/runtime/python.env` | Python version and venv config |
 | `pyproject.toml` | Workspace root config: `[tool.uv.workspace]` members, shared ruff/pytest config, dev dependency-group |
 | `packages/velari-core/pyproject.toml` | `velari-core` package metadata and its runtime dependencies |
+| `packages/velari-data/pyproject.toml` | `velari-data` package metadata; depends on `velari-core` via `[tool.uv.sources] workspace = true` |
 | `.claude/rules/PREFERENCES.md` | Coding conventions: logging, type annotations, package structure |
 | `.vscode/settings.json` | Editor and code-style configuration (docstring format, formatter settings, etc.) — consult when writing or reviewing code |
 
@@ -53,10 +54,11 @@ This repo is a `uv` workspace monorepo (`[tool.uv.workspace] members = ["package
 
 | Package | Import path | Description |
 |---|---|---|
-| `packages/velari-core/` | `velari.core` | Core utilities: I/O, filesystem, partitioning, and experiment management |
-| `packages/velari-core/` | `velari.integrations.pydantic` | Third-party integrations: Pydantic tooling (FastAPI integration planned) |
+| `packages/velari-core/` | `velari_core` | Core utilities: I/O, filesystem, partitioning, and experiment management |
+| `packages/velari-core/` | `velari_core.integrations.pydantic` | Third-party integrations: Pydantic tooling (FastAPI integration planned) |
+| `packages/velari-data/` | `velari_data` | Data utilities; depends on `velari-core` |
 
-Future packages (e.g. `velari-ai`, `velari-data`) will be added under `packages/<name>/` following the same pattern as `packages/velari-core/`.
+Each package's import name mirrors its own distribution name (`velari-core` → `velari_core`, `velari-data` → `velari_data`), following the LangChain/Dagster convention — bare `velari` is intentionally left unclaimed for a possible future top-level orchestration package. Future packages (e.g. `velari-ai`) should follow the same convention: independent top-level import name mirroring the distribution name, not a nested `velari.<name>` namespace (which would require PEP 420 cross-distribution namespace-package handling).
 
 ## Structure Notes
 
