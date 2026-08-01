@@ -30,6 +30,8 @@ help:
 	@echo "system    : Installs System Libraries per $(PLATFORM_TYPE)"
 	@echo "install   : create environment for workspace $(PACKAGE_NAME)"
 	@echo "format    : formatting and linting of workspace $(PACKAGE_NAME)"
+	@echo "lint      : lint workspace $(PACKAGE_NAME) with ruff"
+	@echo "typecheck : type-check workspace $(PACKAGE_NAME) with pyright"
 	@echo "clean     : cleans all files for workspace $(PACKAGE_NAME)"
 	@echo "test      : execute unit testing"
 
@@ -137,12 +139,16 @@ clean_python:
 
 
 #################### Utilties
-.PHONY: format lint test clean run_app
+.PHONY: format lint typecheck test clean run_app
 APP ?= examples/apps/studio/app.py
 
 format:
 	@echo "Formatting $(PACKAGE_NAME)..."
 	uv run ruff format .
+
+typecheck:
+	@echo "Type checking $(PACKAGE_NAME)..."
+	uv run pyright
 
 lint:
 	@echo "Linting $(PACKAGE_NAME)..."

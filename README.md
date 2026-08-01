@@ -117,9 +117,10 @@ make install
 # Install Python environment (uv)
 make install_python
 
-# Run tests / lint / format
+# Run tests / lint / typecheck / format
 make test
 make lint
+make typecheck
 make format
 ```
 

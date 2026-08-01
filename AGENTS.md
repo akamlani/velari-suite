@@ -47,7 +47,7 @@ Files an AI agent should read first to understand the project's conventions, con
 | `install_python` | Install Python 3.12 and sync dependencies via uv |
 | `install_dotfiles` | Clone/update dotfiles repo |
 | `install_agents` | Setup agent infrastructure and skills |
-| `format` / `lint` / `test` | Code quality and testing |
+| `format` / `lint` / `typecheck` / `test` | Code quality and testing (`typecheck` runs `pyright`, matching the Pylance settings in `.vscode/settings.json`) |
 
 ## Package Structure
 

@@ -10,6 +10,7 @@ dev = [
     "nbformat>=4.2",
     "pytest>=8.0",
     "ruff>=0.9",
+    "pyright>=1.1",
 ]
 
 [tool.ruff]
@@ -31,6 +32,7 @@ testpaths = ["tests"]
 
 [tool.pyright]
 extraPaths = ["packages/velari-core", "packages/velari-data"]
+typeCheckingMode = "standard"
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
