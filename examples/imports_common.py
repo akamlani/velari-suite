@@ -29,7 +29,7 @@ if __name__ == "__main__":
     # common imports for this aistudio library
     from omegaconf import DictConfig, OmegaConf
     from velari_core.core.experiment import Experiment
-    from velari_core.core.utils.env_utils import read_env, read_root_dir
+    from velari_core.core import read_env, read_root_dir
 
     # parse input arguments
     parser = argparse.ArgumentParser(description="Experiment Parameters")

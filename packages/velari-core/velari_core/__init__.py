@@ -7,7 +7,7 @@ from pathlib import Path
 import yaml
 
 from .version import __version__
-from .core.utils.env_utils import read_root_dir
+from .core import read_root_dir
 
 _ROOT_DIR = Path(read_root_dir())
 _CONFIG_PATH = _ROOT_DIR / "config" / "logging.yaml"

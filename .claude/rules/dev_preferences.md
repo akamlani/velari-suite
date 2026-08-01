@@ -263,6 +263,7 @@ else:
 - Do **not** create `__init__.py` in subpackage directories. Python 3.3+ supports namespace packages natively — a directory without `__init__.py` is a valid, importable package.
 - Do **not** create `__init__.py` solely to re-export symbols or shorten import paths. Always import directly from the module that defines the symbol.
 - Only add `__init__.py` when the file contains genuine package-level initialisation logic (e.g. version assignment, plugin registration) — not mere re-exports or `__all__`.
+- **Exception**: a subpackage's `__init__.py` may re-export a small, curated set of its most-used symbols for ergonomic convenience when explicitly decided for that package (e.g. `velari_core/core/__init__.py` re-exports `read_root_dir`/`read_env`/`read_cache_dir` from `.utils.env_utils`). This remains the exception, not the default — most subpackages should still follow the two rules above.
 
 ```python
 # correct — import from the defining module
@@ -270,6 +271,9 @@ from mypackage.subpkg.module import MyClass
 
 # wrong — __init__.py created just to enable a shorter import path
 from mypackage.subpkg import MyClass
+
+# exception — velari_core/core/__init__.py explicitly re-exports a curated set
+from velari_core.core import read_root_dir
 ```
 
 ## Docstrings

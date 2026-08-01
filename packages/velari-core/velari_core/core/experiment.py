@@ -9,7 +9,7 @@ from omegaconf import DictConfig, OmegaConf
 
 from .io.filesystem import get_username
 from .io.partition.hydra import read_hydra
-from .utils.env_utils import read_env, read_root_dir
+from . import read_env, read_root_dir
 
 logger = logging.getLogger(__name__)
 
