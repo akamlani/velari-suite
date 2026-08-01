@@ -5,10 +5,10 @@ import mimetypes
 import shutil
 import tempfile
 import yaml
-from pathlib import Path
-from typing import Any, Iterator, List, Optional, Tuple, Union
+from   pathlib import Path
+from   typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
-from .types import ArtifactFormat, ArtifactKind, ArtifactProperties
+from   .types import ArtifactFormat, ArtifactKind, ArtifactProperties
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ _ARCHIVE_FORMATS = {suffix: name for name, suffixes, _ in shutil.get_unpack_form
 
 
 class Filesystem(object):
-    """Filesystem operations: read, write, move, delete, list, make_dir, copy, extract, compress, download, upload, get_properties.
+    """Filesystem operations: read, write, move, delete, list, make_dir, copy, extract, compress, download, upload.
 
     All methods are static — call them directly on the class, no instance needed.
     download streams a remote URI (or a list of (uri, dest) pairs, for bulk downloads)
@@ -201,7 +201,7 @@ class Filesystem(object):
         fmt = _ARCHIVE_FORMATS[suffix]
         try:
             dest.mkdir(parents=True, exist_ok=True)
-            extra = {} if fmt == "zip" else {"filter": "data"}
+            extra: Dict[str, Any] = {} if fmt == "zip" else {"filter": "data"}
             shutil.unpack_archive(str(archive_path), str(dest), format=fmt, **extra)
             return dest
         except OSError as e:
@@ -242,47 +242,55 @@ class Filesystem(object):
         uri: Union[str, List[Tuple[str, Optional[Union[str, Path]]]]],
         dest: Optional[Union[str, Path]] = None,
     ) -> Union[Path, List[Path]]:
+        def _one(item_uri: str, item_dest: Optional[Union[str, Path]]) -> Path:
+            if item_dest is None:
+                filename = Path(httpx.URL(item_uri).path).name or "download"
+                dest_path = Path(tempfile.mkdtemp()) / filename
+            else:
+                dest_path = Path(item_dest)
+            dest_path.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                with httpx.stream("GET", item_uri, follow_redirects=True) as response:
+                    response.raise_for_status()
+                    with dest_path.open("wb") as f:
+                        for chunk in response.iter_bytes():
+                            f.write(chunk)
+            except httpx.HTTPError as e:
+                logger.error(f"failed to download {item_uri}: {e}")
+                raise
+            if Filesystem._archive_suffix(dest_path) is not None:
+                return Filesystem.extract(dest_path, dest_path.parent)
+            return dest_path
+
         if isinstance(uri, list):
-            return [Filesystem.download(item_uri, item_dest) for item_uri, item_dest in uri]
-        if dest is None:
-            filename = Path(httpx.URL(uri).path).name or "download"
-            dest_path = Path(tempfile.mkdtemp()) / filename
-        else:
-            dest_path = Path(dest)
-        dest_path.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            with httpx.stream("GET", uri, follow_redirects=True) as response:
-                response.raise_for_status()
-                with dest_path.open("wb") as f:
-                    for chunk in response.iter_bytes():
-                        f.write(chunk)
-        except httpx.HTTPError as e:
-            logger.error(f"failed to download {uri}: {e}")
-            raise
-        if Filesystem._archive_suffix(dest_path) is not None:
-            return Filesystem.extract(dest_path, dest_path.parent)
-        return dest_path
+            return [_one(item_uri, item_dest) for item_uri, item_dest in uri]
+        return _one(uri, dest)
 
     @staticmethod
     def upload(
         path: Union[str, Path, List[Tuple[Union[str, Path], str]]],
         uri: Optional[str] = None,
     ) -> Union[str, List[str]]:
+        def _one(item_path: Union[str, Path], item_uri: str) -> str:
+            source = Path(item_path)
+            if source.is_dir():
+                suffix = Filesystem._archive_suffix(Path(httpx.URL(item_uri).path)) or ".zip"
+                archive_path = Path(tempfile.mkdtemp()) / f"{source.name}{suffix}"
+                source = Filesystem.compress(source, archive_path)
+            try:
+                with source.open("rb") as f:
+                    response = httpx.put(item_uri, content=Filesystem._iter_file(f))
+                    response.raise_for_status()
+            except httpx.HTTPError as e:
+                logger.error(f"failed to upload {source} to {item_uri}: {e}")
+                raise
+            return item_uri
+
         if isinstance(path, list):
-            return [Filesystem.upload(item_path, item_uri) for item_path, item_uri in path]
-        source = Path(path)
-        if source.is_dir():
-            suffix = Filesystem._archive_suffix(Path(httpx.URL(uri).path)) or ".zip"
-            archive_path = Path(tempfile.mkdtemp()) / f"{source.name}{suffix}"
-            source = Filesystem.compress(source, archive_path)
-        try:
-            with source.open("rb") as f:
-                response = httpx.put(uri, content=Filesystem._iter_file(f))
-                response.raise_for_status()
-        except httpx.HTTPError as e:
-            logger.error(f"failed to upload {source} to {uri}: {e}")
-            raise
-        return uri
+            return [_one(item_path, item_uri) for item_path, item_uri in path]
+        if uri is None:
+            raise ValueError("uri is required when uploading a single path")
+        return _one(path, uri)
 
     @staticmethod
     def move(src: Union[str, Path], dst: Union[str, Path]) -> Path:

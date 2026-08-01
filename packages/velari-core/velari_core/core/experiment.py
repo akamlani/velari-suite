@@ -3,7 +3,7 @@ import datetime
 import logging
 import random
 from pathlib import Path
-from typing import List
+from typing import Any, Dict, List, Optional
 from appdirs import user_cache_dir
 from omegaconf import DictConfig, OmegaConf
 
@@ -76,7 +76,7 @@ class Experiment(object):
         >>> print(cfg.experiment.install.dir)  # resolved output directory
     """
 
-    def __init__(self, root_path: str | Path = None):
+    def __init__(self, root_path: str | Path | None = None):
         """Initialise the experiment with a deterministic seed and resolved directory paths.
 
         Args:
@@ -112,7 +112,7 @@ class Experiment(object):
         # user inforamtion
         self.username = get_username()
         # load environment
-        self.env: dict = read_env(path=str(self.root_dir.joinpath(".env")))
+        self.env: Optional[Dict[str, Any]] = read_env(path=str(self.root_dir.joinpath(".env")))
 
     def seed_init(self, seed: int = 42) -> int:
         """Seed Python's ``random`` module and NumPy's global RNG for reproducibility.
@@ -138,7 +138,7 @@ class Experiment(object):
         np.random.seed(seed)
         return seed
 
-    def create(self, experiment_name: str, tags: List[str], **kwargs) -> DictConfig:
+    def create(self, experiment_name: str, tags: List[str], **kwargs: Dict[str, Any]) -> DictConfig:
         """Create a new experiment configuration and its output directory on disk.
 
         Loads the base experiment YAML template via OmegaConf, injects the provided
@@ -168,7 +168,9 @@ class Experiment(object):
             >>> mlflow.set_experiment(cfg.experiment.name)
             >>> print(cfg.experiment.install.dir)  # log artefacts here
         """
-        clone: DictConfig = read_hydra(self.conf_dir.joinpath("experimentation", "experiment.yaml"))
+        clone = read_hydra(str(self.conf_dir.joinpath("experimentation", "experiment.yaml")))
+        if clone is None:
+            raise ValueError("failed to load experiment.yaml template")
         clone.experiment.name = experiment_name
         clone.experiment.tags = tags
         clone.experiment.install.author = self.username

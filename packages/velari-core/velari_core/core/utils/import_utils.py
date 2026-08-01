@@ -1,5 +1,6 @@
 import pandas as pd
 import importlib
+import importlib.metadata
 
 
 def get_package_versions() -> pd.DataFrame:

@@ -2,6 +2,7 @@ import logging
 import os
 import tomllib
 from pathlib import Path
+from typing import Any, Dict, Optional
 from appdirs import user_cache_dir
 from dotenv import dotenv_values, find_dotenv, load_dotenv
 
@@ -60,7 +61,7 @@ def read_root_dir(project_file: str = "pyproject.toml") -> str:
     return str(path)
 
 
-def read_env(path: str = ".env", verbose: bool = False) -> dict:
+def read_env(path: str = ".env", verbose: bool = False) -> Optional[Dict[str, Any]]:
     """Load environment variables from a dotenv file and return them as a dictionary.
 
     Searches for the file by name starting from the current working directory,
@@ -88,13 +89,13 @@ def read_env(path: str = ".env", verbose: bool = False) -> dict:
     try:
         resolved = path if os.path.isabs(path) else find_dotenv(filename=path, raise_error_if_not_found=True)
         load_dotenv(resolved, verbose=verbose)
-        config: dict = dotenv_values(resolved)
+        config: Dict[str, Any] = dotenv_values(resolved)
         return config
     except Exception as e:
         logger.exception(f"Exception Occured Reading DotFile:{e}")
 
 
-def read_cache_dir(author: str = None, app: str = None) -> str:
+def read_cache_dir(author: Optional[str] = None, app: Optional[str] = None) -> str:
     """Retrieve the platform-specific cache directory, creating it if it does not exist.
 
     Args:

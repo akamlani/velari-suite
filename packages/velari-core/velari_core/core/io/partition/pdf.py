@@ -1,5 +1,5 @@
 from typing import Any
-from pypdf import PdfReader, PageObject
+from pypdf import PdfReader
 from datetime import datetime
 
 from ..utils import trsfrm_camelcase_to_snakecase
@@ -13,7 +13,9 @@ class PartitionPdf(object):
         self.num_pages = self.reader.get_num_pages()
 
         # read metadata
-        metadata = {trsfrm_camelcase_to_snakecase(key.lstrip("/")): value for key, value in self.reader.metadata.items()}
+        metadata = {
+            trsfrm_camelcase_to_snakecase(key.lstrip("/")): value for key, value in (self.reader.metadata or {}).items()
+        }
         # transform date
         if "creation_date" in metadata and isinstance(metadata["creation_date"], str):
             metadata["creation_date"] = self.parse_pdf_date(metadata["creation_date"])

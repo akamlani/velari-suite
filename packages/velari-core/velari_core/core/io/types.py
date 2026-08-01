@@ -6,18 +6,29 @@ from pathlib import Path
 from typing import Any, Optional
 
 
+class ArtifactKind(StrEnum):
+    FILE      = auto()
+    DIRECTORY = auto()
+    ARCHIVE   = auto()
+    UNKNOWN   = auto()
+
+# Merged IoFromat into this
 class ArtifactFormat(StrEnum):
-    PDF = auto()
-    JSON = auto()
-    TXT = auto()
-    MARKDOWN = auto()
-    YAML = auto()
-    PY = auto()
-    BLOB = auto()
-    DUCKDB = auto()
-    DATAFRAME = auto()
-    EXCEL = auto()
-    WEB = auto()
+    PDF        = auto()
+    DOCX       = auto()
+    JSON       = auto()
+    TXT        = auto()
+    MARKDOWN   = auto()
+    HTML       = auto()
+    YAML       = auto()
+    PY         = auto()
+    BLOB       = auto()
+    DUCKDB     = auto()
+    DICT       = auto()
+    DICTCONFIG = auto()
+    DATAFRAME  = auto()
+    EXCEL      = auto()
+    WEB        = auto()
 
     @classmethod
     def from_ext(cls, extension: str) -> Optional[ArtifactFormat]:
@@ -45,12 +56,6 @@ class ArtifactFormat(StrEnum):
             raise ValueError(f"Cannot infer format from extension '{ext}'. Pass fmt= explicitly.")
         return fmt
 
-
-class ArtifactKind(StrEnum):
-    FILE = auto()
-    DIRECTORY = auto()
-    ARCHIVE = auto()
-    UNKNOWN = auto()
 
 
 @dataclass

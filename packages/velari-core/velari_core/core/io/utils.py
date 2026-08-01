@@ -30,5 +30,5 @@ def trsfrm_frame_camelcase_to_snakecase(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         pd.DataFrame: transformed pandas dataframe
     """
-    df.columns = map(trsfrm_camelcase_to_snakecase, df.columns)
+    df.columns = list(map(trsfrm_camelcase_to_snakecase, df.columns))
     return df

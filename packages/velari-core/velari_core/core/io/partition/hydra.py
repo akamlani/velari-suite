@@ -2,6 +2,7 @@ import hydra
 import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+from hydra.core.global_hydra import GlobalHydra
 from omegaconf import DictConfig, OmegaConf
 
 
@@ -14,8 +15,8 @@ def _register_root_resolver() -> None:
 
 def init_hydra() -> None:
     """Clear the global Hydra instance if already initialised, preparing it for a fresh compose call."""
-    if hydra.core.global_hydra.GlobalHydra.instance().is_initialized():
-        hydra.core.global_hydra.GlobalHydra.instance().clear()
+    if GlobalHydra.instance().is_initialized():
+        GlobalHydra.instance().clear()
 
 
 def read_hydra_defaults(config_dir: str, config_name: str) -> DictConfig:
@@ -121,4 +122,7 @@ def read_hydra(filepath: str, *args: Tuple[Any, ...], **kwargs: Dict[str, Any]) 
         >>> cfg.experiment.name = "bert-finetune-v1"
     """
     _register_root_resolver()
-    return OmegaConf.load(filepath)
+    cfg = OmegaConf.load(filepath)
+    if not isinstance(cfg, DictConfig):
+        raise TypeError(f"Expected a DictConfig from {filepath}, got {type(cfg).__name__}")
+    return cfg

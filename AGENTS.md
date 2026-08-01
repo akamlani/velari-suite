@@ -35,7 +35,8 @@ Files an AI agent should read first to understand the project's conventions, con
 | `pyproject.toml` | Workspace root config: `[tool.uv.workspace]` members, shared ruff/pytest config, dev dependency-group |
 | `packages/velari-core/pyproject.toml` | `velari-core` package metadata and its runtime dependencies |
 | `packages/velari-data/pyproject.toml` | `velari-data` package metadata; depends on `velari-core` via `[tool.uv.sources] workspace = true` |
-| `.claude/rules/PREFERENCES.md` | Coding conventions: logging, type annotations, package structure |
+| `.claude/rules/dev_preferences.md` | Coding conventions: logging, type annotations, package structure |
+| `.claude/rules/test_preferences.md` | Test-writing conventions: test placement, organization, fixtures, naming |
 | `.vscode/settings.json` | Editor and code-style configuration (docstring format, formatter settings, etc.) — consult when writing or reviewing code |
 
 ## Makefile Targets
@@ -87,7 +88,7 @@ Configuration directories managed by `make install` and the dotfiles system. Som
 | Directory | Description | Managed by |
 |---|---|---|
 | `.agents/` | Agent runtime directory | `make setup_agent` |
-| `.claude/` | Claude Code configuration, plugin settings, and rules (e.g. `rules/PREFERENCES.md`) | `make setup_agent_claude` |
+| `.claude/` | Claude Code configuration, plugin settings, and rules (e.g. `rules/dev_preferences.md`, `rules/test_preferences.md`) | `make setup_agent_claude` |
 | `.github/` | GitHub Actions workflows (tracked source) and Copilot configuration (`copilot-instructions.md` symlinked from dotfiles) | Workflows tracked; config symlinked via `make link_dotfiles` |
 | `.velari/` | Velari runtime configuration and cache directory | `make setup_agent` |
 | `.vscode/` | VS Code editor and code-style configuration | Symlinked from `_build/dotfiles/` via `make link_dotfiles` |

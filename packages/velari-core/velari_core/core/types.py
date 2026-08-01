@@ -1,16 +1,16 @@
-from enum import StrEnum, auto
-from typing import List, Callable
+from enum import StrEnum
+from typing import List
 
 
 import datetime
-from typing import Annotated
+from typing import Annotated, get_args
 
 QueryParam = Annotated[str, {"required": True}]
 DateStr = Annotated[str, {"format": "MM/DD/YYYY"}]
 
 
 def serialize_date(date: datetime.date) -> DateStr:
-    format_str = DateStr.__metadata__[0]["format"]
+    format_str = get_args(DateStr)[1]["format"]
     return date.strftime(format_str)
 
 
@@ -34,18 +34,3 @@ class StrEnumBase(StrEnum):
 
     def __str__(self) -> str:
         return self.value
-
-
-class IOFormat(StrEnumBase):
-    """Enumerate supported document and data serialisation formats."""
-
-    DICT = auto()
-    DICTCONFIG = auto()
-    YAML = auto()
-    JSON = auto()
-    TEXT = auto()
-    PDF = auto()
-    DOCX = auto()
-    HTML = auto()
-    MARKDOWN = auto()
-    DATAFRAME = auto()
