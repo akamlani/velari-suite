@@ -25,15 +25,16 @@ endif
 
 .PHONY: help info info_dotfiles
 help:
-	@echo "Commands  : "
-	@echo "download  : downloads dependencies distribution"
-	@echo "system    : Installs System Libraries per $(PLATFORM_TYPE)"
-	@echo "install   : create environment for workspace $(PACKAGE_NAME)"
-	@echo "format    : formatting and linting of workspace $(PACKAGE_NAME)"
-	@echo "lint      : lint workspace $(PACKAGE_NAME) with ruff"
-	@echo "typecheck : type-check workspace $(PACKAGE_NAME) with pyright"
-	@echo "clean     : cleans all files for workspace $(PACKAGE_NAME)"
-	@echo "test      : execute unit testing"
+	@echo "Commands  		: "
+	@echo "download  		: downloads dependencies distribution"
+	@echo "system    		: Installs System Libraries per $(PLATFORM_TYPE)"
+	@echo "install   		: create environment for workspace $(PACKAGE_NAME)"
+	@echo "format    		: formatting and linting of workspace $(PACKAGE_NAME)"
+	@echo "lint      		: lint workspace $(PACKAGE_NAME) with ruff"
+	@echo "typecheck 		: type-check workspace $(PACKAGE_NAME) with pyright"
+	@echo "clean     		: cleans all files for workspace $(PACKAGE_NAME)"
+	@echo "test      		: execute unit testing"
+	@echo "install_kernel 	: create a named, persistent Jupyter kernel + venv for extra deps (KERNEL_NAME=, KERNEL_DEPS=)"
 
 info:
 	@echo "Git Root:       $(GIT_ROOT)"
@@ -139,8 +140,11 @@ clean_python:
 
 
 #################### Utilties
-.PHONY: format lint typecheck test clean run_app
+.PHONY: format lint typecheck test clean run_app install_kernel
 APP ?= examples/apps/studio/app.py
+# KERNEL_NAME/KERNEL_DEPS/KERNEL_VENV_DIR/KERNEL_ID/KERNEL_DISPLAY defaults come from
+# $(RUNTIME_FILE) — override per invocation, e.g.:
+#   make install_kernel KERNEL_NAME=nlp KERNEL_DEPS="transformers torch"
 
 format:
 	@echo "Formatting $(PACKAGE_NAME)..."
@@ -170,3 +174,11 @@ run_app:
 	uv run --group apps streamlit run $(APP) \
 		--server.runOnSave true \
 		--server.fileWatcherType watchdog
+
+install_kernel:
+	@echo "Creating persistent venv '$(KERNEL_VENV_DIR)' and Jupyter kernel '$(KERNEL_ID)' with: $(KERNEL_DEPS)..."
+	uv venv $(KERNEL_VENV_DIR) --python $(PYTHON_VERSION) --clear
+	uv pip install --python $(KERNEL_VENV_DIR)/bin/python \
+		-e packages/velari-core -e packages/velari-data $(KERNEL_DEPS) ipykernel
+	$(KERNEL_VENV_DIR)/bin/python -m ipykernel install --user --name=$(KERNEL_ID) --display-name="$(KERNEL_DISPLAY)"
+	@echo "Select kernel '$(KERNEL_DISPLAY)' in VS Code/Jupyter to run notebooks that need: $(KERNEL_DEPS)"

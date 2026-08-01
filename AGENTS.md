@@ -37,6 +37,7 @@ Files an AI agent should read first to understand the project's conventions, con
 | `packages/velari-data/pyproject.toml` | `velari-data` package metadata; depends on `velari-core` via `[tool.uv.sources] workspace = true` |
 | `.claude/rules/dev_preferences.md` | Coding conventions: logging, type annotations, package structure |
 | `.claude/rules/test_preferences.md` | Test-writing conventions: test placement, organization, fixtures, naming |
+| `.claude/rules/agent_preferences.md` | Agent working habits: clean up side effects from verification/exploratory commands, including out-of-repo state |
 | `.vscode/settings.json` | Editor and code-style configuration (docstring format, formatter settings, etc.) — consult when writing or reviewing code |
 
 ## Makefile Targets
@@ -73,7 +74,7 @@ Each package's import name mirrors its own distribution name (`velari-core` → 
 | `.env` | Local environment variables and secrets; not tracked by git |
 | `data/` | Sample and reference data files for examples and experiments |
 | `docs/` | Documentation assets and prompt references |
-| `examples/` | Runnable example scripts and application prototypes |
+| `examples/` | Runnable example scripts and application prototypes. `examples/ml/` notebooks that need extra libraries (e.g. `datasetsforecast`) intentionally do **not** use a shared `[dependency-groups]` entry — this workspace's root has no `[project]` name, so `[tool.uv.conflicts]` can't fence off a group's transitive constraints (confirmed empirically: it forced a project-wide `pandas` downgrade). Run those notebooks' dependencies via an isolated, ephemeral resolution instead: `uv run --isolated --with datasetsforecast <command>` — this leaves the shared `.venv`/`uv.lock` (and its `pandas` version) untouched. |
 | `experiments/` | Experimental scripts and output snapshots |
 | `logs/` | Runtime log output; not tracked by git |
 | `outputs/` | Generated output artifacts, organized by date; not tracked by git |
@@ -88,7 +89,7 @@ Configuration directories managed by `make install` and the dotfiles system. Som
 | Directory | Description | Managed by |
 |---|---|---|
 | `.agents/` | Agent runtime directory | `make setup_agent` |
-| `.claude/` | Claude Code configuration, plugin settings, and rules (e.g. `rules/dev_preferences.md`, `rules/test_preferences.md`) | `make setup_agent_claude` |
+| `.claude/` | Claude Code configuration, plugin settings, and rules (e.g. `rules/dev_preferences.md`, `rules/test_preferences.md`, `rules/agent_preferences.md`) | `make setup_agent_claude` |
 | `.github/` | GitHub Actions workflows (tracked source) and Copilot configuration (`copilot-instructions.md` symlinked from dotfiles) | Workflows tracked; config symlinked via `make link_dotfiles` |
 | `.velari/` | Velari runtime configuration and cache directory | `make setup_agent` |
 | `.vscode/` | VS Code editor and code-style configuration | Symlinked from `_build/dotfiles/` via `make link_dotfiles` |

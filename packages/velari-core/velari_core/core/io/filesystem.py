@@ -5,10 +5,10 @@ import mimetypes
 import shutil
 import tempfile
 import yaml
-from   pathlib import Path
-from   typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from pathlib import Path
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
-from   .types import ArtifactFormat, ArtifactKind, ArtifactProperties
+from .types import ArtifactFormat, ArtifactKind, ArtifactProperties
 
 logger = logging.getLogger(__name__)
 

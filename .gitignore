@@ -4,6 +4,7 @@ outputs/
 logs/
 /stores/
 /experiments/
+/data/
 # for dotfiles
 # .vscode
 # .vscode/
@@ -14,6 +15,7 @@ logs/
 .env
 # Python Virtual Environments
 .venv/
+.venv-*/
 # Build artifacts
 *.egg-info/
 dist/

@@ -7,28 +7,29 @@ from typing import Any, Optional
 
 
 class ArtifactKind(StrEnum):
-    FILE      = auto()
+    FILE = auto()
     DIRECTORY = auto()
-    ARCHIVE   = auto()
-    UNKNOWN   = auto()
+    ARCHIVE = auto()
+    UNKNOWN = auto()
+
 
 # Merged IoFromat into this
 class ArtifactFormat(StrEnum):
-    PDF        = auto()
-    DOCX       = auto()
-    JSON       = auto()
-    TXT        = auto()
-    MARKDOWN   = auto()
-    HTML       = auto()
-    YAML       = auto()
-    PY         = auto()
-    BLOB       = auto()
-    DUCKDB     = auto()
-    DICT       = auto()
+    PDF = auto()
+    DOCX = auto()
+    JSON = auto()
+    TXT = auto()
+    MARKDOWN = auto()
+    HTML = auto()
+    YAML = auto()
+    PY = auto()
+    BLOB = auto()
+    DUCKDB = auto()
+    DICT = auto()
     DICTCONFIG = auto()
-    DATAFRAME  = auto()
-    EXCEL      = auto()
-    WEB        = auto()
+    DATAFRAME = auto()
+    EXCEL = auto()
+    WEB = auto()
 
     @classmethod
     def from_ext(cls, extension: str) -> Optional[ArtifactFormat]:
@@ -55,7 +56,6 @@ class ArtifactFormat(StrEnum):
         if fmt is None:
             raise ValueError(f"Cannot infer format from extension '{ext}'. Pass fmt= explicitly.")
         return fmt
-
 
 
 @dataclass
