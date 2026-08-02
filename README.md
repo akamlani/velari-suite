@@ -41,9 +41,12 @@ project-template-velari/
 │   │   └── velari_core/
 │   │       ├── core/                 # experiment.py, types.py, I/O, perf, statistics, transforms, utils
 │   │       └── integrations/         # Third-party integrations: Pydantic (FastAPI planned)
-│   └── velari-data/                  # velari-data package (depends on velari-core)
+│   ├── velari-data/                  # velari-data package (depends on velari-core)
+│   │   ├── pyproject.toml            # Package metadata and dependencies
+│   │   └── velari_data/              # Data utilities
+│   └── velari-ai/                    # velari-ai package (depends on velari-core)
 │       ├── pyproject.toml            # Package metadata and dependencies
-│       └── velari_data/              # Data utilities
+│       └── velari_ai/                # AI utilities
 ├── .env                              # Local environment variables and secrets; not tracked by git
 ├── AGENTS.md                         # AI agent context file
 ├── CLAUDE.md                         # Claude Code entry point

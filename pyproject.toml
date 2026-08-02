@@ -31,7 +31,7 @@ ignore = ["F841", "F401", "E731", "I001"]
 testpaths = ["tests"]
 
 [tool.pyright]
-extraPaths = ["packages/velari-core", "packages/velari-data"]
+extraPaths = ["packages/velari-core", "packages/velari-data", "packages/velari-ai"]
 typeCheckingMode = "standard"
 
 [tool.ruff.lint.pydocstyle]

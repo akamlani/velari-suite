@@ -167,67 +167,6 @@ fn(**kwargs)
 fn(name=cfg.name, input_keys=list(cfg.input_keys), output_keys=[])
 ```
 
-## Imports
-
-- Never use `if TYPE_CHECKING:` guards to defer imports. All imports — including type-only ones — must appear at the top of the file unconditionally. This keeps type information fully available at runtime, keeps static analysis honest, and removes the two-import-path maintenance burden. If a module is an optional heavy dependency, install it in the appropriate `uv` dependency group (`evaluation`, `apps`, etc.) rather than hiding it behind a guard.
-
-- Within a package, always use **relative imports** (`from .module import X`, `from ..sibling import Y`). Never use absolute package-name imports from inside the package itself.
-- Outside the package (`projects/`, `examples/`, scripts), use absolute imports.
-
-```python
-# correct — relative import inside mypackage/subpkg/module.py
-from .utils import helper
-
-# wrong — absolute import inside the package
-from mypackage.subpkg.utils import helper
-
-# correct — absolute import from outside the package
-from mypackage.subpkg.module import MyClass
-```
-
-- When importing multiple symbols from one module, count them: **4 or more** symbols → import the module itself and reference each symbol through it (`module.Symbol`); **3 or fewer** symbols → import each one directly by name. This keeps import blocks short for modules with many types without adding qualification noise for the common small case.
-
-```python
-# correct — 5+ symbols from one module: import the module, reference qualified
-from .schemas import types
-
-def handler(req: types.CreateRequest) -> types.Response:
-    ...
-
-# correct — 2-3 symbols from one module: import directly by name
-from .schemas.types import Request, Response
-
-def handler(req: Request) -> Response:
-    ...
-
-# wrong — qualifying access for only 2 symbols adds noise without benefit
-from .schemas import types
-
-def handler(req: types.Request) -> types.Response:
-    ...
-```
-
-- When importing a module under its bare name would collide with a local variable, parameter, or another imported module of the same name, alias it to something unambiguous (e.g. `from .other_pkg import thing as other_thing`) rather than picking a name that shadows or gets shadowed.
-
-- `from __future__ import annotations` must always be the **first line** of any Python file that includes it — before all other imports, before module docstrings.
-- Bare `import X` statements come **before** `from X import Y` statements within each import block.
-- After the `import` or `from` keyword, align module names with a **tab** so the module column lines up across all lines in the block.
-
-```python
-# correct
-from __future__ import annotations
-import  os
-import  pandas as pd
-from    typing import List, Union
-from    .module import MyClass
-
-# wrong — __future__ not first, from before import, no alignment
-from typing import List
-import pandas as pd
-from __future__ import annotations
-from .module import MyClass
-```
-
 ## Exception Handling
 
 - Prefer `try/except` over `if`-checks for recoverable error paths — let the operation attempt and catch failure rather than guarding with a condition.
@@ -324,7 +263,7 @@ mypackage/ai/stores/
 - Use `StrEnum` (from `enum`) for string-valued enumerations.
 - Always use `auto()` instead of typing the string value explicitly — `StrEnum` + `auto()` produces the lowercase member name, so `OBJECT_STORAGE = auto()` yields `"object_storage"`.
 - Member names must be UPPER_SNAKE_CASE; the lowercase string value is derived automatically.
-- Align `=` signs at the same column across **all enumerations in the same file** — the column is set by the longest member name across all enums, plus a 2-space minimum gap.
+- Right-align `=` signs vertically at the same column across **all enumerations in the same file** — the column is set by the longest member name across all enums, plus a 2-space minimum gap.
 - When a new enum is added or a member is renamed, re-check and re-align all enums in the file.
 
 ```python
@@ -419,6 +358,32 @@ class DatasetProfile(object):
 ```
 
 ## Dataclass Field Declarations
+
+- Within a block of related field declarations (dataclasses, `TypedDict`s, and similar field-style structures), right-align type annotations so they end at a common column — this keeps `=` signs (and trailing comments on bare fields) lined up too. Skip the alignment for a block where one field's type annotation is a clear outlier in length — forcing alignment there just pads every other line with excessive whitespace; leave that block with normal single-space gaps instead.
+
+```python
+# correct — every type token ends at the same column, so '=' lines up
+@dataclass
+class Config:
+    host:  str            # required — bare annotation
+    port:  int            = field(default=8080)
+    tags:  List[str]      = field(default_factory=list)
+    label: Optional[str]  = field(default=None)
+
+# correct — one outlier type, so alignment is skipped in favor of normal spacing
+@dataclass
+class Handler:
+    name: str
+    callback: Callable[[Request, Response, Dict[str, Any]], Awaitable[None]] = field(default=None)
+    retries: int = field(default=3)
+
+# wrong — forcing alignment against the outlier produces an oversized gap
+@dataclass
+class Handler:
+    name:     str
+    callback: Callable[[Request, Response, Dict[str, Any]], Awaitable[None]]  = field(default=None)
+    retries:  int                                                             = field(default=3)
+```
 
 - Use `field()` from `dataclasses` whenever an attribute carries a default value or any field option (repr, compare, metadata, etc.). Do **not** use `field()` when the field is required and has no options — leave it as a bare annotation.
   - **Required (no default):** `name: Type` — bare annotation, no `field()`.

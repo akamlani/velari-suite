@@ -35,7 +35,9 @@ Files an AI agent should read first to understand the project's conventions, con
 | `pyproject.toml` | Workspace root config: `[tool.uv.workspace]` members, shared ruff/pytest config, dev dependency-group |
 | `packages/velari-core/pyproject.toml` | `velari-core` package metadata and its runtime dependencies |
 | `packages/velari-data/pyproject.toml` | `velari-data` package metadata; depends on `velari-core` via `[tool.uv.sources] workspace = true` |
+| `packages/velari-ai/pyproject.toml` | `velari-ai` package metadata; depends on `velari-core` via `[tool.uv.sources] workspace = true` |
 | `.claude/rules/dev_preferences.md` | Coding conventions: logging, type annotations, package structure |
+| `.claude/rules/import_preferences.md` | Import conventions: ordering, alignment, grouping, relative vs. absolute, qualification |
 | `.claude/rules/test_preferences.md` | Test-writing conventions: test placement, organization, fixtures, naming |
 | `.claude/rules/agent_preferences.md` | Agent working habits: clean up side effects from verification/exploratory commands, including out-of-repo state |
 | `.vscode/settings.json` | Editor and code-style configuration (docstring format, formatter settings, etc.) — consult when writing or reviewing code |
@@ -59,8 +61,9 @@ This repo is a `uv` workspace monorepo (`[tool.uv.workspace] members = ["package
 | `packages/velari-core/` | `velari_core` | Core utilities: I/O, filesystem, partitioning, and experiment management |
 | `packages/velari-core/` | `velari_core.integrations.pydantic` | Third-party integrations: Pydantic tooling (FastAPI integration planned) |
 | `packages/velari-data/` | `velari_data` | Data utilities; depends on `velari-core` |
+| `packages/velari-ai/` | `velari_ai` | AI utilities; depends on `velari-core` |
 
-Each package's import name mirrors its own distribution name (`velari-core` → `velari_core`, `velari-data` → `velari_data`), following the LangChain/Dagster convention — bare `velari` is intentionally left unclaimed for a possible future top-level orchestration package. Future packages (e.g. `velari-ai`) should follow the same convention: independent top-level import name mirroring the distribution name, not a nested `velari.<name>` namespace (which would require PEP 420 cross-distribution namespace-package handling).
+Each package's import name mirrors its own distribution name (`velari-core` → `velari_core`, `velari-data` → `velari_data`, `velari-ai` → `velari_ai`), following the LangChain/Dagster convention — bare `velari` is intentionally left unclaimed for a possible future top-level orchestration package. Future packages should follow the same convention: independent top-level import name mirroring the distribution name, not a nested `velari.<name>` namespace (which would require PEP 420 cross-distribution namespace-package handling).
 
 ## Structure Notes
 
@@ -89,7 +92,7 @@ Configuration directories managed by `make install` and the dotfiles system. Som
 | Directory | Description | Managed by |
 |---|---|---|
 | `.agents/` | Agent runtime directory | `make setup_agent` |
-| `.claude/` | Claude Code configuration, plugin settings, and rules (e.g. `rules/dev_preferences.md`, `rules/test_preferences.md`, `rules/agent_preferences.md`) | `make setup_agent_claude` |
+| `.claude/` | Claude Code configuration, plugin settings, and rules (e.g. `rules/dev_preferences.md`, `rules/import_preferences.md`, `rules/test_preferences.md`, `rules/agent_preferences.md`) | `make setup_agent_claude` |
 | `.github/` | GitHub Actions workflows (tracked source) and Copilot configuration (`copilot-instructions.md` symlinked from dotfiles) | Workflows tracked; config symlinked via `make link_dotfiles` |
 | `.velari/` | Velari runtime configuration and cache directory | `make setup_agent` |
 | `.vscode/` | VS Code editor and code-style configuration | Symlinked from `_build/dotfiles/` via `make link_dotfiles` |
