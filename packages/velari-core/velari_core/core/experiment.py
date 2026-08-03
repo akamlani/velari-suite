@@ -36,7 +36,6 @@ def resolve_tuple(*args):
 
 class ConfigOmegaConf(object):
     """Manage OmegaConf global resolver registrations."""
-
     def resolve(self):
         """Register custom OmegaConf resolvers required by the project configuration.
 
@@ -75,7 +74,6 @@ class Experiment(object):
         >>> cfg = exp.create("bert-finetune", tags=["nlp", "classification", "v1"])
         >>> print(cfg.experiment.install.dir)  # resolved output directory
     """
-
     def __init__(self, root_path: str | Path | None = None):
         """Initialise the experiment with a deterministic seed and resolved directory paths.
 

@@ -44,7 +44,6 @@ def read_hydra_defaults(config_dir: str, config_name: str) -> DictConfig:
         >>> cfg = read_hydra_defaults(str(config_dir), "config")
         >>> log_filename = cfg.logging  # resolve the logging config path
     """
-
     def resolve_tuple(*args):
         return tuple(args)
 

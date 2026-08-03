@@ -132,6 +132,54 @@ for sub in nested.values():
 return result
 ```
 
+## Control Flow Expressions
+
+- Prefer building a return value as a single expression — comprehensions, `next(generator,
+  default)`, ternaries, or chained `.get(key, default)` — over imperative
+  guard-clause-and-mutate control flow (`if cond: return default`, or `result = x; if
+  cond: result = y; return result`). This extends the "Comprehensions" rule above to
+  control flow generally, not just loop accumulation.
+- `next((transform(x) for x in values), default)` replaces "get the first item or None,
+  early-return if None, otherwise transform it" — the transform happens inside the
+  generator instead of after a guard clause.
+- A ternary replaces "start with a base value, conditionally mutate it, return it" when
+  both branches are short.
+- When several sequential `if x is None: return fallback` guards all pull from the same
+  underlying source, check whether they collapse into one or more chained `.get(key,
+  default)` lookups instead — this works whenever the fallback values compose the same
+  way the "success" values do.
+
+```python
+# correct — first match or default, transform inline
+def _parse_returns(cls, values):
+    return next(
+        (cls.Returns(annotation=r.annotation, description=r.description) for r in values),
+        None,
+    )
+
+# wrong — guard clause + intermediate variable for the same "first or None" logic
+def _parse_returns(cls, values):
+    raw = next(iter(values), None)
+    if raw is None:
+        return None
+    return cls.Returns(annotation=raw.annotation, description=raw.description)
+
+# correct — fallback layers collapse into one construction via .get(key, default)
+sections = next((s for s in parsed if s.get(kind.text) is not None), {})
+return cls(
+    summary=sections.get(kind.text, doc),
+    parameters=cls._parse_parameters(sections.get(kind.parameters, [])),
+)
+
+# wrong — sequential if-guards for what are really two dict-lookup fallbacks
+if not doc:
+    return cls()
+sections = find_sections(doc)
+if sections is None:
+    return cls(summary=doc)
+return cls(summary=sections[kind.text], parameters=cls._parse_parameters(sections.get(kind.parameters, [])))
+```
+
 ## Attribute Access
 
 - Prefer dot notation over dictionary string key access wherever the attribute is statically
@@ -213,33 +261,6 @@ from mypackage.subpkg import MyClass
 
 # exception — velari_core/core/__init__.py explicitly re-exports a curated set
 from velari_core.core import read_root_dir
-```
-
-## Docstrings
-
-- Use **Google-style** docstrings throughout — configured via `.vscode/settings.json` (`autoDocstring.docstringFormat: google`).
-- One-line summary on the opening line of the docstring; no multi-line summary blocks.
-- Standard section order: summary → `Args:` → `Returns:` → `Raises:` (if applicable) → `Examples:` (always last).
-- Use `Examples:` (plural) — the canonical Google spec name. Never `Example:` (singular).
-- In `Args:`, include the type in parentheses: `param (Type): description.`
-- In `Examples:`, prefix every line with `>>>` (doctest style), indented 4 spaces under the `Examples:` label.
-
-```python
-def cosine_distance(a: List[float], b: List[float]) -> float:
-    """Compute cosine distance between two embedding vectors.
-
-    Args:
-        a (List[float]): Query embedding vector.
-        b (List[float]): Document embedding vector.
-
-    Returns:
-        float: Cosine distance in [0, 2]; 0.0 = identical, 1.0 = orthogonal, 2.0 = opposite.
-
-    Examples:
-        >>> corpus_embeddings = [[0.2, 0.7, 0.4, 0.6], [0.5, 0.3, 0.8, 0.1]]
-        >>> query_embedding   = [0.1, 0.8, 0.3, 0.5]
-        >>> scores = [cosine_distance(query_embedding, doc) for doc in corpus_embeddings]
-    """
 ```
 
 ## .gitignore

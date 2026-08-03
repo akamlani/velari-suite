@@ -57,7 +57,8 @@ def test_put_get():
 
 ## Docstrings
 
-- One-line module docstring only (`"""Tests for <module>."""`). Test functions/methods do not get docstrings — the test name should describe the behavior on its own.
+- See `.claude/rules/doc_preferences.md`'s "Docstring Deviation for Tests" —
+  one-line module docstring only, no docstrings on test functions/methods.
 
 ## Naming
 

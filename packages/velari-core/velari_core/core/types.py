@@ -16,7 +16,6 @@ def serialize_date(date: datetime.date) -> DateStr:
 
 class StrEnumBase(StrEnum):
     """Extend StrEnum with helpers to expose member names and values as lists or strings."""
-
     @classmethod
     def list_names(cls) -> List[str]:
         """Return all member names as a list of strings."""

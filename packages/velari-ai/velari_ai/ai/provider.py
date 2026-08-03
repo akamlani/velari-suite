@@ -66,7 +66,6 @@ class ProviderEmbeddings(ABC):
         >>> for i, t in enumerate(df[['text']].values):
         >>>     plt.annotate(t, (emb_trsfrm[:, 0][i], emb_trsfrm[:, 1][i]))
     """
-
     @overload
     def get_embeddings(self, texts: str) -> List[float]: ...
     @overload

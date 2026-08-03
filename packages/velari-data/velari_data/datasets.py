@@ -67,7 +67,6 @@ class DatasetProfileTimeSeries:
 
 class DatasetT(Generic[T_co]):
     "Base Class for all Datasets"
-
     def __init__(self, spec: DatasetSpecInfo, **kwargs):
         self.spec = spec
 
@@ -114,7 +113,6 @@ class DatasetT(Generic[T_co]):
 
 class DatasetTabular(DatasetT[pd.DataFrame]):
     "Base Class for Tabular Datasets"
-
     def __init__(self, spec: DatasetSpecTabularInfo, **kwargs):
         super().__init__(spec.info, **kwargs)
         self.spec = spec
@@ -202,7 +200,6 @@ class DatasetTabular(DatasetT[pd.DataFrame]):
 
 class DatasetTimeseries(DatasetTabular):
     """Base Class for Time Series Datasets"""
-
     def __init__(self, spec: DatasetSpecTabularInfo, **kwargs):
         super().__init__(spec, **kwargs)
         self.spec = spec

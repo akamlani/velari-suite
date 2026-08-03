@@ -17,6 +17,12 @@ dependencies    = [
     "openai>=2.0",
 ]
 
+[project.optional-dependencies]
+agents = [
+    "fastmcp[apps]>=3.0",
+    "griffe>=2.0",
+]
+
 [tool.uv.sources]
 velari-core = { workspace = true }
 

@@ -53,7 +53,6 @@ class Filesystem(object):
         PosixPath('extracted')
         >>> Filesystem.delete("archive/notes.txt")
     """
-
     @staticmethod
     def get_mime_type(file_path: Union[str, Path]) -> str:
         mime_type, _ = mimetypes.guess_type(str(file_path))

@@ -98,6 +98,26 @@ class Config:
   specifically, also align the `import` keyword itself at a second, consistent column —
   sized to the longest module name in the block plus a 2-space minimum gap — so it isn't
   left ragged even though the module names differ in length.
+- When one module name in a block is a clear length outlier compared to the others in
+  that block, skip the second-level `import`-keyword column for that block — forcing it
+  would pad the shorter names with excessive whitespace (same judgment as
+  `dev_preferences.md`'s "Dataclass Field Declarations" rule). The first-level tab still
+  applies regardless — it's fixed by the `from`/`import` keyword lengths alone, not by
+  the module names, so there's no outlier concern there.
+
+```python
+# correct — first-level tab still applies; second-level column skipped since
+# `bar.deeply.nested.module.path` is a clear outlier next to `bar`
+from    bar import Thing
+from    bar.deeply.nested.module.path import OtherThing
+from    bar.another.long.submodule.chain import ThirdThing
+
+# wrong — dropping the first-level tab too just because the second-level
+# column was skipped
+from bar import Thing
+from bar.deeply.nested.module.path import OtherThing
+```
+
 - When a file's imports span more than one logical category (e.g. standard-library and
   third-party imports vs. local/relative ones), separate the groups with a short comment
   header rather than leaving them interleaved or unlabeled — `# package modules` is the

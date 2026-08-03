@@ -38,6 +38,7 @@ Files an AI agent should read first to understand the project's conventions, con
 | `packages/velari-ai/pyproject.toml` | `velari-ai` package metadata; depends on `velari-core` via `[tool.uv.sources] workspace = true` |
 | `.claude/rules/dev_preferences.md` | Coding conventions: logging, type annotations, package structure |
 | `.claude/rules/import_preferences.md` | Import conventions: ordering, alignment, grouping, relative vs. absolute, qualification |
+| `.claude/rules/doc_preferences.md` | Docstring conventions: Google-style sections, spacing, test-code deviation |
 | `.claude/rules/test_preferences.md` | Test-writing conventions: test placement, organization, fixtures, naming |
 | `.claude/rules/agent_preferences.md` | Agent working habits: clean up side effects from verification/exploratory commands, including out-of-repo state |
 | `.vscode/settings.json` | Editor and code-style configuration (docstring format, formatter settings, etc.) — consult when writing or reviewing code |
@@ -92,7 +93,7 @@ Configuration directories managed by `make install` and the dotfiles system. Som
 | Directory | Description | Managed by |
 |---|---|---|
 | `.agents/` | Agent runtime directory | `make setup_agent` |
-| `.claude/` | Claude Code configuration, plugin settings, and rules (e.g. `rules/dev_preferences.md`, `rules/import_preferences.md`, `rules/test_preferences.md`, `rules/agent_preferences.md`) | `make setup_agent_claude` |
+| `.claude/` | Claude Code configuration, plugin settings, and rules (e.g. `rules/dev_preferences.md`, `rules/import_preferences.md`, `rules/doc_preferences.md`, `rules/test_preferences.md`, `rules/agent_preferences.md`) | `make setup_agent_claude` |
 | `.github/` | GitHub Actions workflows (tracked source) and Copilot configuration (`copilot-instructions.md` symlinked from dotfiles) | Workflows tracked; config symlinked via `make link_dotfiles` |
 | `.velari/` | Velari runtime configuration and cache directory | `make setup_agent` |
 | `.vscode/` | VS Code editor and code-style configuration | Symlinked from `_build/dotfiles/` via `make link_dotfiles` |

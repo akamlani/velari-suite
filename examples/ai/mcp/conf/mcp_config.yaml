@@ -1,0 +1,14 @@
+name: mcp-dataservice
+instructions: "Data Service MCP server exposing example tools built on the velari SDK."
+author: "Ari Kamlani"
+
+resources:
+  - handler:    read_config
+    uri:        "config://settings"
+    name:       "read_config"
+    mime_type:  "application/json"
+    tags:       ["config", "server"]
+    meta:
+      source:   "hydra"
+      format:   "yaml"
+      author:   "${author}"
