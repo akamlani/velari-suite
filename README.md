@@ -1,6 +1,6 @@
-# project-template-velari
+# velari-suite
 
-Project Template repository for AI native Development and Workflow Orchestration.
+Monorepo for Core Operations, Data, and AI native Development and Workflow Orchestration.
 
 ## Quick Links
 
@@ -23,30 +23,50 @@ Project Template repository for AI native Development and Workflow Orchestration
 
 ```
 project-template-velari/
+├── apps/                             # Placeholder for application prototypes (e.g. Streamlit apps)
 ├── config/
-│   └── runtime/
-│       ├── python.env                # Python version config
-│       └── runtime.env               # Package and repo config
+│   ├── database/                     # postgres.yaml, sqlite.yaml
+│   ├── experimentation/              # experiment.yaml
+│   ├── ml/                           # clustering.yaml, projection.yaml
+│   ├── prompts/                      # agents/, skills/, usecases/, evals.yaml, tasks.yaml
+│   ├── provider/                     # gemini.yaml, openai.yaml
+│   ├── runtime/
+│   │   ├── python.env                # Python version config
+│   │   └── runtime.env               # Package and repo config
+│   ├── services/                     # core_services.yaml, data_services.yaml
+│   ├── tracing/                      # phoenix.yaml
+│   ├── config.yaml                   # Root application config
+│   └── logging.yaml                  # Logging configuration
 ├── data/                             # Sample and reference data files for examples and experiments
 ├── docs/                             # Documentation assets and prompt references
 ├── examples/                         # Runnable example scripts and application prototypes
+│   ├── ai/                           # agents/, data/, llm/, mcp/, ml/ — one subdir per topic
+│   └── data/                         # Data-loading and dataset examples
 ├── experiments/                      # Experimental scripts and output snapshots
 ├── logs/                             # Runtime log output (not tracked by git)
 ├── outputs/                          # Generated output artifacts, organized by date (not tracked by git)
+├── scripts/                          # Standalone operational scripts (e.g. ai/mcp_install.sh)
 ├── templates/                        # Reusable project templates including spec scaffolds
 ├── tests/                            # pytest test suite for the workspace (centralized across all packages)
+│   ├── ai/                           # integrations/ (agno, jinja, langchain, tavily), mcp/, providers/
+│   ├── core/                         # Mirrors velari-core
+│   └── data/                         # Mirrors velari-data
 ├── packages/                         # uv workspace member packages
 │   ├── velari-core/                  # velari-core package
 │   │   ├── pyproject.toml            # Package metadata and dependencies
 │   │   └── velari_core/
-│   │       ├── core/                 # experiment.py, types.py, I/O, perf, statistics, transforms, utils
-│   │       └── integrations/         # Third-party integrations: Pydantic (FastAPI planned)
+│   │       ├── core/                 # experiment.py, types.py, I/O, perf, services, statistics, transforms, utils
+│   │       └── integrations/         # fastapi, pydantic
 │   ├── velari-data/                  # velari-data package (depends on velari-core)
 │   │   ├── pyproject.toml            # Package metadata and dependencies
-│   │   └── velari_data/              # Data utilities
+│   │   └── velari_data/
+│   │       └── integrations/         # mongo
 │   └── velari-ai/                    # velari-ai package (depends on velari-core)
+│       ├── Makefile                  # Package-local automation (info/help)
 │       ├── pyproject.toml            # Package metadata and dependencies
-│       └── velari_ai/                # AI utilities
+│       └── velari_ai/
+│           ├── ai/                   # evals, features, retrieval, provider.py, response.py, types.py
+│           └── integrations/         # agno, fastmcp, huggingface, jinja, langchain, openai, tavily
 ├── .env                              # Local environment variables and secrets; not tracked by git
 ├── AGENTS.md                         # AI agent context file
 ├── CLAUDE.md                         # Claude Code entry point
@@ -63,7 +83,7 @@ Configuration directories managed by `make install` and the dotfiles system. Som
 | Directory | Description | Managed by |
 |---|---|---|
 | `.agents/` | Agent runtime directory | `make setup_agent` |
-| `.claude/` | Claude Code configuration, plugin settings, and rules under `rules/guidelines/` (e.g. `dev_guides.md`, `test_guides.md`, `agent_guides.md`) | `make setup_agent_claude` |
+| `.claude/` | Claude Code configuration, plugin settings, and rules under `rules/guidelines/` (`dev_guides.md`, `import_guides.md`, `doc_guides.md`, `test_guides.md`, `agent_guides.md`, `refactor_guides.md`) | `make setup_agent_claude` |
 | `.github/` | GitHub Actions workflows (tracked source) and Copilot configuration (`copilot-instructions.md` symlinked from dotfiles) | Workflows tracked; config symlinked via `make link_dotfiles` |
 | `.velari/` | Velari runtime configuration and cache directory | `make setup_agent` |
 | `.vscode/` | VS Code editor and code-style configuration | Symlinked from `_build/dotfiles/` via `make link_dotfiles` |
