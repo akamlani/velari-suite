@@ -43,13 +43,13 @@ def test_toolcallingllm_query_without_bind_raises_runtimeerror():
         tool_llm.query("What is the balance on ACC-10293?")
 
 
-def test_toolcallingllm_query_executes_tool_and_returns_final_answer():
+def test_toolcallingllm_query_executes_tool_and_returns_final_answer(monkeypatch):
     from langchain_core.messages import AIMessage
     from velari_ai.integrations.langchain.llm import ToolCallingLLM
 
     tool_llm = ToolCallingLLM(api_key="test-key")
     tool_llm.bind([_lookup_account_balance_tool()])
-    tool_llm._bound_llm = _StubBoundLLM([
+    monkeypatch.setattr(tool_llm, "_bound_llm", _StubBoundLLM([
         AIMessage(
             content="",
             tool_calls=[{
@@ -60,21 +60,22 @@ def test_toolcallingllm_query_executes_tool_and_returns_final_answer():
             }],
         ),
         AIMessage(content="Account ACC-10293 has an outstanding balance of $1,204.50."),
-    ])
+    ]))
 
     result = tool_llm.query("What is the balance on ACC-10293?")
 
+    assert isinstance(result.response, AIMessage)
     assert result.response.content == "Account ACC-10293 has an outstanding balance of $1,204.50."
     assert not result.response.tool_calls
 
 
-def test_toolcallingllm_query_populates_message_stats_from_tool_calling_turns():
+def test_toolcallingllm_query_populates_message_stats_from_tool_calling_turns(monkeypatch):
     from langchain_core.messages import AIMessage
     from velari_ai.integrations.langchain.llm import ToolCallingLLM
 
     tool_llm = ToolCallingLLM(api_key="test-key")
     tool_llm.bind([_lookup_account_balance_tool()])
-    tool_llm._bound_llm = _StubBoundLLM([
+    monkeypatch.setattr(tool_llm, "_bound_llm", _StubBoundLLM([
         AIMessage(
             content="",
             tool_calls=[{
@@ -85,7 +86,7 @@ def test_toolcallingllm_query_populates_message_stats_from_tool_calling_turns():
             }],
         ),
         AIMessage(content="Account ACC-10293 has an outstanding balance of $1,204.50."),
-    ])
+    ]))
 
     result = tool_llm.query("What is the balance on ACC-10293?")
 
@@ -95,15 +96,16 @@ def test_toolcallingllm_query_populates_message_stats_from_tool_calling_turns():
     assert result.metrics.message_stats.cnt_tool_requests == 1
 
 
-def test_toolcallingllm_query_with_response_model_returns_parsed_object_after_tool_calls():
+def test_toolcallingllm_query_with_response_model_returns_parsed_object_after_tool_calls(monkeypatch):
     from langchain_core.messages import AIMessage
+    from pydantic import BaseModel
     from velari_ai.integrations.langchain.llm import ToolCallingLLM
 
     class _ParsedBalance:
         def __init__(self, balance):
             self.balance = balance
 
-    class BalanceSummary:
+    class BalanceSummary(BaseModel):
         pass
 
     class _StubStructuredModel:
@@ -127,7 +129,7 @@ def test_toolcallingllm_query_with_response_model_returns_parsed_object_after_to
     parsed = _ParsedBalance(balance=1204.50)
     tool_llm = ToolCallingLLM(api_key="test-key")
     tool_llm.bind([_lookup_account_balance_tool()])
-    tool_llm._bound_llm = _StubBoundLLM([
+    monkeypatch.setattr(tool_llm, "_bound_llm", _StubBoundLLM([
         AIMessage(
             content="",
             tool_calls=[{
@@ -138,16 +140,17 @@ def test_toolcallingllm_query_with_response_model_returns_parsed_object_after_to
             }],
         ),
         AIMessage(content="Account ACC-10293 has an outstanding balance of $1,204.50."),
-    ])
-    tool_llm._model = _StubModel(parsed)
+    ]))
+    stub_model = _StubModel(parsed)
+    monkeypatch.setattr(tool_llm, "_model", stub_model)
 
     result = tool_llm.query("What is the balance on ACC-10293?", response_model=BalanceSummary)
 
     assert result.response is parsed
-    assert tool_llm._model.with_structured_output_calls == [BalanceSummary]
+    assert stub_model.with_structured_output_calls == [BalanceSummary]
 
 
-def test_toolcallingllm_query_exceeding_max_tool_calls_raises_runtimeerror():
+def test_toolcallingllm_query_exceeding_max_tool_calls_raises_runtimeerror(monkeypatch):
     import pytest
     from langchain_core.messages import AIMessage
     from velari_ai.integrations.langchain.llm import ToolCallingLLM
@@ -169,13 +172,13 @@ def test_toolcallingllm_query_exceeding_max_tool_calls_raises_runtimeerror():
         def invoke(self, messages):
             return looping_call
 
-    tool_llm._bound_llm = _AlwaysLooping()
+    monkeypatch.setattr(tool_llm, "_bound_llm", _AlwaysLooping())
 
     with pytest.raises(RuntimeError):
         tool_llm.query("loop forever")
 
 
-def test_llm_run_sends_system_and_human_messages():
+def test_llm_run_sends_system_and_human_messages(monkeypatch):
     from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
     from velari_ai.integrations.langchain.llm import LLM
 
@@ -189,10 +192,11 @@ def test_llm_run_sends_system_and_human_messages():
 
     llm = LLM(api_key="test-key")
     stub = _StubModel()
-    llm._model = stub
+    monkeypatch.setattr(llm, "_model", stub)
 
     result = llm.run("You are a billing support assistant.", "What's the balance on ACC-10293?")
 
+    assert isinstance(result.response, AIMessage)
     assert result.response.content == "Account ACC-10293 has an outstanding balance of $1,204.50."
     messages = stub.calls[0]
     assert isinstance(messages[0], SystemMessage)
@@ -201,7 +205,7 @@ def test_llm_run_sends_system_and_human_messages():
     assert messages[1].content == "What's the balance on ACC-10293?"
 
 
-def test_llm_run_populates_usage_stats_from_response():
+def test_llm_run_populates_usage_stats_from_response(monkeypatch):
     from langchain_core.messages import AIMessage
     from velari_ai.integrations.langchain.llm import LLM
 
@@ -216,7 +220,7 @@ def test_llm_run_populates_usage_stats_from_response():
             )
 
     llm = LLM(api_key="test-key")
-    llm._model = _StubModel()
+    monkeypatch.setattr(llm, "_model", _StubModel())
 
     result = llm.run("You are a billing support assistant.", "What's the balance on ACC-10293?")
 
@@ -228,14 +232,15 @@ def test_llm_run_populates_usage_stats_from_response():
     assert result.metrics.message_stats.cnt_turn_messages == 3
 
 
-def test_llm_run_with_response_model_returns_parsed_object():
+def test_llm_run_with_response_model_returns_parsed_object(monkeypatch):
+    from pydantic import BaseModel
     from velari_ai.integrations.langchain.llm import LLM
 
     class _ParsedTicket:
         def __init__(self, priority):
             self.priority = priority
 
-    class TicketPriority:
+    class TicketPriority(BaseModel):
         pass
 
     class _StubStructuredModel:
@@ -258,7 +263,8 @@ def test_llm_run_with_response_model_returns_parsed_object():
 
     parsed = _ParsedTicket(priority="high")
     llm = LLM(api_key="test-key")
-    llm._model = _StubModel(parsed)
+    stub_model = _StubModel(parsed)
+    monkeypatch.setattr(llm, "_model", stub_model)
 
     result = llm.run(
         "Classify this support ticket's priority.", "The site is down for all users.",
@@ -266,11 +272,12 @@ def test_llm_run_with_response_model_returns_parsed_object():
     )
 
     assert result.response is parsed
+    assert isinstance(result.response, _ParsedTicket)
     assert result.response.priority == "high"
-    assert llm._model.with_structured_output_calls == [TicketPriority]
+    assert stub_model.with_structured_output_calls == [TicketPriority]
 
 
-def test_llm_batch_invokes_model_once_per_message_with_shared_system_prompt():
+def test_llm_batch_invokes_model_once_per_message_with_shared_system_prompt(monkeypatch):
     from langchain_core.messages import AIMessage, SystemMessage
     from velari_ai.integrations.langchain.llm import LLM
 
@@ -284,14 +291,14 @@ def test_llm_batch_invokes_model_once_per_message_with_shared_system_prompt():
 
     llm = LLM(api_key="test-key")
     stub = _StubModel()
-    llm._model = stub
+    monkeypatch.setattr(llm, "_model", stub)
 
     results = llm.batch(
         "Classify the sentiment of this support ticket as positive, neutral, or negative.",
         ["The product arrived damaged and support has ignored me for a week.", "Great experience, thanks!"],
     )
 
-    assert [r.response.content for r in results] == ["negative", "positive"]
+    assert [r.text for r in results] == ["negative", "positive"]
     inputs = stub.calls[0]
     assert len(inputs) == 2
     assert isinstance(inputs[0][0], SystemMessage)
@@ -299,7 +306,7 @@ def test_llm_batch_invokes_model_once_per_message_with_shared_system_prompt():
     assert inputs[1][1].content == "Great experience, thanks!"
 
 
-def test_llm_batch_gives_every_item_the_same_latency():
+def test_llm_batch_gives_every_item_the_same_latency(monkeypatch):
     from langchain_core.messages import AIMessage
     from velari_ai.integrations.langchain.llm import LLM
 
@@ -308,7 +315,7 @@ def test_llm_batch_gives_every_item_the_same_latency():
             return [AIMessage(content="negative"), AIMessage(content="positive")]
 
     llm = LLM(api_key="test-key")
-    llm._model = _StubModel()
+    monkeypatch.setattr(llm, "_model", _StubModel())
 
     results = llm.batch(
         "Classify the sentiment of this support ticket as positive, neutral, or negative.",
@@ -318,7 +325,7 @@ def test_llm_batch_gives_every_item_the_same_latency():
     assert results[0].metrics.latency_sec == results[1].metrics.latency_sec
 
 
-def test_llm_stream_yields_chunks_from_model_stream():
+def test_llm_stream_yields_chunks_from_model_stream(monkeypatch):
     from langchain_core.messages import SystemMessage
     from velari_ai.integrations.langchain.llm import LLM
 
@@ -332,7 +339,7 @@ def test_llm_stream_yields_chunks_from_model_stream():
 
     llm = LLM(api_key="test-key")
     stub = _StubModel()
-    llm._model = stub
+    monkeypatch.setattr(llm, "_model", stub)
 
     chunks = list(llm.stream("You are a research assistant.", "What were Q3's key findings?"))
 

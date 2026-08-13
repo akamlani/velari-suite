@@ -17,7 +17,7 @@ def test_agentresponseinfo_holds_response_and_metrics():
     )
     info = AgentResponseInfo(response=AIMessage(content="ok"), metrics=metrics, messages=[AIMessage(content="ok")])
 
-    assert info.response.content == "ok"
+    assert info.text == "ok"
     assert info.metrics.latency_sec == 0.5
     assert info.metrics.message_stats.cnt_assistant == 1
     assert info.metrics.usage_stats.input_tokens == 10
@@ -126,10 +126,11 @@ def test_toolcallmessagestats_from_messages_defaults_cnt_total_messages_to_turn_
 
 
 def test_usagestats_from_messages_sums_usage_metadata():
-    from langchain_core.messages import AIMessage
+    from typing import List
+    from langchain_core.messages import AIMessage, BaseMessage
     from velari_ai.integrations.langchain.types import UsageStats
 
-    messages = [AIMessage(
+    messages: List[BaseMessage] = [AIMessage(
         content="ok",
         usage_metadata={
             "input_tokens": 120, "output_tokens": 30, "total_tokens": 150,

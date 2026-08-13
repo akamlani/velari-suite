@@ -28,6 +28,25 @@ def test_load_returns_document_with_text_and_metadata(monkeypatch):
     assert docs[0].metadata["length"] == len(docs[0].page_content)
 
 
+def test_load_sets_acquired_at_to_current_utc_time(monkeypatch):
+    from datetime import datetime, timezone
+    from velari_ai.integrations.langchain.loader import WebBaseLoader
+
+    class _FakeResponse:
+        url = "https://example.com"
+        text = "<html><title>Example</title><body>ok</body></html>"
+
+    loader = WebBaseLoader("https://example.com")
+    monkeypatch.setattr(loader.client, "get", lambda url, **kwargs: _FakeResponse())
+
+    before = datetime.now(timezone.utc)
+    docs = loader.load()
+    after = datetime.now(timezone.utc)
+
+    acquired_at = datetime.fromisoformat(docs[0].metadata["acquired_at"])
+    assert before <= acquired_at <= after
+
+
 def test_to_frame_flattens_documents_into_one_row_each(monkeypatch):
     from velari_ai.integrations.langchain.loader import WebBaseLoader
 
@@ -128,6 +147,45 @@ def test_load_falls_back_to_open_graph_tags(monkeypatch):
 
     assert docs[0].metadata["title"] == "OG Title"
     assert docs[0].metadata["description"] == "OG description."
+
+
+def test_load_extracts_topic_from_article_section(monkeypatch):
+    from velari_ai.integrations.langchain.loader import WebBaseLoader
+
+    class _FakeResponse:
+        url = "https://example.com"
+        text = (
+            "<html><head>"
+            "<meta property='article:section' content='Cybersecurity'>"
+            "<meta name='keywords' content='xss, csrf, sql injection'>"
+            "</head><body>ok</body></html>"
+        )
+
+    loader = WebBaseLoader("https://example.com")
+    monkeypatch.setattr(loader.client, "get", lambda url, **kwargs: _FakeResponse())
+
+    docs = loader.load()
+
+    assert docs[0].metadata["topic"] == "Cybersecurity"
+
+
+def test_load_falls_back_to_first_keyword_for_topic(monkeypatch):
+    from velari_ai.integrations.langchain.loader import WebBaseLoader
+
+    class _FakeResponse:
+        url = "https://example.com"
+        text = (
+            "<html><head>"
+            "<meta name='keywords' content='xss, csrf, sql injection'>"
+            "</head><body>ok</body></html>"
+        )
+
+    loader = WebBaseLoader("https://example.com")
+    monkeypatch.setattr(loader.client, "get", lambda url, **kwargs: _FakeResponse())
+
+    docs = loader.load()
+
+    assert docs[0].metadata["topic"] == "xss"
 
 
 def test_load_extracts_deduped_absolute_links(monkeypatch):

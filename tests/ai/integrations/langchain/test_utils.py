@@ -72,6 +72,8 @@ def test_render_graph_with_path_writes_png(monkeypatch, tmp_path):
 
 
 def test_mcp_tools_to_langchain_converts_each_tool(monkeypatch):
+    from mcp.types import Tool
+    from langchain_mcp_adapters.sessions import StdioConnection
     import velari_ai.integrations.langchain.utils as utils_module
     from velari_ai.integrations.langchain.utils import mcp_tools_to_langchain
 
@@ -83,11 +85,9 @@ def test_mcp_tools_to_langchain_converts_each_tool(monkeypatch):
 
     monkeypatch.setattr(utils_module, "convert_mcp_tool_to_langchain_tool", _fake_convert)
 
-    class _FakeTool:
-        name = "get_time"
-
-    connection = {"transport": "stdio", "command": "python", "args": ["server.py"]}
-    result = mcp_tools_to_langchain([_FakeTool()], connection, server_name="search")
+    tool = Tool(name="get_time", description="Return the current time.", inputSchema={"type": "object", "properties": {}})
+    connection: StdioConnection = {"transport": "stdio", "command": "python", "args": ["server.py"]}
+    result = mcp_tools_to_langchain([tool], connection, server_name="search")
 
     assert len(result) == 1
     tool, conn, server_name = captured[0]

@@ -22,6 +22,7 @@ def test_build_forwards_max_tool_calls_to_tool_call_limit():
 
     agent.build()
 
+    assert agent._agent is not None
     assert agent._agent.tool_call_limit == 3
 
 
@@ -44,7 +45,7 @@ def test_run_without_build_raises_runtimeerror():
         agent.run("What's the balance on ACC-10293?")
 
 
-def test_run_delegates_to_agno_agent():
+def test_run_delegates_to_agno_agent(monkeypatch):
     from velari_ai.integrations.agno.agent import Agent
 
     class _StubAgnoAgent:
@@ -57,7 +58,7 @@ def test_run_delegates_to_agno_agent():
 
     agent = Agent()
     stub = _StubAgnoAgent()
-    agent._agent = stub
+    monkeypatch.setattr(agent, "_agent", stub)
 
     result = agent.run("What's the balance on ACC-10293?")
 

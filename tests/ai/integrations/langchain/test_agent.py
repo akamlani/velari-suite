@@ -24,6 +24,7 @@ def test_build_sets_agent_and_returns_self():
     result = agent.build([_lookup_account_balance_tool()], system_prompt="You are a billing support assistant.")
 
     assert result is agent
+    assert agent._agent is not None
     assert "tools" in agent._agent.get_graph().draw_mermaid()
 
 
@@ -48,6 +49,7 @@ def test_build_forwards_agent_name_to_create_agent():
 
     agent.build([_lookup_account_balance_tool()])
 
+    assert agent._agent is not None
     assert agent._agent.name == "billing-support-agent"
 
 
@@ -150,7 +152,7 @@ def test_run_without_build_raises_runtimeerror():
         agent.run("What is the balance on ACC-10293?")
 
 
-def test_run_passes_thread_id_in_config_and_returns_final_message():
+def test_run_passes_thread_id_in_config_and_returns_final_message(monkeypatch):
     from langchain_core.messages import AIMessage
     from velari_ai.integrations.langchain.agent import Agent
 
@@ -170,17 +172,18 @@ def test_run_passes_thread_id_in_config_and_returns_final_message():
     agent = Agent(api_key="test-key")
     agent.build([_lookup_account_balance_tool()])
     stub = _StubCompiledGraph()
-    agent._agent = stub
+    monkeypatch.setattr(agent, "_agent", stub)
 
     response = agent.run("What is the balance on ACC-10293?", thread_id="acc-10293-session")
 
+    assert isinstance(response.response, AIMessage)
     assert response.response.content == "Account ACC-10293 has an outstanding balance of $1,204.50."
     state, kwargs = stub.calls[0]
     assert state["messages"][0].content == "What is the balance on ACC-10293?"
     assert kwargs["config"]["configurable"]["thread_id"] == "acc-10293-session"
 
 
-def test_run_without_thread_id_generates_a_fresh_one_each_call():
+def test_run_without_thread_id_generates_a_fresh_one_each_call(monkeypatch):
     from langchain_core.messages import AIMessage
     from velari_ai.integrations.langchain.agent import Agent
 
@@ -195,7 +198,7 @@ def test_run_without_thread_id_generates_a_fresh_one_each_call():
     agent = Agent(api_key="test-key")
     agent.build([_lookup_account_balance_tool()])
     stub = _StubCompiledGraph()
-    agent._agent = stub
+    monkeypatch.setattr(agent, "_agent", stub)
 
     agent.run("hi")
     agent.run("hi again")
@@ -208,7 +211,7 @@ def test_run_without_thread_id_generates_a_fresh_one_each_call():
     assert stub.calls[0]["context"] is None
 
 
-def test_run_forwards_context_to_invoke():
+def test_run_forwards_context_to_invoke(monkeypatch):
     from langchain_core.messages import AIMessage
     from velari_ai.integrations.langchain.agent import Agent
     from velari_ai.integrations.langchain.types import ContextSchema
@@ -224,7 +227,7 @@ def test_run_forwards_context_to_invoke():
     agent = Agent(api_key="test-key")
     agent.build([_lookup_account_balance_tool()])
     stub = _StubCompiledGraph()
-    agent._agent = stub
+    monkeypatch.setattr(agent, "_agent", stub)
     ctx = ContextSchema(experiment_name="test-exp", seed=42)
 
     agent.run("hi", context=ctx)
@@ -232,7 +235,7 @@ def test_run_forwards_context_to_invoke():
     assert stub.calls[0]["context"] is ctx
 
 
-def test_run_returns_response_info_with_latency():
+def test_run_returns_response_info_with_latency(monkeypatch):
     from langchain_core.messages import AIMessage
     from velari_ai.integrations.langchain.agent import Agent
     from velari_ai.integrations.langchain.types import AgentResponseInfo
@@ -243,16 +246,17 @@ def test_run_returns_response_info_with_latency():
 
     agent = Agent(api_key="test-key")
     agent.build([_lookup_account_balance_tool()])
-    agent._agent = _StubCompiledGraph()
+    monkeypatch.setattr(agent, "_agent", _StubCompiledGraph())
 
     result = agent.run("hi")
 
     assert isinstance(result, AgentResponseInfo)
+    assert isinstance(result.response, AIMessage)
     assert result.response.content == "ok"
     assert result.metrics.latency_sec >= 0
 
 
-def test_run_latency_is_not_accumulated_across_calls():
+def test_run_latency_is_not_accumulated_across_calls(monkeypatch):
     from langchain_core.messages import AIMessage
     from velari_ai.integrations.langchain.agent import Agent
 
@@ -262,7 +266,7 @@ def test_run_latency_is_not_accumulated_across_calls():
 
     agent = Agent(api_key="test-key")
     agent.build([_lookup_account_balance_tool()])
-    agent._agent = _StubCompiledGraph()
+    monkeypatch.setattr(agent, "_agent", _StubCompiledGraph())
 
     first = agent.run("hi")
     second = agent.run("hi again")
@@ -273,7 +277,7 @@ def test_run_latency_is_not_accumulated_across_calls():
     assert isinstance(second.metrics.latency_sec, float)
 
 
-def test_run_computes_message_stats_from_tool_calling_turns():
+def test_run_computes_message_stats_from_tool_calling_turns(monkeypatch):
     from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
     from velari_ai.integrations.langchain.agent import Agent
 
@@ -293,7 +297,7 @@ def test_run_computes_message_stats_from_tool_calling_turns():
 
     agent = Agent(api_key="test-key")
     agent.build([_lookup_account_balance_tool()])
-    agent._agent = _StubCompiledGraph()
+    monkeypatch.setattr(agent, "_agent", _StubCompiledGraph())
 
     result = agent.run("What is the balance on ACC-1?")
 
@@ -303,7 +307,7 @@ def test_run_computes_message_stats_from_tool_calling_turns():
     assert result.metrics.message_stats.cnt_tool_requests == 1
 
 
-def test_run_computes_usage_stats_from_ai_message_usage_metadata():
+def test_run_computes_usage_stats_from_ai_message_usage_metadata(monkeypatch):
     from langchain_core.messages import AIMessage
     from velari_ai.integrations.langchain.agent import Agent
 
@@ -321,7 +325,7 @@ def test_run_computes_usage_stats_from_ai_message_usage_metadata():
 
     agent = Agent(api_key="test-key")
     agent.build([_lookup_account_balance_tool()])
-    agent._agent = _StubCompiledGraph()
+    monkeypatch.setattr(agent, "_agent", _StubCompiledGraph())
 
     result = agent.run("hi")
 
@@ -330,7 +334,7 @@ def test_run_computes_usage_stats_from_ai_message_usage_metadata():
     assert result.metrics.usage_stats.reasoning_tokens == 12
 
 
-def test_run_message_stats_excludes_prior_thread_history():
+def test_run_message_stats_excludes_prior_thread_history(monkeypatch):
     from langchain_core.messages import AIMessage, HumanMessage
     from velari_ai.integrations.langchain.agent import Agent
 
@@ -347,7 +351,7 @@ def test_run_message_stats_excludes_prior_thread_history():
 
     agent = Agent(api_key="test-key")
     agent.build([_lookup_account_balance_tool()])
-    agent._agent = _StubCompiledGraph()
+    monkeypatch.setattr(agent, "_agent", _StubCompiledGraph())
 
     result = agent.run("hi", thread_id="thread-1")
 
@@ -369,7 +373,7 @@ def test_stream_without_build_raises_runtimeerror():
         agent.stream("hi")
 
 
-def test_stream_yields_chunks_and_passes_thread_id_and_stream_mode():
+def test_stream_yields_chunks_and_passes_thread_id_and_stream_mode(monkeypatch):
     from velari_ai.integrations.langchain.agent import Agent
 
     class _StubCompiledGraph:
@@ -383,7 +387,7 @@ def test_stream_yields_chunks_and_passes_thread_id_and_stream_mode():
     agent = Agent(api_key="test-key")
     agent.build([_lookup_account_balance_tool()])
     stub = _StubCompiledGraph()
-    agent._agent = stub
+    monkeypatch.setattr(agent, "_agent", stub)
 
     chunks = list(agent.stream("hi", thread_id="thread-1"))
 
@@ -394,7 +398,7 @@ def test_stream_yields_chunks_and_passes_thread_id_and_stream_mode():
     assert kwargs["stream_mode"] == "messages"
 
 
-def test_stream_without_thread_id_generates_a_fresh_one():
+def test_stream_without_thread_id_generates_a_fresh_one(monkeypatch):
     from velari_ai.integrations.langchain.agent import Agent
 
     class _StubCompiledGraph:
@@ -408,7 +412,7 @@ def test_stream_without_thread_id_generates_a_fresh_one():
     agent = Agent(api_key="test-key")
     agent.build([_lookup_account_balance_tool()])
     stub = _StubCompiledGraph()
-    agent._agent = stub
+    monkeypatch.setattr(agent, "_agent", stub)
 
     list(agent.stream("hi"))
 
@@ -429,7 +433,7 @@ def test_arun_without_build_raises_runtimeerror():
         asyncio.run(_body())
 
 
-def test_arun_passes_thread_id_and_returns_final_message():
+def test_arun_passes_thread_id_and_returns_final_message(monkeypatch):
     from langchain_core.messages import AIMessage
     from velari_ai.integrations.langchain.agent import Agent
 
@@ -449,20 +453,21 @@ def test_arun_passes_thread_id_and_returns_final_message():
     agent = Agent(api_key="test-key")
     agent.build([_lookup_account_balance_tool()])
     stub = _StubCompiledGraph()
-    agent._agent = stub
+    monkeypatch.setattr(agent, "_agent", stub)
 
     async def _body():
         return await agent.arun("What is the balance on ACC-10293?", thread_id="acc-10293-session")
 
     response = asyncio.run(_body())
 
+    assert isinstance(response.response, AIMessage)
     assert response.response.content == "Account ACC-10293 has an outstanding balance of $1,204.50."
     state, kwargs = stub.calls[0]
     assert state["messages"][0].content == "What is the balance on ACC-10293?"
     assert kwargs["config"]["configurable"]["thread_id"] == "acc-10293-session"
 
 
-def test_arun_without_thread_id_generates_a_fresh_one_each_call():
+def test_arun_without_thread_id_generates_a_fresh_one_each_call(monkeypatch):
     from langchain_core.messages import AIMessage
     from velari_ai.integrations.langchain.agent import Agent
 
@@ -477,7 +482,7 @@ def test_arun_without_thread_id_generates_a_fresh_one_each_call():
     agent = Agent(api_key="test-key")
     agent.build([_lookup_account_balance_tool()])
     stub = _StubCompiledGraph()
-    agent._agent = stub
+    monkeypatch.setattr(agent, "_agent", stub)
 
     async def _body():
         await agent.arun("hi")
@@ -503,7 +508,7 @@ def test_astream_without_build_raises_runtimeerror():
         asyncio.run(_body())
 
 
-def test_astream_yields_chunks_and_passes_thread_id_and_stream_mode():
+def test_astream_yields_chunks_and_passes_thread_id_and_stream_mode(monkeypatch):
     from velari_ai.integrations.langchain.agent import Agent
 
     class _StubCompiledGraph:
@@ -518,7 +523,7 @@ def test_astream_yields_chunks_and_passes_thread_id_and_stream_mode():
     agent = Agent(api_key="test-key")
     agent.build([_lookup_account_balance_tool()])
     stub = _StubCompiledGraph()
-    agent._agent = stub
+    monkeypatch.setattr(agent, "_agent", stub)
 
     async def _body():
         return [chunk async for chunk in await agent.astream("hi", thread_id="thread-1")]
@@ -544,4 +549,3 @@ def test_build_wraps_create_agent_errors_in_runtimeerror(monkeypatch):
 
     with pytest.raises(RuntimeError):
         agent.build([_lookup_account_balance_tool()])
-
