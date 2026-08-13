@@ -140,6 +140,6 @@ def log_response(response_info: ResponseInfo, history: bool = False) -> None:
     for msg in (response_info.messages if history else [response_info.response]):
         if isinstance(msg, BaseMessage):
             logger.info(f"{type(msg).__name__}: {msg.content[:100]}")
-            msg.pretty_print()
+            logger.info(msg.pretty_repr())
         else:
             logger.info(f"{type(msg).__name__}: {msg!r}")

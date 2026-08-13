@@ -71,7 +71,7 @@ def test_async_context_manager_connects_and_closes():
     assert _run(_body()) is False
 
 
-def test_discover_tools_lists_search_transform_tools():
+def test_discover_tools_lists_registered_tools():
     from velari_ai.integrations.fastmcp.client_fastmcp import FastMCPClient
 
     async def _body():
@@ -80,9 +80,9 @@ def test_discover_tools_lists_search_transform_tools():
 
     tools = _run(_body())
 
-    # BM25SearchTransform/CodeMode (added unconditionally in MCPServer.__init__) expose
-    # a search-based interface rather than raw registered tool names.
-    assert {t.name for t in tools} == {"search", "get_schema", "execute"}
+    # BM25SearchTransform/CodeMode are commented out in MCPServer.__init__ so that
+    # discover_tools() surfaces the actual registered tool names, not a search wrapper.
+    assert {t.name for t in tools} == {"get_time", "fail_tool"}
 
 
 def test_discover_resources_returns_registered_resource():
