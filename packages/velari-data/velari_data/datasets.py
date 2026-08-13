@@ -177,7 +177,7 @@ class DatasetTabular(DatasetT[pd.DataFrame]):
         mask = pd.Series(True, index=self.df.index)
         for col, val in conditions.items():
             mask &= self.df[col] == val
-        return self.df[~mask] if inverse else self.df[mask]
+        return self.df.loc[~mask] if inverse else self.df.loc[mask]
 
     def sample(
         self,
@@ -192,7 +192,10 @@ class DatasetTabular(DatasetT[pd.DataFrame]):
             k = max_samples // n_classes if max_samples is not None else n_per_class
             if n_per_class is not None and max_samples is not None:
                 k = min(n_per_class, max_samples // n_classes)
-            return self.df.groupby(stratify).sample(n=k, random_state=seed).reset_index(drop=True)
+            sampled = self.df.groupby(stratify).sample(n=k, random_state=seed).reset_index(drop=True)
+            if not isinstance(sampled, pd.DataFrame):
+                raise TypeError("groupby(...).sample(...) returned a Series, expected a DataFrame")
+            return sampled
         return self.df.sample(n=max_samples if max_samples is not None else n_per_class, random_state=seed).reset_index(
             drop=True
         )
@@ -206,7 +209,10 @@ class DatasetTimeseries(DatasetTabular):
         self._df  = spec.info.data
 
     def temporal_span(self, column: str, unit: Optional[str] = None) -> DatasetProfileTimeSeries.TemporalSpan:
-        series = InfoSchema._cast_datetime(self.df[column], unit)
+        column_series = self.df[column]
+        if not isinstance(column_series, pd.Series):
+            raise TypeError(f"expected column {column!r} to be a Series, got {type(column_series).__name__}")
+        series = InfoSchema._cast_datetime(column_series, unit)
         start, end = series.min(), series.max()
         delta = end - start
         return DatasetProfileTimeSeries.TemporalSpan(
