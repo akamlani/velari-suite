@@ -15,6 +15,7 @@ class TestToolDoc:
             Raises:
                 RuntimeError: if the system clock is unavailable.
             """
+            raise NotImplementedError
 
         doc = ToolDoc.from_function(get_time)
 
@@ -42,6 +43,7 @@ class TestToolDoc:
                 >>> square(3)
                 9
             """
+            raise NotImplementedError
 
         doc = ToolDoc.from_function(square)
 

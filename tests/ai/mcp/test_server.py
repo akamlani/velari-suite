@@ -38,6 +38,7 @@ def test_register_tools_registers_description_and_meta():
 
     tool = _run(_body())
 
+    assert tool is not None
     assert tool.name == "get_time"
     assert tool.description == "Return the current time.\n\nRaises:\n    RuntimeError: if the system clock is unavailable."
     assert tool.meta == {"raises": [{"exception": "RuntimeError", "description": "if the system clock is unavailable."}]}
@@ -61,6 +62,8 @@ def test_register_tools_multiple_functions():
 
     time_tool, date_tool = _run(_body())
 
+    assert time_tool is not None
+    assert date_tool is not None
     assert time_tool.name == "get_time"
     assert date_tool.name == "get_date"
 
@@ -87,6 +90,7 @@ def test_register_resources_registers_uri_and_kwargs():
 
     resource = _run(_body())
 
+    assert resource is not None
     assert resource.name == "read_config"
     assert str(resource.uri) == "config://settings"
     assert resource.mime_type == "application/json"

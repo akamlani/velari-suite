@@ -10,6 +10,7 @@ def _run(coro):
 
 def _make_dummy_client():
     from velari_ai.integrations.fastmcp.client import BaseMCPClient
+    from mcp.types import ServerCapabilities
 
     class _DummyClient(BaseMCPClient):
         def __init__(self):
@@ -35,7 +36,7 @@ def _make_dummy_client():
             return []
 
         async def discover_capabilities(self, verbose: bool = False):
-            return None
+            return ServerCapabilities()
 
         async def read_resource(self, uri: str, verbose: bool = False):
             return []

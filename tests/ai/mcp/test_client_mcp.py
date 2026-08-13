@@ -116,8 +116,9 @@ def test_discover_tools_returns_tools(monkeypatch):
 
 def test_discover_resources_returns_resources(monkeypatch):
     from mcp.types import Resource
+    from pydantic import AnyUrl
 
-    resources = [Resource(uri="config://settings", name="read_config")]
+    resources = [Resource(uri=AnyUrl("config://settings"), name="read_config")]
     client = _connected_client(monkeypatch, _FakeSession(resources=resources))
 
     result = _run(client.discover_resources())
@@ -167,12 +168,14 @@ def test_read_resource_not_connected_raises():
 
 def test_read_resource_converts_uri_to_anyurl(monkeypatch):
     from pydantic import AnyUrl
+    from mcp.types import TextResourceContents
 
-    session = _FakeSession(contents=[SimpleNamespace(text="hello")])
+    session = _FakeSession(contents=[TextResourceContents(uri=AnyUrl("config://settings"), text="hello")])
     client = _connected_client(monkeypatch, session)
 
     result = _run(client.read_resource("config://settings"))
 
+    assert isinstance(result[0], TextResourceContents)
     assert result[0].text == "hello"
     assert isinstance(session.read_resource_calls[0], AnyUrl)
     assert str(session.read_resource_calls[0]) == "config://settings"

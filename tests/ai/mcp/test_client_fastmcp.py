@@ -120,6 +120,7 @@ def test_discover_capabilities_raises_when_not_connected():
 
 
 def test_read_resource_returns_contents():
+    from mcp.types import TextResourceContents
     from velari_ai.integrations.fastmcp.client_fastmcp import FastMCPClient
 
     async def _body():
@@ -129,6 +130,7 @@ def test_read_resource_returns_contents():
     contents = _run(_body())
 
     assert len(contents) == 1
+    assert isinstance(contents[0], TextResourceContents)
     assert "key" in contents[0].text
 
 
