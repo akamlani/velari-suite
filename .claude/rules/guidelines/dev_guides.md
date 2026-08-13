@@ -1,4 +1,4 @@
-# Coding Preferences
+# Coding Guides
 
 Preferences established for this project. AI agents and contributors should follow these.
 

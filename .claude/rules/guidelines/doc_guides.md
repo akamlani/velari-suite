@@ -1,4 +1,4 @@
-# Documentation Preferences
+# Documentation Guides
 
 Preferences for docstrings and other in-code documentation in this project. AI agents
 and contributors should follow these.
@@ -351,4 +351,4 @@ def _prepare_call(self, method_name, thread_id):
 - One-line module docstring only (`"""Tests for <module>."""`). Test functions/methods
   do not get docstrings — the test name should describe the behavior on its own. This
   overrides the general `## Docstrings` rule above for test code specifically; see
-  `.claude/rules/test_preferences.md` for the rest of the test-writing conventions.
+  `.claude/rules/guidelines/test_guides.md` for the rest of the test-writing conventions.

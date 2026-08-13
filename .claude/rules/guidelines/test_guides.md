@@ -1,6 +1,6 @@
-# Test Preferences
+# Test Guides
 
-Preferences established for this project's test suite. AI agents and contributors should follow these when writing or reviewing tests. These apply on top of `.claude/rules/dev_preferences.md` — general coding conventions still apply to test code except where explicitly overridden below.
+Preferences established for this project's test suite. AI agents and contributors should follow these when writing or reviewing tests. These apply on top of `.claude/rules/guidelines/dev_guides.md` — general coding conventions still apply to test code except where explicitly overridden below.
 
 ## Location and Naming
 
@@ -57,7 +57,7 @@ def test_put_get():
 
 ## Docstrings
 
-- See `.claude/rules/doc_preferences.md`'s "Docstring Deviation for Tests" —
+- See `.claude/rules/guidelines/doc_guides.md`'s "Docstring Deviation for Tests" —
   one-line module docstring only, no docstrings on test functions/methods.
 
 ## Naming
@@ -121,6 +121,6 @@ except KeyError:
     pass
 ```
 
-## Typing Deviation from `dev_preferences.md`
+## Typing Deviation from `dev_guides.md`
 
 - Test functions/methods do not need return-type annotations (`-> None`) or full parameter typing, unlike normal application code. Fixture parameters (`tmp_path`, `monkeypatch`, `caplog`) are left unannotated, matching this project's existing test suite.

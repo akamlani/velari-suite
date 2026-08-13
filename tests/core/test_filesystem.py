@@ -166,6 +166,33 @@ class TestDirectoryOps:
         result = Filesystem.list(tmp_path, "*.txt")
         assert set(result) == {tmp_path / "a.txt", tmp_path / "b.txt"}
 
+    def test_search_recurses_into_subfolders(self, tmp_path):
+        from velari_core.core.io.filesystem import Filesystem
+
+        (tmp_path / "a.txt").write_text("1")
+        (tmp_path / "sub").mkdir()
+        (tmp_path / "sub" / "b.txt").write_text("2")
+        (tmp_path / "sub" / "nested").mkdir()
+        (tmp_path / "sub" / "nested" / "c.txt").write_text("3")
+        (tmp_path / "d.json").write_text("{}")
+
+        result = Filesystem.search(tmp_path, "*.txt")
+
+        assert set(result) == {
+            tmp_path / "a.txt",
+            tmp_path / "sub" / "b.txt",
+            tmp_path / "sub" / "nested" / "c.txt",
+        }
+
+    def test_search_finds_nothing_below_a_single_level_list_call(self, tmp_path):
+        from velari_core.core.io.filesystem import Filesystem
+
+        (tmp_path / "sub").mkdir()
+        (tmp_path / "sub" / "b.txt").write_text("2")
+
+        assert Filesystem.list(tmp_path, "*.txt") == []
+        assert Filesystem.search(tmp_path, "*.txt") == [tmp_path / "sub" / "b.txt"]
+
 
 class TestArchive:
     @pytest.mark.parametrize("archive_name", ["bundle.zip", "bundle.tar.gz"])

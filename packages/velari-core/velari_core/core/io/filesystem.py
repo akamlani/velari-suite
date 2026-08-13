@@ -19,7 +19,7 @@ _ARCHIVE_FORMATS = {suffix: name for name, suffixes, _ in shutil.get_unpack_form
 
 
 class Filesystem(object):
-    """Filesystem operations: read, write, move, delete, list, make_dir, copy, extract, compress, download, upload.
+    """Filesystem operations: read, write, move, delete, list, search, make_dir, copy, extract, compress, download/upload.
 
     All methods are static — call them directly on the class, no instance needed.
     download streams a remote URI (or a list of (uri, dest) pairs, for bulk downloads)
@@ -47,6 +47,8 @@ class Filesystem(object):
         >>> Filesystem.copy("archive/notes.txt", "backup/notes_link.txt", deep=False)  # shallow copy, preserves symlinks
         >>> Filesystem.list("archive")
         [PosixPath('archive/notes.txt')]
+        >>> Filesystem.search(".", "notes.txt")  # recurses into archive/ and backup/
+        [PosixPath('archive/notes.txt'), PosixPath('backup/notes.txt')]
         >>> Filesystem.compress("archive", "bundle.zip")
         PosixPath('bundle.zip')
         >>> Filesystem.extract("bundle.zip", "extracted")
@@ -314,3 +316,21 @@ class Filesystem(object):
     @staticmethod
     def list(path: Union[str, Path], pattern: str = "*") -> List[Path]:
         return [entry for entry in Path(path).glob(pattern)]
+
+    @staticmethod
+    def search(path: Union[str, Path], pattern: str = "*") -> List[Path]:
+        """Recursively search `path` and every subfolder for entries matching `pattern`.
+
+        Args:
+            path (Union[str, Path]): Root directory to search from.
+            pattern (str): Glob pattern to match against file/directory names; defaults
+                to `"*"` (every entry).
+
+        Returns:
+            List[Path]: Every matching file/directory found in `path` and its subfolders.
+
+        Examples:
+            >>> Filesystem.search("archive", "*.txt")
+            [PosixPath('archive/notes.txt'), PosixPath('archive/backup/notes.txt')]
+        """
+        return [entry for entry in Path(path).rglob(pattern)]

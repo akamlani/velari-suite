@@ -1,4 +1,4 @@
-# Import Preferences
+# Import Guides
 
 Preferences for how imports are structured in this project. AI agents and contributors
 should follow these.
@@ -101,7 +101,7 @@ class Config:
 - When one module name in a block is a clear length outlier compared to the others in
   that block, skip the second-level `import`-keyword column for that block — forcing it
   would pad the shorter names with excessive whitespace (same judgment as
-  `dev_preferences.md`'s "Dataclass Field Declarations" rule). The first-level tab still
+  `dev_guides.md`'s "Dataclass Field Declarations" rule). The first-level tab still
   applies regardless — it's fixed by the `from`/`import` keyword lengths alone, not by
   the module names, so there's no outlier concern there.
 

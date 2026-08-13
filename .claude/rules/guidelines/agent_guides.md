@@ -1,6 +1,6 @@
-# Agent Preferences
+# Agent Guides
 
-Preferences for how AI agents should conduct verification, testing, and exploratory work in this repository — distinct from `dev_preferences.md` (code conventions) and `test_preferences.md` (test-writing conventions), which govern what gets committed. This file governs the agent's own working habits during a session.
+Preferences for how AI agents should conduct verification, testing, and exploratory work in this repository — distinct from `dev_guides.md` (code conventions) and `test_guides.md` (test-writing conventions), which govern what gets committed. This file governs the agent's own working habits during a session.
 
 ## Clean Up Verification Side Effects
 
