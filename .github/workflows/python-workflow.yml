@@ -22,6 +22,8 @@ jobs:
           version:      "0.11.3"
           enable-cache: true
 
-      # set up python runtime
+      # set up python runtime — uv itself is already installed by astral-sh/setup-uv above;
+      # skip `make install_python`'s download_python/uv_download step to avoid reinstalling uv
+      # and conflicting with the pinned, cached copy setup-uv provides
       - name: Install Python and Dependencies
-        run: make install_python
+        run: make uv_install_python
