@@ -67,8 +67,8 @@ class MCPServer(FastMCP):
         super().__init__(name=name, instructions=instructions)
         self._config = config
         # expose tool search
-        self.add_transform(BM25SearchTransform())
-        self.add_transform(CodeMode())
+        # self.add_transform(BM25SearchTransform())
+        # self.add_transform(CodeMode())
         logger.info(f"MCP server '{name}' created")
 
     @classmethod

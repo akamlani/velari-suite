@@ -30,6 +30,7 @@ ignore = ["F841", "F401", "E731", "I001"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts   = ["--import-mode=importlib"]
 
 [tool.pyright]
 extraPaths = ["packages/velari-core", "packages/velari-data", "packages/velari-ai"]

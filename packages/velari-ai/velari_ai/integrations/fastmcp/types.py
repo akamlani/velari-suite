@@ -3,9 +3,16 @@ from __future__ import annotations
 import  functools
 import  inspect
 from    dataclasses import dataclass, field, fields
+from    enum        import StrEnum, auto
 from    typing      import Any, Callable, Dict, List, Optional, Self, Set, Tuple
 from    omegaconf   import DictConfig
 from    griffe      import Docstring, DocstringSectionKind, DocstringParameter, DocstringRaise, DocstringReturn
+
+
+class ClientType(StrEnum):
+    """Which MCP client implementation to build — see `client_mcp.py`/`client_fastmcp.py`."""
+    FASTMCP = auto()
+    MCP     = auto()
 
 
 @dataclass

@@ -1,6 +1,12 @@
 import numpy as np
 from typing import List
 
+calc_cosine_similarity = (
+    lambda a, b: np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+    if np.linalg.norm(a) != 0 and np.linalg.norm(b) != 0
+    else 0.0
+)
+calc_cosine_similarity_matrix = lambda embeddings: embeddings @ embeddings.T
 
 def calc_pct_change(base_value: float, new_value: float) -> float:
     """Compute the percent change from `base_value` to `new_value`.

@@ -7,6 +7,8 @@ include $(PYTHON_FILE)
 
 #################### Makefile Configuration
 GIT_ROOT ?= $(shell git rev-parse --show-toplevel)
+PROJECT_DIR ?= $(GIT_ROOT)
+
 # e.g., Darwin for MacOS
 PLATFORM_TYPE = $(shell uname)
 # dynamically detect shell type as bash or zsh
@@ -50,7 +52,7 @@ info_dotfiles:
 
 
 #################### Installation
-.PHONY: install install_setup
+.PHONY: install install_setup install_dotfiles link_dotfiles
 
 install:
 	@echo "Installing workspace $(PACKAGE_NAME) for development..."

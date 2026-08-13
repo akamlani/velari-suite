@@ -19,8 +19,23 @@ dependencies    = [
 
 [project.optional-dependencies]
 agents = [
+    "agno>=2.8.7",
+    "beautifulsoup4>=4.12",
     "fastmcp[apps]>=3.0",
+    "grandalf>=0.8",
     "griffe>=2.0",
+    "jinja2>=3.1",
+    "langchain>=1.0",
+    "langchain-chroma>=0.2",
+    "langchain-core>=1.0",
+    "langchain-mcp-adapters>=0.3.2",
+    "langchain-openai>=1.0",
+    "langchain-text-splitters>=1.0",
+    "langgraph-checkpoint-sqlite>=2.0",
+    "tavily-python>=0.7.27",
+]
+data = [
+    "datasets>=3.0",
 ]
 
 [tool.uv.sources]

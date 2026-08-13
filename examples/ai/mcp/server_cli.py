@@ -1,7 +1,10 @@
 # uv run --extra agents python examples/ai/mcp/server_cli.py --help
 # uv run --extra agents python examples/ai/mcp/server_cli.py
 # uv run --extra agents python examples/ai/mcp/server_cli.py --transport http --port 8000
-# Inspector: uv run mcp dev server.py
+# Inspector: server_cli.py has no module-level server object for `mcp dev`/`fastmcp dev`
+# to introspect (it's built inside main()) — use client_cli.py to explore interactively:
+# uv run --extra agents python examples/ai/mcp/client_cli.py
+# Requires TAVILY_API_KEY in the environment (web search tool).
 
 from __future__ import annotations
 
@@ -21,7 +24,8 @@ from    rich.panel    import Panel
 # package modules
 from    velari_ai.integrations.fastmcp.server  import MCPServer, LifespanProvider, LifespanContext
 from    velari_ai.integrations.fastmcp.types   import ResourceSpec
-from    velari_core.core                       import read_root_dir
+from    velari_ai.integrations.tavily.search   import TavilySearch
+from    velari_core.core                       import read_root_dir, read_env
 
 logger  = logging.getLogger(__name__)
 console = Console(stderr=True, color_system="auto", force_terminal=True, width=120)
@@ -101,14 +105,16 @@ def main(
     port:      int = typer.Option(8000, help="Port to bind (http/sse/streamable-http transports only)"),
 ) -> None:
     server.announce(transport)
-    server.run(transport=transport, host=host, port=port)
     server.register_providers()
-    server.register_tools([get_time])
+    searcher = TavilySearch(api_key=os.environ["TAVILY_API_KEY"])
+    server.register_tools([get_time, searcher.search])
     handlers: Dict[str, Callable[..., Any]] = {"read_config": functools.partial(read_config, cfg_path)}
     server.register_resources([ResourceSpec.from_config(entry, handlers) for entry in cfg_data.get("resources", [])])
+    server.run(transport=transport, host=host, port=port)
 
 
 if __name__ == "__main__":
+    read_env(str(Path(read_root_dir()) / ".env"))
     cfg_path: Path       = Path(__file__).parent / "conf" / "mcp_config.yaml"
     cfg_data: DictConfig = OmegaConf.create(read_config(cfg_path))
     server = MCPServerImpl.from_config(cfg_data)
