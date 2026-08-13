@@ -10,6 +10,10 @@ on:
 jobs:
   python_ci:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # mirrors every package's `requires-python = ">=3.12"` floor
+        python-version: ["3.12", "3.13"]
     steps:
       # checkout from target branch
       - name: Checkout
@@ -24,6 +28,11 @@ jobs:
 
       # set up python runtime — uv itself is already installed by astral-sh/setup-uv above;
       # skip `make install_python`'s download_python/uv_download step to avoid reinstalling uv
-      # and conflicting with the pinned, cached copy setup-uv provides
+      # and conflicting with the pinned, cached copy setup-uv provides. PYTHON_VERSION overrides
+      # config/runtime/python.env's default (3.12) per matrix entry — plain `=` assignment there,
+      # so the command-line override takes precedence.
       - name: Install Python and Dependencies
-        run: make uv_install_python
+        run: make uv_install_python PYTHON_VERSION=${{ matrix.python-version }}
+
+      - name: Type check
+        run: uv run pyright

@@ -1,4 +1,8 @@
 # velari-suite
+[![License](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-orange)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+[![X](https://img.shields.io/badge/X-@akamlani-blue?logo=x&logoColor=white)](https://x.com/akamlani)
+[![Build Status](https://github.com/akamlani/velari-suite/actions/workflows/python-workflow.yml/badge.svg)](https://github.com/akamlani/velari-suite/actions/workflows/python-workflow.yml)
+
 
 Monorepo for Core Operations, Data, and AI native Development and Workflow Orchestration.
 
