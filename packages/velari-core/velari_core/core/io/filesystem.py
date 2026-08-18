@@ -5,6 +5,7 @@ import mimetypes
 import shutil
 import tempfile
 import yaml
+from omegaconf import OmegaConf
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
@@ -133,7 +134,12 @@ class Filesystem(object):
     def read(path: Union[str, Path]) -> Any:
         file_path = Path(path)
         try:
-            fmt = ArtifactFormat.from_ext(file_path.suffix.lower())
+            suffix = file_path.suffix.lower()
+            # *.yaml loads via OmegaConf (DictConfig — supports interpolation/resolvers);
+            # *.yml stays plain yaml.safe_load below, via ArtifactFormat.YAML.
+            if suffix == ".yaml":
+                return OmegaConf.load(file_path)
+            fmt = ArtifactFormat.from_ext(suffix)
             match fmt:
                 case ArtifactFormat.JSON:
                     return json.loads(file_path.read_text())

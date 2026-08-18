@@ -63,6 +63,29 @@ class TestReadWrite:
         Filesystem.write(path, {"key": "value"})
         assert Filesystem.read(path) == {"key": "value"}
 
+    def test_read_yaml_returns_dictconfig_with_interpolation_resolved(self, tmp_path):
+        from omegaconf import DictConfig
+        from velari_core.core.io.filesystem import Filesystem
+
+        path = tmp_path / "data.yaml"
+        path.write_text("author: Ari\nmeta:\n  author: \"${author}\"\n")
+
+        result = Filesystem.read(path)
+
+        assert isinstance(result, DictConfig)
+        assert result.meta.author == "Ari"
+
+    def test_read_yml_returns_plain_dict_no_interpolation(self, tmp_path):
+        from velari_core.core.io.filesystem import Filesystem
+
+        path = tmp_path / "data.yml"
+        path.write_text("author: Ari\nmeta:\n  author: \"${author}\"\n")
+
+        result = Filesystem.read(path)
+
+        assert type(result) is dict
+        assert result["meta"]["author"] == "${author}"
+
     def test_write_read_text_roundtrip(self, tmp_path):
         from velari_core.core.io.filesystem import Filesystem
 

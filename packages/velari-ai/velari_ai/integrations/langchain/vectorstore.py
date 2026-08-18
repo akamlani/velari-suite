@@ -165,10 +165,13 @@ class ChromaVectorStorage(LangChainVectorStorage):
             logger.error(f"Vector store not loaded — call load() first: {e}")
             return []
 
-    def create_index(self,
-        documents: List[Document],
-        text_field: str,
-        batch_size: int
+    def create_index(
+        self,
+        documents:       List[Document],
+        batch_size:      int = 64,
+        text_field:      Optional[str] = "page_content",
+        embedding_field: Optional[str] = "embedding",
+        **kwargs,
     ) -> None:
         texts, metadatas = self._extract_texts_and_metadatas(documents, text_field)
         embeddings = self._embedding_fn.embed_documents(texts)

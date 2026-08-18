@@ -28,10 +28,15 @@ agents = [
     "langchain>=1.0",
     "langchain-chroma>=0.2",
     "langchain-core>=1.0",
+    "langchain-huggingface>=1.2",
     "langchain-mcp-adapters>=0.3.2",
     "langchain-openai>=1.0",
     "langchain-text-splitters>=1.0",
+    "langgraph-checkpoint-mongodb>=0.4",
+    "langgraph-checkpoint-postgres>=2.0",
+    "langgraph-checkpoint-redis>=0.5",
     "langgraph-checkpoint-sqlite>=2.0",
+    "sentence-transformers>=5.7",
     "tavily-python>=0.7.27",
 ]
 data = [

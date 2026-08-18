@@ -23,8 +23,15 @@ class Message(TypedDict):
 @dataclass
 class ModelConfig:
     """Model-level settings for an agent — the provider:model string plus provider-specific kwargs."""
+    provider: str         = field(default="openai")  # default provider is OpenAI
     model: str            = field(default="openai:gpt-4o-mini")
     extra: Dict[str, Any] = field(default_factory=dict)
+
+    # parameters: dict = field(default_factory=dict)  # parameter, e.g., temperature, max_tokens, etc...
+    # version: str = field(default="latest")  # always specify latest version
+    # qos: str = field(default="default")  # lighter/faster (heuristic)
+    # tags: list[str] = field(default_factory=list)  # e.g., ["reasoning", "code"]
+    # notes: str = field(default="")  # any additional notes about the model spec
 
     @classmethod
     def from_config(cls, entry: Union[DictConfig, Dict[str, Any]]) -> Self:

@@ -5,10 +5,19 @@ from typing import Optional, List, Literal, TypedDict
 def _build__classification_model(name: str, categories: List[str]) -> type[BaseModel]:
     return create_model("Classification", category=(Literal[tuple(categories)], ...))
 
-######## Task Data models
+######## Common Structures
+class Citation(BaseModel):
+    id: str    = Field(description="Identifier")
+    title: str = Field(description="Title of the content identifier")
+
 class Reasoning(BaseModel):
     reasoning: str    = Field(..., description="Brief explanation of the WHY")
     confidence: float = Field(..., description="Confidence score of the task")
+
+class ResponseGeneration(BaseModel):
+    reasoning:  Reasoning      = Field(description="Brief explanation of how the answer was derived")
+    answer:     str            = Field(description="The response answer to the user's question")
+    citations:  List[Citation] = Field(description="List of content identifiers cited in the answer")
 
 class Reflection(BaseModel):
     "Agent's reflection on the task execution after reading latest information, notes."
@@ -16,9 +25,44 @@ class Reflection(BaseModel):
     query_refinement: Optional[str] = Field(description="Refined query for follow-up search or retrieval.")
 
 
+######## Risk Categorization Specification
+# Risk Register: TBD
+class RiskCategory(BaseModel):
+    "Risk Scoring Detection is the task of classifying content into predefined risk categories based on the severity and potential impact."
+    "Agent's assessment of risks, concerns, or potential issues with the task execution."
+    category:    str = Field(..., description="Category of the identified risk or concern.")
+    description: str = Field(..., description="Description of the risk category")
+    severity:    Literal["P0", "P1", "P2", "P3", "P4"] = Field(..., description="Risk category label")
+
+    def get_mapping(self) -> dict[str, str]:
+        """Return a mapping of risk categories to their descriptions."""
+        return {
+            "P0": "Critical risk with immediate impact.",
+            "P1": "High risk with significant impact.",
+            "P2": "Moderate risk with noticeable impact.",
+            "P3": "Low risk with minor impact.",
+            "P4": "Minimal risk with negligible impact."
+        }
+
+
+######## Retrieval Specification
+class RouterResponse(BaseModel):
+    """The output of a router node, which determines the next node to execute based on the current state."""
+    reasoning: str  = Field(..., description="Reasoning behind the routing decision.")
+    collection: str = Field(..., description="Name of the table or collection or table to route query based on intent.")
+
+
+######## Task Specification
 class ResponseClassification(BaseModel):
     reasoning: Reasoning = Field(..., description="The reasoning behind the classification.")
-    category:  str = Field(..., description="The predicted category label.")
+    category:  str       = Field(..., description="The predicted category label.")
+
+
+
+
+
+
+
 
 class ClassificationResult(BaseModel):
     category:   str
@@ -58,14 +102,13 @@ class EvalGrade(BaseModel):
     relevant: bool = Field(..., description="Whether the response is relevant to the question")
 
 
-######## Retrieval Data Models
-class RouterResponse(BaseModel):
-    """The output of a router node, which determines the next node to execute based on the current state."""
-    reasoning:  str = Field(..., description="The reasoning behind the routing decision.")
-    collection: str = Field(..., description="The name of the table or collection to route query based on intent.")
 
 
-######## Search Data models
+######## Search Data models and Configuration
+@dataclass(frozen=True)
+class SearchSpec:
+    max_results_k: int = field(default=10)  # maximum search results to return for each search query
+
 class SearchResult(BaseModel):
     """One web search result returned by Tavily."""
     title:   str    = Field(description="The title of the search result.")

@@ -1,7 +1,8 @@
+import  pandas as pd
 import  logging
 import  os
 from    pathlib import Path
-from    typing import Any, List, Optional, Sequence, Tuple
+from    typing import Any, List, Optional, Sequence, Tuple, TypedDict
 from    pydantic import BaseModel, Field
 
 # specific modules
@@ -20,6 +21,18 @@ from    ...ai.types import ModelConfig
 from    .types import ResponseInfo
 
 logger = logging.getLogger(__name__)
+
+
+class ToolArtifact(TypedDict):
+    name: str
+    description: str
+
+def get_tool_info(tools: List[BaseTool]) -> pd.DataFrame:
+    """Return a DataFrame of tool names and descriptions for logging or display."""
+    return pd.DataFrame([{"name": t.name, "description": t.description} for t in tools])
+
+def get_tool_artifacts(tools: List[BaseTool]) -> List[ToolArtifact]:
+    return [ToolArtifact({"name": t.name, "description": t.description}) for t in tools]
 
 
 class Configuration(BaseModel):

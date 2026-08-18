@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import  pandas as pd
 from    abc import ABC, abstractmethod
-from    typing import List, Optional, Self
+from    typing import List, Optional, Self, Any, Sequence, Tuple, Union
 from    enum import StrEnum, auto
 # package modules
 from    ..types import ProviderName
@@ -34,13 +34,31 @@ class VectorStore(ABC):
     @abstractmethod
     def load(self) -> Self: ...
 
-    # @abstractmethod
-    # def create_index(
-    #     self,
-    #     documents: List[dict],
-    #     text_field: str,
-    #     embedding_field: str = "embedding",
-    # ) -> None: ...
+    @abstractmethod
+    def create_index(
+        self,
+        documents: list,
+        batch_size: int = 64,
+        text_field:      Optional[str] = "page_content",
+        embedding_field: Optional[str] = "embedding",
+        **kwargs
+    ) -> None: ...
+
+
+    @abstractmethod
+    def retrieve_candidates(
+        self,
+        query: str,
+        strategy: RetrieverStrategy = RetrieverStrategy.VECTORSTORE_SIMILARITY,
+        k: int = 3,
+        **kwargs: Any,
+    ) -> Sequence[Union[Any, Tuple[Any, float]]]: ...
+
+    @abstractmethod
+    def to_frame(
+        self,
+        candidates: Sequence[Union[Any, Tuple[Any, float]]],
+    ) -> pd.DataFrame: ...
 
     @abstractmethod
     def clear(self) -> None: ...

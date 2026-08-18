@@ -8,6 +8,39 @@ from    langchain_core.messages import AIMessage, BaseMessage, ToolMessage, AnyM
 from    langgraph.graph.message import add_messages, MessagesState
 from    pydantic import BaseModel
 
+
+
+
+### Retrieval
+class IngressState(TypedDict):
+    "The state of a web-content ingestion pipeline feeding a retrieval vectorstore."
+    uris: List[str]                         # URLs to fetch via Loader
+    documents: NotRequired[List[Document]]  # loaded Documents, one per URL
+    chunks: NotRequired[List[Document]]     # documents after text-splitting, ready to index
+    num_documents: NotRequired[int]         # number of documents loaded from the URLs
+    num_chunks: NotRequired[int]            # number of chunks after splitting the documents
+
+class RoutingSource(TypedDict):
+    """The state of a single router collection execution."""
+    collection: str                         # the name of the table or collection to route query based on intent
+    reasoning:  str                         # the reasoning behind the routing decision
+    metadata:   Dict[str, Any]              # additional metadata about the routing process, e.g. source, timestamp, etc.
+
+class RetrievalState(TypedDict):
+    "The state of a single retrieval execution."
+    query: str                              # user question
+    context: List[str]                      # relative list of documents context retrieved for the query
+    answer: str                             # generated response
+    metadata: Dict[str, Any]                # additional metadata about the retrieval process, e.g. source, timestamp.
+    collection: NotRequired[RoutingSource]  # routing: the name of the table or collection to route query based on intent
+
+
+
+
+
+
+
+
 class ActorCritic(TypedDict):
     """A single actor-critic pair review, revisions, recommendations of an actor task execution."""
     actor:      str
@@ -36,21 +69,9 @@ class ClassifierState(TypedDict):
     result:     NotRequired[Any]                                # the result of the route execution (if any)
 
 
-class RouterCollectionState(TypedDict):
-    """The state of a single router collection execution."""
-    collection: str               # the name of the table or collection to route query based on intent
-    reasoning:  str               # the reasoning behind the routing decision
-    metadata:   Dict[str, Any]    # additional metadata about the routing process, e.g. source, timestamp, etc.
 
 
-class RetrievalState(TypedDict):
-    "The state of a single retrieval execution."
-    query:      str               # user question
-    context:    List[str]         # relative list of documents context retrieved for the query
-    answer:     str               # generated response
-    metadata:   Dict[str, Any]    # additional metadata about the retrieval process, e.g. source, timestamp, etc.
-    # routing: the name of the table or collection to route query based on intent
-    collection: NotRequired[RouterCollectionState]
+
 
 # class RuntimeAgentState(AgentState):
 class RuntimeAgentState(TypedDict):
