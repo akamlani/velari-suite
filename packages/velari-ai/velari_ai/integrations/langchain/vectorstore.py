@@ -4,9 +4,11 @@ import   pandas as pd
 from     typing import Any, Optional, List, Dict, Tuple, Union, Sequence, Self
 # specific modules
 from     langchain_core.documents import Document
+from     langchain_core.vectorstores import InMemoryVectorStore
 from     langchain_chroma import Chroma
 # package modules
 from    ...ai.retrieval.vectorstore import RetrieverStrategy, VectorStore
+from    ...ai.state import SearchResult
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +87,50 @@ class LangChainVectorStorage(VectorStore):
                 row["score"] = score
             rows.append(row)
         return pd.DataFrame(rows)
+
+    def to_search_results(
+        self,
+        candidates: Sequence[Union[Document, Tuple[Document, float]]],
+        strategy: RetrieverStrategy = RetrieverStrategy.VECTORSTORE_SIMILARITY,
+    ) -> List[SearchResult]:
+        """Normalize retrieve_candidates() output into SearchResult entries.
+
+        Args:
+            candidates (Sequence[Union[Document, Tuple[Document, float]]]): Output of
+                `retrieve_candidates()`.
+            strategy (RetrieverStrategy): Strategy that produced `candidates` — determines which
+                score field (`_distance`/`_relevance`) gets populated, when a score is present.
+
+        Returns:
+            List[SearchResult]: `text` holds the `Document`; the score field for `strategy` is set
+                only when `candidates` carries a score (e.g. not for `VECTORSTORE_SIMILARITY`).
+
+        Examples:
+            >>> store = ChromaVectorStorage(embedding_fn=embeddings).load()
+            >>> strategy = RetrieverStrategy.VECTORSTORE_RELEVANCE_SCORE
+            >>> candidates = store.retrieve_candidates("agent memory types", strategy=strategy)
+            >>> results = store.to_search_results(candidates, strategy=strategy)
+            >>> results[0]["text"].page_content, results[0]["_relevance"]
+        """
+        match strategy:
+            case RetrieverStrategy.VECTORSTORE_DISTANCE_SCORE:
+                score_field = "_distance"
+            case RetrieverStrategy.VECTORSTORE_RELEVANCE_SCORE:
+                score_field = "_relevance"
+            case _:
+                score_field = None
+
+        def _to_result(doc: Document, score: Optional[float]) -> SearchResult:
+            result: SearchResult = {"text": doc}
+            if score is not None and score_field is not None:
+                result[score_field] = score
+            return result
+
+        return [
+            _to_result(doc, score)
+            for candidate in candidates
+            for doc, score in [candidate if isinstance(candidate, tuple) else (candidate, None)]
+        ]
 
 
 class ChromaVectorStorage(LangChainVectorStorage):

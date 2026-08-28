@@ -15,7 +15,7 @@ dev = [
 ]
 
 [tool.ruff]
-line-length     = 122
+line-length     = 140
 exclude         = [".git", "__pycache__"]
 
 [tool.ruff.lint]

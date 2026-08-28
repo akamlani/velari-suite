@@ -16,13 +16,15 @@ from    velari_core.core.services.client import HttpClient
 
 
 class DocumentLoader(BaseLoader):
-    def validate(self, docs: List[Document]) -> bool:
+    @staticmethod
+    def validate(docs: List[Document]) -> bool:
         try:
             return bool(docs) and all(bool(d.page_content) for d in docs)
         except Exception:
             return False
 
-    def to_string(self, documents: List[Document]) -> str:
+    @staticmethod
+    def to_string(documents: List[Document]) -> str:
         """Format documents into a specific output format for building context for the prompt
 
         Args:
@@ -33,7 +35,8 @@ class DocumentLoader(BaseLoader):
         """
         return "\n\n".join([doc.page_content for doc in documents])
 
-    def to_frame(self, documents: List[Document]) -> pd.DataFrame:
+    @staticmethod
+    def to_frame(documents: List[Document]) -> pd.DataFrame:
         """Flatten documents into a single DataFrame — one row per document.
 
         Args:
@@ -71,7 +74,8 @@ class WebBaseLoader(DocumentLoader):
         'Document loader integrations - Docs by LangChain'
     """
     def __init__(self, web_paths: Union[str, Sequence[str]]) -> None:
-        self.web_paths = [web_paths] if isinstance(web_paths, str) else list(web_paths)
+        self._uris = [web_paths] if isinstance(web_paths, str) else list(web_paths)
+        self._bs_kwargs = {}
         self.client = HttpClient()
 
     def _scrape(self, url: str) -> Tuple[BeautifulSoup, str]:
@@ -79,7 +83,7 @@ class WebBaseLoader(DocumentLoader):
             response = self.client.get(url)
         except httpx.HTTPError as e:
             raise RuntimeError(f"WebBaseLoader failed to load {url}: {e}") from e
-        return BeautifulSoup(response.text, "html.parser"), str(response.url)
+        return BeautifulSoup(response.text, "html.parser", **self._bs_kwargs), str(response.url)
 
     # Add Section (Title, Description, Chapters)
     # Add Source Type (e.g., notes, report, experiment)
@@ -99,6 +103,8 @@ class WebBaseLoader(DocumentLoader):
             metadata["description"] = str(description.get("content", ""))
         elif og_description := soup.find("meta", attrs={"property": "og:description"}):
             metadata["description"] = str(og_description.get("content", ""))
+        if "description" in metadata:
+            metadata["description_length"] = len(metadata["description"])
 
         if section := soup.find("meta", attrs={"property": "article:section"}):
             metadata["topic"] = str(section.get("content", ""))
@@ -116,8 +122,8 @@ class WebBaseLoader(DocumentLoader):
         if links:
             metadata["links"] = links
 
-        metadata["length"]      = len(page_content)
-        metadata["acquired_at"] = datetime.now(timezone.utc).isoformat()
+        metadata["content_length"] = len(page_content)
+        metadata["acquired_at"]    = datetime.now(timezone.utc).isoformat()
 
         return metadata
 
@@ -131,7 +137,7 @@ class WebBaseLoader(DocumentLoader):
         Raises:
             RuntimeError: If fetching a URL fails (connection error, timeout, or HTTP error status).
         """
-        for url in self.web_paths:
+        for url in self._uris:
             soup, final_url = self._scrape(url)
             page_content = soup.get_text(separator=" ", strip=True)
             metadata = self._enrich(soup, final_url, page_content)

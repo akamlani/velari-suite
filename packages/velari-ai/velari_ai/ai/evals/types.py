@@ -8,3 +8,7 @@ class EvalInfo(BaseModel):
     num_traces_comments:  int = Field(..., description="The number of traces that received comments.")
     num_traces_positive:  int = Field(..., description="The number of traces that received positive feedback.")
     num_traces_negative:  int = Field(..., description="The number of traces that received negative feedback.")
+
+class EvalGrade(BaseModel):
+    reasoning: str = Field(...,  description="Brief explanation of the WHY")
+    relevant:  bool = Field(..., description="Whether the response is relevant to the question")

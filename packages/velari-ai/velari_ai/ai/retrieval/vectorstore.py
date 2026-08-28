@@ -6,6 +6,7 @@ from    typing import List, Optional, Self, Any, Sequence, Tuple, Union
 from    enum import StrEnum, auto
 # package modules
 from    ..types import ProviderName
+from    ..state import SearchResult
 
 class RetrieverStrategy(StrEnum):
     VECTORSTORE_SIMILARITY       = auto()
@@ -22,6 +23,9 @@ class RetrieverSearchType(StrEnum):
 class MetricType(StrEnum):
     DISTANCE    = auto()
     RELEVANCE   = auto()
+
+
+
 
 
 ### Interface Class for VectorStore
@@ -59,6 +63,13 @@ class VectorStore(ABC):
         self,
         candidates: Sequence[Union[Any, Tuple[Any, float]]],
     ) -> pd.DataFrame: ...
+
+    @abstractmethod
+    def to_search_results(
+        self,
+        candidates: Sequence[Union[Any, Tuple[Any, float]]],
+        strategy: RetrieverStrategy = RetrieverStrategy.VECTORSTORE_SIMILARITY,
+    ) -> List[SearchResult]: ...
 
     @abstractmethod
     def clear(self) -> None: ...

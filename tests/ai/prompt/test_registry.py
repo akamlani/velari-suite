@@ -1,4 +1,4 @@
-"""Tests for velari_ai.ai.registries.registry."""
+"""Tests for velari_ai.ai.prompt.registry."""
 
 import pytest
 
@@ -12,7 +12,7 @@ def _write_catalog(tmp_path, entries):
 
 
 def test_init_without_uri_leaves_catalog_empty():
-    from velari_ai.ai.registries.registry import PromptRegistry
+    from velari_ai.ai.prompt.registry import PromptRegistry
 
     registry = PromptRegistry()
 
@@ -21,7 +21,7 @@ def test_init_without_uri_leaves_catalog_empty():
 
 
 def test_get_template_returns_raw_template_string(tmp_path):
-    from velari_ai.ai.registries.registry import PromptRegistry
+    from velari_ai.ai.prompt.registry import PromptRegistry
 
     uri = _write_catalog(tmp_path, [
         {"name": "summarise", "template": "Summarize the following topic in {length} words: {topic}"},
@@ -34,7 +34,7 @@ def test_get_template_returns_raw_template_string(tmp_path):
 
 
 def test_get_template_finds_entry_after_the_first_row(tmp_path):
-    from velari_ai.ai.registries.registry import PromptRegistry
+    from velari_ai.ai.prompt.registry import PromptRegistry
 
     uri = _write_catalog(tmp_path, [
         {"name": "billing_reminder", "template": "Reminder: balance due for {account_id}."},
@@ -48,7 +48,7 @@ def test_get_template_finds_entry_after_the_first_row(tmp_path):
 
 
 def test_get_template_missing_name_raises_keyerror(tmp_path):
-    from velari_ai.ai.registries.registry import PromptRegistry
+    from velari_ai.ai.prompt.registry import PromptRegistry
 
     uri = _write_catalog(tmp_path, [
         {"name": "summarise", "template": "Summarize {topic}."},
@@ -60,7 +60,7 @@ def test_get_template_missing_name_raises_keyerror(tmp_path):
 
 
 def test_format_template_substitutes_kwargs(tmp_path):
-    from velari_ai.ai.registries.registry import PromptRegistry
+    from velari_ai.ai.prompt.registry import PromptRegistry
 
     uri = _write_catalog(tmp_path, [
         {"name": "summarise", "template": "Summarize the following topic in {length} words: {topic}"},
@@ -73,7 +73,7 @@ def test_format_template_substitutes_kwargs(tmp_path):
 
 
 def test_load_catalog_key_pointing_at_empty_list_is_empty_catalog(tmp_path):
-    from velari_ai.ai.registries.registry import PromptRegistry
+    from velari_ai.ai.prompt.registry import PromptRegistry
 
     uri = _write_catalog(tmp_path, [])
     registry = PromptRegistry(uri=uri, key="prompts")
@@ -83,7 +83,7 @@ def test_load_catalog_key_pointing_at_empty_list_is_empty_catalog(tmp_path):
 
 
 def test_load_catalog_missing_key_returns_empty_dict(tmp_path):
-    from velari_ai.ai.registries.registry import PromptRegistry
+    from velari_ai.ai.prompt.registry import PromptRegistry
 
     uri = _write_catalog(tmp_path, [{"name": "summarise", "template": "Summarize {topic}."}])
     registry = PromptRegistry(uri=uri, key="does_not_exist")

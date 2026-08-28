@@ -1,5 +1,6 @@
-import numpy as np
-from typing import List
+import  numpy as np
+import  scipy.stats as scs # beta, norm, lognorm, multivariate_normal
+from    typing import List
 
 calc_cosine_similarity = (
     lambda a, b: np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
