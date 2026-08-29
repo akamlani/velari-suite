@@ -34,12 +34,13 @@ Files an AI agent should read first to understand the project's conventions, con
 | `packages/velari-core/pyproject.toml` | `velari-core` package metadata and its runtime dependencies |
 | `packages/velari-data/pyproject.toml` | `velari-data` package metadata; depends on `velari-core` via `[tool.uv.sources] workspace = true` |
 | `packages/velari-ai/pyproject.toml` | `velari-ai` package metadata; depends on `velari-core` via `[tool.uv.sources] workspace = true` |
-| `.claude/rules/guidelines/dev_guides.md` | Coding conventions: logging, type annotations, package structure |
-| `.claude/rules/guidelines/import_guides.md` | Import conventions: ordering, alignment, grouping, relative vs. absolute, qualification |
-| `.claude/rules/guidelines/doc_guides.md` | Docstring conventions: Google-style sections, spacing, test-code deviation |
-| `.claude/rules/guidelines/test_guides.md` | Test-writing conventions: test placement, organization, fixtures, naming |
-| `.claude/rules/guidelines/agent_guides.md` | Agent working habits: clean up side effects from verification/exploratory commands, including out-of-repo state |
-| `.claude/rules/guidelines/refactor_guides.md` | Refactoring process/judgment: scoping the diff, consolidating duplication, typing vs. exception handling, verifying before claiming something isn't possible |
+| `.claude/rules/guidelines/python/dev_guides.md` | Coding conventions: logging, type annotations, package structure |
+| `.claude/rules/guidelines/python/import_guides.md` | Import conventions: ordering, alignment, grouping, relative vs. absolute, qualification |
+| `.claude/rules/guidelines/python/doc_guides.md` | Docstring conventions: Google-style sections, spacing, test-code deviation |
+| `.claude/rules/guidelines/python/test_guides.md` | Test-writing conventions: test placement, organization, fixtures, naming |
+| `.claude/rules/guidelines/python/agent_guides.md` | Agent working habits: clean up side effects from verification/exploratory commands, including out-of-repo state |
+| `.claude/rules/guidelines/python/refactor_guides.md` | Refactoring process/judgment: scoping the diff, consolidating duplication, typing vs. exception handling, verifying before claiming something isn't possible |
+| `.claude/rules/guidelines/js/styles/style_frontend.md` | Frontend guidelines: technology stack preferences (Shadcn, NextJS, Tailwind CSS) |
 | `.vscode/settings.json` | Editor and code-style configuration (docstring format, formatter settings, etc.) — consult when writing or reviewing code |
 
 ## Makefile Targets

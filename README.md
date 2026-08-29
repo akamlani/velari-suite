@@ -87,7 +87,7 @@ Configuration directories managed by `make install` and the dotfiles system. Som
 | Directory | Description | Managed by |
 |---|---|---|
 | `.agents/` | Agent runtime directory | `make setup_agent` |
-| `.claude/` | Claude Code configuration, plugin settings, and rules under `rules/guidelines/` (`dev_guides.md`, `import_guides.md`, `doc_guides.md`, `test_guides.md`, `agent_guides.md`, `refactor_guides.md`) | `make setup_agent_claude` |
+| `.claude/` | Claude Code configuration, plugin settings, and rules under `rules/guidelines/python/` (`dev_guides.md`, `import_guides.md`, `doc_guides.md`, `test_guides.md`, `agent_guides.md`, `refactor_guides.md`) and `rules/guidelines/js/styles/` (`style_frontend.md`) | `make setup_agent_claude` |
 | `.github/` | GitHub Actions workflows (tracked source) and Copilot configuration (`copilot-instructions.md` symlinked from dotfiles) | Workflows tracked; config symlinked via `make link_dotfiles` |
 | `.velari/` | Velari runtime configuration and cache directory | `make setup_agent` |
 | `.vscode/` | VS Code editor and code-style configuration | Symlinked from `_build/dotfiles/` via `make link_dotfiles` |

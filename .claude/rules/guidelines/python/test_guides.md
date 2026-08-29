@@ -1,6 +1,6 @@
 # Test Guides
 
-Preferences established for this project's test suite. AI agents and contributors should follow these when writing or reviewing tests. These apply on top of `.claude/rules/guidelines/dev_guides.md` — general coding conventions still apply to test code except where explicitly overridden below.
+Preferences established for this project's test suite. AI agents and contributors should follow these when writing or reviewing tests. These apply on top of `.claude/rules/guidelines/python/dev_guides.md` — general coding conventions still apply to test code except where explicitly overridden below.
 
 ## Location and Naming
 
@@ -57,7 +57,7 @@ def test_put_get():
 
 ## Docstrings
 
-- See `.claude/rules/guidelines/doc_guides.md`'s "Docstring Deviation for Tests" —
+- See `.claude/rules/guidelines/python/doc_guides.md`'s "Docstring Deviation for Tests" —
   one-line module docstring only, no docstrings on test functions/methods.
 
 ## Naming

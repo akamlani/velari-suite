@@ -1,5 +1,6 @@
 [tool.uv.workspace]
 members = ["packages/*"]
+exclude = ["packages/frontend"]
 
 [dependency-groups]
 dev = [
