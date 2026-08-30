@@ -64,7 +64,8 @@ class InfoText(object):
         avg_token_sz =  np.mean(token_sz)
         """
         cols_numeric  = df.select_dtypes(include=['number']).columns
-        df_base_stats =  df[cols_numeric].agg(['sum', 'min', 'max', 'std', 'mean', 'median']).round(3)
+        df_base_stats = df[cols_numeric].agg(['sum', 'min', 'max', 'std', 'mean', 'median']).round(3)
+        assert isinstance(df_base_stats, pd.DataFrame)
         # optimize the following for list comprehension
         df_extended_stats = pd.DataFrame({
             fn.__name__: [fn(df[col]).round(3) for col in cols_numeric]
