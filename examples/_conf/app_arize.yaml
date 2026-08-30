@@ -1,0 +1,13 @@
+defaults:
+  - tracing/phoenix@_global_
+  # - override hydra/job_logging:   custom
+  # - override hydra/hydra_logging: custom
+  - _self_
+
+app:
+  info:
+    # registry-cli
+    # "Arize Phoenix Prompt Registry — create, tag, get, and list prompt versions."
+    name: tracing-cli
+    help: "Arize Phoenix Tracing — run instrumented pipelines and view traces."
+    version: 0.1.0

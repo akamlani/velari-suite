@@ -5,7 +5,7 @@ phoenix:
     host: localhost
     port: 6006
   storage:
-    working_dir: ~/.phoenix
+    working_dir: stores/databases/sqlite/phoenix
     db_name: phoenix.db
   options:
     auto_instrument: true
