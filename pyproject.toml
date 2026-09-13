@@ -16,7 +16,7 @@ dev = [
 ]
 
 [tool.ruff]
-line-length     = 140
+line-length     = 168
 exclude         = [".git", "__pycache__"]
 
 [tool.ruff.lint]
@@ -36,6 +36,12 @@ addopts   = ["--import-mode=importlib"]
 [tool.pyright]
 extraPaths = ["packages/velari-core", "packages/velari-data", "packages/velari-ai"]
 typeCheckingMode = "standard"
+# Explicit include, not just exclude: packages/frontend is a pnpm/Node package (not Python) whose
+# node_modules/.pnpm tree is large and, in this Dropbox-synced repo, slow to enumerate — without an
+# include list, pyright's default project root is the whole repo and it still has to walk that tree
+# before exclude globs can prune it, which is what caused pyright to hang for minutes on a plain
+# `uv run pyright` (individual `uv run pyright <package>` runs were always fast).
+include = ["packages/velari-core", "packages/velari-data", "packages/velari-ai", "examples", "tests"]
 # mlflow is intentionally not in the shared venv (pins pandas<3, conflicts with the workspace's
 # pandas>=3) — run via `uv run --isolated --with mlflow --with pyright pyright <path>` instead.
 exclude = [

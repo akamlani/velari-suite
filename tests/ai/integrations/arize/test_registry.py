@@ -1,5 +1,7 @@
 """Tests for velari_ai.integrations.arize.registry."""
 
+from typing import Any
+
 import pandas as pd
 from omegaconf import OmegaConf
 
@@ -168,7 +170,7 @@ class TestPromptRegistry:
     def test_create_passes_required_fields(self):
         from velari_ai.integrations.arize.registry import PromptRegistry
 
-        client = _FakeClient()
+        client: Any = _FakeClient()
         registry = PromptRegistry(client)
 
         prompt = registry.create(_make_cfg())
@@ -180,7 +182,7 @@ class TestPromptRegistry:
     def test_get_prefers_uuid_over_tag_and_name(self):
         from velari_ai.integrations.arize.registry import PromptRegistry
 
-        client = _FakeClient()
+        client: Any = _FakeClient()
         registry = PromptRegistry(client)
 
         registry.get("billing-reminder", tag="prod", uuid="version-1")
@@ -190,7 +192,7 @@ class TestPromptRegistry:
     def test_get_falls_back_to_tag_then_name(self):
         from velari_ai.integrations.arize.registry import PromptRegistry
 
-        client = _FakeClient()
+        client: Any = _FakeClient()
         registry = PromptRegistry(client)
 
         registry.get("billing-reminder", tag="prod")
@@ -202,7 +204,7 @@ class TestPromptRegistry:
     def test_list_parses_raw_endpoint_response(self):
         from velari_ai.integrations.arize.registry import PromptRegistry
 
-        client = _FakeClient()
+        client: Any = _FakeClient()
         client._client.list_result = [{"id": "1", "name": "billing-reminder"}]
         registry = PromptRegistry(client)
 
@@ -214,7 +216,7 @@ class TestPromptRegistry:
     def test_list_returns_tags_when_uuid_given(self):
         from velari_ai.integrations.arize.registry import PromptRegistry
 
-        client = _FakeClient()
+        client: Any = _FakeClient()
         client.prompts.tags.list_result = [{"id": "tag-1", "name": "prod"}]
         registry = PromptRegistry(client)
 
@@ -227,11 +229,11 @@ class TestPromptRegistry:
         from phoenix.client.types.prompts import PromptVersion
         from velari_ai.integrations.arize.registry import PromptRegistry
 
-        client = _FakeClient()
+        client: Any = _FakeClient()
         client._client.list_result = [_make_version_data("version-1"), _make_version_data("version-2")]
         registry = PromptRegistry(client)
 
-        result = registry.get(name="billing-reminder", versions=True)
+        result: Any = registry.get(name="billing-reminder", versions=True)
 
         assert len(result) == 2
         assert all(isinstance(v, PromptVersion) for v in result)
@@ -242,7 +244,7 @@ class TestPromptRegistry:
     def test_to_dataframe_builds_from_list(self):
         from velari_ai.integrations.arize.registry import PromptRegistry
 
-        client = _FakeClient()
+        client: Any = _FakeClient()
         client._client.list_result = [
             {"id": "1", "name": "billing-reminder"},
             {"id": "2", "name": "support-qa"},
@@ -258,7 +260,7 @@ class TestDatasetRegistry:
     def test_create_passes_required_fields(self):
         from velari_ai.integrations.arize.registry import DatasetRegistry
 
-        client = _FakeClient()
+        client: Any = _FakeClient()
         registry = DatasetRegistry(client)
         df = _make_dataframe()
 
@@ -274,7 +276,7 @@ class TestDatasetRegistry:
     def test_create_includes_output_keys_and_description_when_given(self):
         from velari_ai.integrations.arize.registry import DatasetRegistry
 
-        client = _FakeClient()
+        client: Any = _FakeClient()
         registry = DatasetRegistry(client)
         df = _make_dataframe()
 
@@ -293,7 +295,7 @@ class TestDatasetRegistry:
     def test_add_examples_passes_required_fields(self):
         from velari_ai.integrations.arize.registry import DatasetRegistry
 
-        client = _FakeClient()
+        client: Any = _FakeClient()
         registry = DatasetRegistry(client)
         df = _make_dataframe()
 
@@ -309,9 +311,9 @@ class TestDatasetRegistry:
     def test_add_examples_forwards_dataset_object(self):
         from velari_ai.integrations.arize.registry import DatasetRegistry
 
-        client = _FakeClient()
+        client: Any = _FakeClient()
         registry = DatasetRegistry(client)
-        existing = _FakeDataset(name="qa-dataset")
+        existing: Any = _FakeDataset(name="qa-dataset")
         df = _make_dataframe()
 
         registry.add_examples(existing, df, input_keys=["question"])
@@ -322,7 +324,7 @@ class TestDatasetRegistry:
     def test_add_examples_includes_output_keys_when_given(self):
         from velari_ai.integrations.arize.registry import DatasetRegistry
 
-        client = _FakeClient()
+        client: Any = _FakeClient()
         registry = DatasetRegistry(client)
         df = _make_dataframe()
 
@@ -334,7 +336,7 @@ class TestDatasetRegistry:
     def test_get_defaults_version_id_to_none(self):
         from velari_ai.integrations.arize.registry import DatasetRegistry
 
-        client = _FakeClient()
+        client: Any = _FakeClient()
         registry = DatasetRegistry(client)
 
         dataset = registry.get("qa-dataset")
@@ -345,7 +347,7 @@ class TestDatasetRegistry:
     def test_get_forwards_version_id(self):
         from velari_ai.integrations.arize.registry import DatasetRegistry
 
-        client = _FakeClient()
+        client: Any = _FakeClient()
         registry = DatasetRegistry(client)
 
         registry.get("qa-dataset", version_id="version-2")
@@ -355,7 +357,7 @@ class TestDatasetRegistry:
     def test_list_returns_underlying_datasets(self):
         from velari_ai.integrations.arize.registry import DatasetRegistry
 
-        client = _FakeClient()
+        client: Any = _FakeClient()
         client.datasets.list_result = [{"id": "1", "name": "qa-dataset"}]
         registry = DatasetRegistry(client)
 
@@ -364,7 +366,7 @@ class TestDatasetRegistry:
     def test_has_and_len_work_through_inheritance(self):
         from velari_ai.integrations.arize.registry import DatasetRegistry
 
-        client = _FakeClient()
+        client: Any = _FakeClient()
         client.datasets.list_result = [{"id": "1", "name": "qa-dataset"}]
         registry = DatasetRegistry(client)
 
@@ -375,7 +377,7 @@ class TestDatasetRegistry:
     def test_list_forwards_kwargs_to_client(self):
         from velari_ai.integrations.arize.registry import DatasetRegistry
 
-        client = _FakeClient()
+        client: Any = _FakeClient()
         registry = DatasetRegistry(client)
 
         registry.list(limit=5)
@@ -385,7 +387,7 @@ class TestDatasetRegistry:
     def test_to_dataframe_builds_from_list(self):
         from velari_ai.integrations.arize.registry import DatasetRegistry
 
-        client = _FakeClient()
+        client: Any = _FakeClient()
         client.datasets.list_result = [
             {"id": "1", "name": "qa-dataset", "example_count": 2},
             {"id": "2", "name": "churn-eval", "example_count": 5},
@@ -400,7 +402,7 @@ class TestDatasetRegistry:
     def test_has_checks_against_list_without_calling_get(self):
         from velari_ai.integrations.arize.registry import DatasetRegistry
 
-        client = _FakeClient()
+        client: Any = _FakeClient()
         client.datasets.list_result = [{"id": "1", "name": "qa-dataset"}]
 
         def _fail_if_called(**kwargs):
@@ -417,7 +419,7 @@ class TestExperimentsRegistry:
     def test_create_passes_required_fields(self):
         from velari_ai.integrations.arize.registry import ExperimentsRegistry
 
-        client = _FakeClient()
+        client: Any = _FakeClient()
         registry = ExperimentsRegistry(client)
 
         experiment = registry.create(dataset_id="dataset-1")
@@ -432,7 +434,7 @@ class TestExperimentsRegistry:
     def test_create_includes_optional_fields_when_given(self):
         from velari_ai.integrations.arize.registry import ExperimentsRegistry
 
-        client = _FakeClient()
+        client: Any = _FakeClient()
         registry = ExperimentsRegistry(client)
 
         registry.create(
@@ -456,7 +458,7 @@ class TestExperimentsRegistry:
     def test_get_forwards_experiment_id(self):
         from velari_ai.integrations.arize.registry import ExperimentsRegistry
 
-        client = _FakeClient()
+        client: Any = _FakeClient()
         registry = ExperimentsRegistry(client)
 
         experiment = registry.get("experiment-1")
@@ -467,7 +469,7 @@ class TestExperimentsRegistry:
     def test_list_forwards_dataset_id(self):
         from velari_ai.integrations.arize.registry import ExperimentsRegistry
 
-        client = _FakeClient()
+        client: Any = _FakeClient()
         client.experiments.list_result = [{"id": "experiment-1", "name": "support-ticket-qa-prompt-v1"}]
         registry = ExperimentsRegistry(client)
 
@@ -480,7 +482,7 @@ class TestExperimentsRegistry:
         import pytest
         from velari_ai.integrations.arize.registry import ExperimentsRegistry
 
-        client = _FakeClient()
+        client: Any = _FakeClient()
         registry = ExperimentsRegistry(client)
 
         with pytest.raises(ValueError):
@@ -489,7 +491,7 @@ class TestExperimentsRegistry:
     def test_to_dataframe_builds_from_list(self):
         from velari_ai.integrations.arize.registry import ExperimentsRegistry
 
-        client = _FakeClient()
+        client: Any = _FakeClient()
         client.experiments.list_result = [
             {"id": "experiment-1", "name": "prompt-v1", "successful_run_count": 8},
             {"id": "experiment-2", "name": "prompt-v2", "successful_run_count": 10},
@@ -511,7 +513,8 @@ class TestExperimentsRegistry:
             return f"answer for {input}"
 
         task = ExperimentsRegistry.make_task(answer_question, model="gpt-4o")
-        result = task({"question": "What's our refund policy?"})
+        example: Any = {"question": "What's our refund policy?"}
+        result = task(example)
 
         assert result == "answer for {'question': \"What's our refund policy?\"}"
         assert calls[0] == {"input": {"question": "What's our refund policy?"}, "model": "gpt-4o"}
@@ -535,9 +538,9 @@ class TestExperimentsRegistry:
     def test_run_experiment_forwards_dataset_task_and_evaluators(self):
         from velari_ai.integrations.arize.registry import ExperimentsRegistry
 
-        client = _FakeClient()
+        client: Any = _FakeClient()
         registry = ExperimentsRegistry(client)
-        dataset = object()
+        dataset: Any = object()
         task = lambda input: input  # noqa: E731
         evaluators = [lambda output: True]
 
@@ -552,10 +555,11 @@ class TestExperimentsRegistry:
     def test_run_experiment_uses_default_options_when_omitted(self):
         from velari_ai.integrations.arize.registry import ExperimentsRegistry
 
-        client = _FakeClient()
+        client: Any = _FakeClient()
         registry = ExperimentsRegistry(client)
+        dataset: Any = object()
 
-        registry.run_experiment(object(), lambda input: input)
+        registry.run_experiment(dataset, lambda input: input)
 
         call = client.experiments.run_experiment_calls[0]
         assert call["experiment_name"] is None
@@ -569,7 +573,7 @@ class TestExperimentsRegistry:
     def test_run_experiment_threads_through_options(self):
         from velari_ai.integrations.arize.registry import ExperimentsRegistry, ExperimentOptions
 
-        client = _FakeClient()
+        client: Any = _FakeClient()
         registry = ExperimentsRegistry(client)
         options = ExperimentOptions(
             identity=ExperimentOptions.Identity(
@@ -578,8 +582,9 @@ class TestExperimentsRegistry:
             execution=ExperimentOptions.Execution(dry_run=5, timeout=120, retries=1),
             verbose=False,
         )
+        dataset: Any = object()
 
-        registry.run_experiment(object(), lambda input: input, options=options)
+        registry.run_experiment(dataset, lambda input: input, options=options)
 
         call = client.experiments.run_experiment_calls[0]
         assert call["experiment_name"] == "prompt-v2"
@@ -595,9 +600,9 @@ class TestExperimentsRegistry:
     def test_evaluate_experiment_forwards_experiment_and_evaluators(self):
         from velari_ai.integrations.arize.registry import ExperimentsRegistry
 
-        client = _FakeClient()
+        client: Any = _FakeClient()
         registry = ExperimentsRegistry(client)
-        experiment = _FakeExperiment(experiment_id="experiment-1")
+        experiment: Any = _FakeExperiment(experiment_id="experiment-1")
         evaluators = [lambda output: True]
 
         result = registry.evaluate_experiment(experiment, evaluators=evaluators)
@@ -612,9 +617,9 @@ class TestExperimentsRegistry:
     def test_evaluate_experiment_threads_through_options(self):
         from velari_ai.integrations.arize.registry import ExperimentsRegistry, ExperimentOptions
 
-        client = _FakeClient()
+        client: Any = _FakeClient()
         registry = ExperimentsRegistry(client)
-        experiment = _FakeExperiment(experiment_id="experiment-1")
+        experiment: Any = _FakeExperiment(experiment_id="experiment-1")
         options = ExperimentOptions(execution=ExperimentOptions.Execution(dry_run=True, timeout=30, retries=2), verbose=False)
 
         registry.evaluate_experiment(experiment, evaluators=[lambda output: True], options=options)
@@ -628,9 +633,9 @@ class TestExperimentsRegistry:
     def test_evaluate_experiment_coerces_int_dry_run_to_bool(self):
         from velari_ai.integrations.arize.registry import ExperimentsRegistry, ExperimentOptions
 
-        client = _FakeClient()
+        client: Any = _FakeClient()
         registry = ExperimentsRegistry(client)
-        experiment = _FakeExperiment(experiment_id="experiment-1")
+        experiment: Any = _FakeExperiment(experiment_id="experiment-1")
         options = ExperimentOptions(execution=ExperimentOptions.Execution(dry_run=5))
 
         registry.evaluate_experiment(experiment, evaluators=[lambda output: True], options=options)

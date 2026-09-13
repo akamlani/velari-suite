@@ -1,6 +1,7 @@
 """Tests for velari_ai.integrations.arize.trace."""
 
 import json
+from typing import Any
 
 import pytest
 from opentelemetry.trace import StatusCode
@@ -168,7 +169,7 @@ class TestTracingRetrievalPipeline:
         from velari_ai.integrations.arize.trace import TracingRetrievalPipeline
 
         traced = TracingRetrievalPipeline(tracer)
-        results = [
+        results: Any = [
             {"text": "We accept Visa and Mastercard.", "expected_category": "billing", "_score": 0.92},
             {"text": "Refunds are processed within 5 business days.", "expected_category": "billing", "_score": 0.81},
         ]
@@ -187,7 +188,7 @@ class TestTracingRetrievalPipeline:
         from velari_ai.integrations.arize.trace import TracingRetrievalPipeline
 
         traced = TracingRetrievalPipeline(tracer)
-        results = [{"content": "Visit /account/reset to reset your password.", "expected_category": "support"}]
+        results: Any = [{"content": "Visit /account/reset to reset your password.", "expected_category": "support"}]
 
         with traced.retriever_span("How do I reset my password?") as span:
             traced.trace_span(span, results, text_field="content")
