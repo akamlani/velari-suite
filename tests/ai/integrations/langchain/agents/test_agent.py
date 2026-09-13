@@ -214,7 +214,7 @@ def test_run_without_thread_id_generates_a_fresh_one_each_call(monkeypatch):
 def test_run_forwards_context_to_invoke(monkeypatch):
     from langchain_core.messages import AIMessage
     from velari_ai.integrations.langchain.agents.agent import Agent
-    from velari_ai.integrations.langchain.agents.types import ContextSchema
+    from velari_ai.integrations.langchain.types import ContextSchema
 
     class _StubCompiledGraph:
         def __init__(self):
