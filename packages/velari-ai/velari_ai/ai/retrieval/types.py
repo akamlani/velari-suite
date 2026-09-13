@@ -5,8 +5,23 @@ from    enum         import StrEnum, auto
 from    typing       import Any, Dict, Required, NotRequired, TypedDict
 # package modules
 from    velari_core.config import ConfigBase
-from    .vectorstore import RetrieverStrategy
 from    ..types import MAX_SEARCH_RESULTS
+
+class RetrieverStrategy(StrEnum):
+    VECTORSTORE_SIMILARITY       = auto()
+    VECTORSTORE_DISTANCE_SCORE   = auto()
+    VECTORSTORE_RELEVANCE_SCORE  = auto()
+    VECTORSTORE_MMR              = auto()
+    VECTORSTORE_RETRIEVER        = auto()
+
+class RetrieverSearchType(StrEnum):
+    SIMILARITY              = auto()
+    SIMILARITY_THRESHOLD    = auto()
+    MMR                     = auto()
+
+class MetricType(StrEnum):
+    DISTANCE    = auto()
+    RELEVANCE   = auto()
 
 @dataclass(frozen=True)
 class SearchSpec:

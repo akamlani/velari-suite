@@ -15,14 +15,14 @@ def test_default_strategy_is_recursive_character():
 
     chunker = DocumentChunker()
 
-    assert chunker._strategy == ChunkingStrategy.RECURSIVE_CHARACTER
+    assert chunker._config.strategy == ChunkingStrategy.RECURSIVE_CHARACTER
 
 
 def test_recursive_character_splits_into_multiple_chunks_preserving_metadata():
     from velari_ai.integrations.langchain.chunking import DocumentChunker
-    from velari_ai.ai.retrieval.types import ChunkingStrategy
+    from velari_ai.ai.retrieval.types import ChunkingConfig, ChunkingStrategy
 
-    chunker = DocumentChunker(strategy=ChunkingStrategy.RECURSIVE_CHARACTER, chunk_size=100, chunk_overlap=10)
+    chunker = DocumentChunker(ChunkingConfig(strategy=ChunkingStrategy.RECURSIVE_CHARACTER, chunk_size=100, chunk_overlap=10))
 
     chunks = chunker.split_documents([_long_document()])
 
@@ -32,9 +32,11 @@ def test_recursive_character_splits_into_multiple_chunks_preserving_metadata():
 
 def test_character_strategy_splits_into_multiple_chunks():
     from velari_ai.integrations.langchain.chunking import DocumentChunker
-    from velari_ai.ai.retrieval.types import ChunkingStrategy
+    from velari_ai.ai.retrieval.types import ChunkingConfig, ChunkingStrategy
 
-    chunker = DocumentChunker(strategy=ChunkingStrategy.CHARACTER, chunk_size=100, chunk_overlap=10, separator=" ")
+    chunker = DocumentChunker(
+        ChunkingConfig(strategy=ChunkingStrategy.CHARACTER, chunk_size=100, chunk_overlap=10, extra={"separator": " "})
+    )
 
     chunks = chunker.split_documents([_long_document()])
 
@@ -44,9 +46,9 @@ def test_character_strategy_splits_into_multiple_chunks():
 
 def test_token_strategy_splits_into_multiple_chunks():
     from velari_ai.integrations.langchain.chunking import DocumentChunker
-    from velari_ai.ai.retrieval.types import ChunkingStrategy
+    from velari_ai.ai.retrieval.types import ChunkingConfig, ChunkingStrategy
 
-    chunker = DocumentChunker(strategy=ChunkingStrategy.TOKEN, chunk_size=20, chunk_overlap=5)
+    chunker = DocumentChunker(ChunkingConfig(strategy=ChunkingStrategy.TOKEN, chunk_size=20, chunk_overlap=5))
 
     chunks = chunker.split_documents([_long_document()])
 
@@ -57,9 +59,9 @@ def test_token_strategy_splits_into_multiple_chunks():
 def test_markdown_header_splits_on_headers_and_merges_original_metadata():
     from langchain_core.documents import Document
     from velari_ai.integrations.langchain.chunking import DocumentChunker
-    from velari_ai.ai.retrieval.types import ChunkingStrategy
+    from velari_ai.ai.retrieval.types import ChunkingConfig, ChunkingStrategy
 
-    chunker = DocumentChunker(strategy=ChunkingStrategy.MARKDOWN_HEADER)
+    chunker = DocumentChunker(ChunkingConfig(strategy=ChunkingStrategy.MARKDOWN_HEADER))
     markdown = "# Title\n\nIntro text.\n\n## Section A\n\nContent A here.\n\n## Section B\n\nContent B here."
     document = Document(page_content=markdown, metadata={"source": "readme.md"})
 
@@ -75,9 +77,11 @@ def test_markdown_header_splits_on_headers_and_merges_original_metadata():
 def test_markdown_header_accepts_custom_headers_to_split_on():
     from langchain_core.documents import Document
     from velari_ai.integrations.langchain.chunking import DocumentChunker
-    from velari_ai.ai.retrieval.types import ChunkingStrategy
+    from velari_ai.ai.retrieval.types import ChunkingConfig, ChunkingStrategy
 
-    chunker = DocumentChunker(strategy=ChunkingStrategy.MARKDOWN_HEADER, headers_to_split_on=[("#", "title")])
+    chunker = DocumentChunker(
+        ChunkingConfig(strategy=ChunkingStrategy.MARKDOWN_HEADER, extra={"headers_to_split_on": [("#", "title")]})
+    )
     document = Document(page_content="# Only Header\n\nBody text.", metadata={"source": "notes.md"})
 
     chunks = chunker.split_documents([document])
@@ -88,9 +92,9 @@ def test_markdown_header_accepts_custom_headers_to_split_on():
 
 def test_split_text_returns_chunk_strings_for_recursive_character():
     from velari_ai.integrations.langchain.chunking import DocumentChunker
-    from velari_ai.ai.retrieval.types import ChunkingStrategy
+    from velari_ai.ai.retrieval.types import ChunkingConfig, ChunkingStrategy
 
-    chunker = DocumentChunker(strategy=ChunkingStrategy.RECURSIVE_CHARACTER, chunk_size=100, chunk_overlap=10)
+    chunker = DocumentChunker(ChunkingConfig(strategy=ChunkingStrategy.RECURSIVE_CHARACTER, chunk_size=100, chunk_overlap=10))
 
     chunks = chunker.split_text("word " * 400)
 
@@ -100,9 +104,9 @@ def test_split_text_returns_chunk_strings_for_recursive_character():
 
 def test_split_text_on_markdown_header_raises_typeerror():
     from velari_ai.integrations.langchain.chunking import DocumentChunker
-    from velari_ai.ai.retrieval.types import ChunkingStrategy
+    from velari_ai.ai.retrieval.types import ChunkingConfig, ChunkingStrategy
 
-    chunker = DocumentChunker(strategy=ChunkingStrategy.MARKDOWN_HEADER)
+    chunker = DocumentChunker(ChunkingConfig(strategy=ChunkingStrategy.MARKDOWN_HEADER))
 
     with pytest.raises(TypeError):
         chunker.split_text("# Title\n\nBody text.")

@@ -25,7 +25,7 @@ def test_load_returns_document_with_text_and_metadata(monkeypatch):
     assert docs[0].metadata["title"] == "Example"
     assert docs[0].metadata["description"] == "An example page."
     assert docs[0].metadata["language"] == "en"
-    assert docs[0].metadata["length"] == len(docs[0].page_content)
+    assert docs[0].metadata["content_length"] == len(docs[0].page_content)
 
 
 def test_load_sets_acquired_at_to_current_utc_time(monkeypatch):
@@ -72,7 +72,7 @@ def test_to_frame_flattens_documents_into_one_row_each(monkeypatch):
     assert len(df_docs) == 2
     assert list(df_docs["meta.title"]) == ["A", "B"]
     assert list(df_docs["page_content"]) == [d.page_content for d in docs]
-    assert list(df_docs["meta.length"]) == [d.metadata["length"] for d in docs]
+    assert list(df_docs["meta.content_length"]) == [d.metadata["content_length"] for d in docs]
 
 
 def test_load_multiple_urls_yields_one_document_each(monkeypatch):

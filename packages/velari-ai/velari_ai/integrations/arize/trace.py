@@ -9,7 +9,7 @@ from    openinference.semconv.trace import OpenInferenceSpanKindValues
 from    opentelemetry import trace
 from    phoenix.otel import SpanAttributes
 # package modules
-from    ...ai.retrieval.vectorstore import SearchResult
+from    ...ai.retrieval.types import SearchScoreResult
 from    ...ai.tracing.trace import LLMCallResult
 
 logger = logging.getLogger(__name__)
@@ -214,7 +214,7 @@ class TracingRetrievalPipeline(TracingPipeline):
         """
         return self._span(self._reranker_span_name, OpenInferenceSpanKindValues.RERANKER, input_value, extra_attrs)
 
-    def trace_span(self, span: trace.Span, results: List[SearchResult], text_field: str = "text") -> None:
+    def trace_span(self, span: trace.Span, results: List[SearchScoreResult], text_field: str = "text") -> None:
         """Annotate a span with OpenInference document attributes for each retrieved result.
 
         Sets three attributes per document: a positional ``document.id``, the document
@@ -225,7 +225,7 @@ class TracingRetrievalPipeline(TracingPipeline):
             span (trace.Span): Active OpenTelemetry span to annotate — typically a
                 retriever or reranker span obtained from ``retriever_span`` /
                 ``reranker_span``.
-            results (List[SearchResult]): Retrieved or reranked documents. Each dict
+            results (List[SearchScoreResult]): Retrieved or reranked documents. Each dict
                 contains three categories of fields: (1) ``"text"`` — the document
                 content; (2) source-document metadata fields passed through unchanged
                 (e.g. ``expected_category``, any dataset column except the embedding);

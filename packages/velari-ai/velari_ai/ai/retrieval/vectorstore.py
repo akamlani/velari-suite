@@ -3,26 +3,9 @@ from __future__ import annotations
 import  pandas as pd
 from    abc import ABC, abstractmethod
 from    typing import List, Optional, Self, Any, Sequence, Tuple, Union
-from    enum import StrEnum, auto
 # package modules
 from    ..types import ProviderName
-from    ..state import SearchResult
-
-class RetrieverStrategy(StrEnum):
-    VECTORSTORE_SIMILARITY       = auto()
-    VECTORSTORE_DISTANCE_SCORE   = auto()
-    VECTORSTORE_RELEVANCE_SCORE  = auto()
-    VECTORSTORE_MMR              = auto()
-    VECTORSTORE_RETRIEVER        = auto()
-
-class RetrieverSearchType(StrEnum):
-    SIMILARITY              = auto()
-    SIMILARITY_THRESHOLD    = auto()
-    MMR                     = auto()
-
-class MetricType(StrEnum):
-    DISTANCE    = auto()
-    RELEVANCE   = auto()
+from    .types import MetricType, RetrieverSearchType, RetrieverStrategy, SearchScoreResult
 
 
 ### Interface Class for VectorStore
@@ -66,7 +49,7 @@ class VectorStore(ABC):
         self,
         candidates: Sequence[Union[Any, Tuple[Any, float]]],
         strategy: RetrieverStrategy = RetrieverStrategy.VECTORSTORE_SIMILARITY,
-    ) -> List[SearchResult]: ...
+    ) -> List[SearchScoreResult]: ...
 
     @abstractmethod
     def clear(self) -> None: ...

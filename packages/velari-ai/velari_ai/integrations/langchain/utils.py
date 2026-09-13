@@ -13,7 +13,7 @@ from    langchain_core.runnables.graph import MermaidDrawMethod
 
 # package modules
 from    ...ai.types import ModelConfig
-from    .types import ResponseInfo
+from    .models.types import ResponseInfo
 
 logger = logging.getLogger(__name__)
 
