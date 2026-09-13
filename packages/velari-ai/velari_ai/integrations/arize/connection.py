@@ -6,10 +6,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Optional
 from omegaconf import DictConfig
-from opentelemetry import trace
+from openinference.instrumentation import TracerProvider
 from phoenix.client import Client
 from phoenix.otel import register
 from phoenix.session.session import ThreadSession
+# package modules
+from ...ai.tracing.trace import TracerLike, TracingConnector
 
 logger = logging.getLogger(__name__)
 
@@ -83,15 +85,16 @@ class ConnectorConfig:
         return cls(connection=connection, storage=storage, project=project)
 
 
-class Connector(object):
+class Connector(TracingConnector):
     def __init__(self, config: ConnectorConfig) -> None:
         self._config = config
+        self._tracer_provider: Optional[TracerProvider] = None
         if config.remote is not None:
             self._session = None
             self._url     = config.remote.endpoint
             self._client  = Client(base_url=config.remote.endpoint, api_key=config.remote.api_key, headers=config.remote.headers)
             if config.project and config.project.project_name:
-                register(
+                self._tracer_provider = register(
                     endpoint        = _otlp_http_endpoint(config.remote.endpoint),
                     project_name    = config.project.project_name,
                     auto_instrument = config.project.auto_instrument,
@@ -107,7 +110,7 @@ class Connector(object):
             self._url     = self._session.url
             self._client  = Client(base_url=self._session.url)
             if config.project and config.project.project_name:
-                register(
+                self._tracer_provider = register(
                     project_name    = config.project.project_name,
                     auto_instrument = config.project.auto_instrument,
                     verbose         = False,
@@ -119,8 +122,13 @@ class Connector(object):
     def from_config(cls, cfg: DictConfig) -> Connector:
         return cls(ConnectorConfig.from_config(cfg))
 
-    def get_tracer(self, name: str, version: Optional[str] = None):
-        return trace.get_tracer(name, version)
+    def get_tracer(self, name: str, version: Optional[str] = None) -> TracerLike:
+        # alt: use __name__ for name
+        if self._tracer_provider is None:
+            raise RuntimeError(
+                "No tracer provider registered — set phoenix.project.project_name in config to enable tracing"
+            )
+        return self._tracer_provider.get_tracer(name, version)
 
     @property
     def config(self) -> ConnectorConfig:

@@ -1,4 +1,4 @@
-"""Tests for velari_ai.integrations.langchain.agent."""
+"""Tests for velari_ai.integrations.langchain.agents.agent."""
 
 import asyncio
 
@@ -17,7 +17,7 @@ def _lookup_account_balance_tool():
 
 
 def test_build_sets_agent_and_returns_self():
-    from velari_ai.integrations.langchain.agent import Agent
+    from velari_ai.integrations.langchain.agents.agent import Agent
 
     agent = Agent(api_key="test-key")
 
@@ -31,7 +31,7 @@ def test_build_sets_agent_and_returns_self():
 def test_build_uses_inmemory_checkpointer_by_default():
     from langgraph.checkpoint.memory import InMemorySaver
     from langgraph.graph.state import CompiledStateGraph
-    from velari_ai.integrations.langchain.agent import Agent
+    from velari_ai.integrations.langchain.agents.agent import Agent
 
     agent = Agent(api_key="test-key")
 
@@ -42,7 +42,7 @@ def test_build_uses_inmemory_checkpointer_by_default():
 
 
 def test_build_forwards_agent_name_to_create_agent():
-    from velari_ai.integrations.langchain.agent import Agent
+    from velari_ai.integrations.langchain.agents.agent import Agent
     from velari_ai.ai.types import AgentConfig
 
     agent = Agent(agent_config=AgentConfig(name="billing-support-agent"), api_key="test-key")
@@ -54,8 +54,8 @@ def test_build_forwards_agent_name_to_create_agent():
 
 
 def test_build_forwards_context_schema_to_create_agent(monkeypatch):
-    import velari_ai.integrations.langchain.agent as agent_module
-    from velari_ai.integrations.langchain.agent import Agent
+    import velari_ai.integrations.langchain.agents.agent as agent_module
+    from velari_ai.integrations.langchain.agents.agent import Agent
 
     captured = {}
 
@@ -75,8 +75,8 @@ def test_build_forwards_context_schema_to_create_agent(monkeypatch):
 
 
 def test_build_forwards_state_schema_to_create_agent(monkeypatch):
-    import velari_ai.integrations.langchain.agent as agent_module
-    from velari_ai.integrations.langchain.agent import Agent
+    import velari_ai.integrations.langchain.agents.agent as agent_module
+    from velari_ai.integrations.langchain.agents.agent import Agent
 
     captured = {}
 
@@ -96,14 +96,14 @@ def test_build_forwards_state_schema_to_create_agent(monkeypatch):
 
 
 def test_build_defaults_to_sensible_middleware_stack(monkeypatch):
-    import velari_ai.integrations.langchain.agent as agent_module
+    import velari_ai.integrations.langchain.agents.agent as agent_module
     from langchain.agents.middleware import (
         ModelRetryMiddleware,
         SummarizationMiddleware,
         ToolCallLimitMiddleware,
         ToolRetryMiddleware,
     )
-    from velari_ai.integrations.langchain.agent import Agent
+    from velari_ai.integrations.langchain.agents.agent import Agent
     from velari_ai.ai.types import AgentConfig
 
     captured = {}
@@ -126,8 +126,8 @@ def test_build_defaults_to_sensible_middleware_stack(monkeypatch):
 
 
 def test_build_middleware_override_replaces_defaults(monkeypatch):
-    import velari_ai.integrations.langchain.agent as agent_module
-    from velari_ai.integrations.langchain.agent import Agent
+    import velari_ai.integrations.langchain.agents.agent as agent_module
+    from velari_ai.integrations.langchain.agents.agent import Agent
 
     captured = {}
 
@@ -144,7 +144,7 @@ def test_build_middleware_override_replaces_defaults(monkeypatch):
 
 
 def test_run_without_build_raises_runtimeerror():
-    from velari_ai.integrations.langchain.agent import Agent
+    from velari_ai.integrations.langchain.agents.agent import Agent
 
     agent = Agent(api_key="test-key")
 
@@ -154,7 +154,7 @@ def test_run_without_build_raises_runtimeerror():
 
 def test_run_passes_thread_id_in_config_and_returns_final_message(monkeypatch):
     from langchain_core.messages import AIMessage
-    from velari_ai.integrations.langchain.agent import Agent
+    from velari_ai.integrations.langchain.agents.agent import Agent
 
     class _StubCompiledGraph:
         def __init__(self):
@@ -185,7 +185,7 @@ def test_run_passes_thread_id_in_config_and_returns_final_message(monkeypatch):
 
 def test_run_without_thread_id_generates_a_fresh_one_each_call(monkeypatch):
     from langchain_core.messages import AIMessage
-    from velari_ai.integrations.langchain.agent import Agent
+    from velari_ai.integrations.langchain.agents.agent import Agent
 
     class _StubCompiledGraph:
         def __init__(self):
@@ -213,8 +213,8 @@ def test_run_without_thread_id_generates_a_fresh_one_each_call(monkeypatch):
 
 def test_run_forwards_context_to_invoke(monkeypatch):
     from langchain_core.messages import AIMessage
-    from velari_ai.integrations.langchain.agent import Agent
-    from velari_ai.integrations.langchain.types import ContextSchema
+    from velari_ai.integrations.langchain.agents.agent import Agent
+    from velari_ai.integrations.langchain.agents.types import ContextSchema
 
     class _StubCompiledGraph:
         def __init__(self):
@@ -237,8 +237,8 @@ def test_run_forwards_context_to_invoke(monkeypatch):
 
 def test_run_returns_response_info_with_latency(monkeypatch):
     from langchain_core.messages import AIMessage
-    from velari_ai.integrations.langchain.agent import Agent
-    from velari_ai.integrations.langchain.types import AgentResponseInfo
+    from velari_ai.integrations.langchain.agents.agent import Agent
+    from velari_ai.integrations.langchain.models.types import AgentResponseInfo
 
     class _StubCompiledGraph:
         def invoke(self, state, **kwargs):
@@ -258,7 +258,7 @@ def test_run_returns_response_info_with_latency(monkeypatch):
 
 def test_run_latency_is_not_accumulated_across_calls(monkeypatch):
     from langchain_core.messages import AIMessage
-    from velari_ai.integrations.langchain.agent import Agent
+    from velari_ai.integrations.langchain.agents.agent import Agent
 
     class _StubCompiledGraph:
         def invoke(self, state, **kwargs):
@@ -279,7 +279,7 @@ def test_run_latency_is_not_accumulated_across_calls(monkeypatch):
 
 def test_run_computes_message_stats_from_tool_calling_turns(monkeypatch):
     from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
-    from velari_ai.integrations.langchain.agent import Agent
+    from velari_ai.integrations.langchain.agents.agent import Agent
 
     class _StubCompiledGraph:
         def invoke(self, state, **kwargs):
@@ -309,7 +309,7 @@ def test_run_computes_message_stats_from_tool_calling_turns(monkeypatch):
 
 def test_run_computes_usage_stats_from_ai_message_usage_metadata(monkeypatch):
     from langchain_core.messages import AIMessage
-    from velari_ai.integrations.langchain.agent import Agent
+    from velari_ai.integrations.langchain.agents.agent import Agent
 
     class _StubCompiledGraph:
         def invoke(self, state, **kwargs):
@@ -336,7 +336,7 @@ def test_run_computes_usage_stats_from_ai_message_usage_metadata(monkeypatch):
 
 def test_run_message_stats_excludes_prior_thread_history(monkeypatch):
     from langchain_core.messages import AIMessage, HumanMessage
-    from velari_ai.integrations.langchain.agent import Agent
+    from velari_ai.integrations.langchain.agents.agent import Agent
 
     prior_messages = [HumanMessage(content="earlier"), AIMessage(content="earlier reply")]
 
@@ -365,7 +365,7 @@ def test_run_message_stats_excludes_prior_thread_history(monkeypatch):
 
 
 def test_stream_without_build_raises_runtimeerror():
-    from velari_ai.integrations.langchain.agent import Agent
+    from velari_ai.integrations.langchain.agents.agent import Agent
 
     agent = Agent(api_key="test-key")
 
@@ -374,7 +374,7 @@ def test_stream_without_build_raises_runtimeerror():
 
 
 def test_stream_yields_chunks_and_passes_thread_id_and_stream_mode(monkeypatch):
-    from velari_ai.integrations.langchain.agent import Agent
+    from velari_ai.integrations.langchain.agents.agent import Agent
 
     class _StubCompiledGraph:
         def __init__(self):
@@ -399,7 +399,7 @@ def test_stream_yields_chunks_and_passes_thread_id_and_stream_mode(monkeypatch):
 
 
 def test_stream_without_thread_id_generates_a_fresh_one(monkeypatch):
-    from velari_ai.integrations.langchain.agent import Agent
+    from velari_ai.integrations.langchain.agents.agent import Agent
 
     class _StubCompiledGraph:
         def __init__(self):
@@ -422,7 +422,7 @@ def test_stream_without_thread_id_generates_a_fresh_one(monkeypatch):
 
 
 def test_arun_without_build_raises_runtimeerror():
-    from velari_ai.integrations.langchain.agent import Agent
+    from velari_ai.integrations.langchain.agents.agent import Agent
 
     agent = Agent(api_key="test-key")
 
@@ -435,7 +435,7 @@ def test_arun_without_build_raises_runtimeerror():
 
 def test_arun_passes_thread_id_and_returns_final_message(monkeypatch):
     from langchain_core.messages import AIMessage
-    from velari_ai.integrations.langchain.agent import Agent
+    from velari_ai.integrations.langchain.agents.agent import Agent
 
     class _StubCompiledGraph:
         def __init__(self):
@@ -469,7 +469,7 @@ def test_arun_passes_thread_id_and_returns_final_message(monkeypatch):
 
 def test_arun_without_thread_id_generates_a_fresh_one_each_call(monkeypatch):
     from langchain_core.messages import AIMessage
-    from velari_ai.integrations.langchain.agent import Agent
+    from velari_ai.integrations.langchain.agents.agent import Agent
 
     class _StubCompiledGraph:
         def __init__(self):
@@ -497,7 +497,7 @@ def test_arun_without_thread_id_generates_a_fresh_one_each_call(monkeypatch):
 
 
 def test_astream_without_build_raises_runtimeerror():
-    from velari_ai.integrations.langchain.agent import Agent
+    from velari_ai.integrations.langchain.agents.agent import Agent
 
     agent = Agent(api_key="test-key")
 
@@ -509,7 +509,7 @@ def test_astream_without_build_raises_runtimeerror():
 
 
 def test_astream_yields_chunks_and_passes_thread_id_and_stream_mode(monkeypatch):
-    from velari_ai.integrations.langchain.agent import Agent
+    from velari_ai.integrations.langchain.agents.agent import Agent
 
     class _StubCompiledGraph:
         def __init__(self):
@@ -538,8 +538,8 @@ def test_astream_yields_chunks_and_passes_thread_id_and_stream_mode(monkeypatch)
 
 
 def test_build_wraps_create_agent_errors_in_runtimeerror(monkeypatch):
-    import velari_ai.integrations.langchain.agent as agent_module
-    from velari_ai.integrations.langchain.agent import Agent
+    import velari_ai.integrations.langchain.agents.agent as agent_module
+    from velari_ai.integrations.langchain.agents.agent import Agent
 
     def _raise(*args, **kwargs):
         raise ValueError("boom")

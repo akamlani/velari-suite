@@ -1,7 +1,8 @@
 import  json
 import  base64
+import  pandas as pd
 from    pathlib import Path
-from    typing import Optional
+from    typing import Optional, Any, Union
 
 
 # type="base64", media_type="application/pdf"
@@ -14,6 +15,25 @@ def read_base64(path: str) -> str:
     except Exception as e:
         raise IOError(f"Error reading file {path}: {e}")
 
+def read_csv(path: str, *args: Any, **kwargs: Any) -> pd.DataFrame:
+    try:
+        sep = kwargs.get("sep", ",")  # e.g., ['\s+', '\t', ',']
+        with Path(path).open("r", encoding="utf-8") as file:
+            result = pd.read_csv(file, *args, sep=sep, **kwargs)
+        if not isinstance(result, pd.DataFrame):
+            raise TypeError("read_csv() only supports whole-file reads — pass iterator=False or omit chunksize")
+        return result
+    except Exception as e:
+        raise IOError(f"Error reading CSV file {path}: {e}")
+
+def read_excel(path: str, sheet_name: Union[str, int] = 0, *args: Any, **kwargs: Any) -> pd.DataFrame:
+    try:
+        with pd.ExcelFile(path) as reader:
+            kwargs.setdefault("engine", "openpyxl")
+            return pd.read_excel(reader, sheet_name=sheet_name, *args, **kwargs)
+    except Exception as e:
+        raise IOError(f"Error reading Excel file {path}: {e}")
+
 def read_json(path: str) -> dict:
     try:
         with Path(path).open("r", encoding="utf-8") as file:
@@ -21,6 +41,12 @@ def read_json(path: str) -> dict:
             return data
     except Exception as e:
         raise IOError(f"Error reading JSON file {path}: {e}")
+
+def read_json_string(data: str) -> dict:
+    try:
+        return json.loads(data)
+    except json.JSONDecodeError as e:
+        return {"__error__": str(e)}
 
 def read_text(path: str) -> str:
     try:

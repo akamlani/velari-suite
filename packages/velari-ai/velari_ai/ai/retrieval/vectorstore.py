@@ -25,9 +25,6 @@ class MetricType(StrEnum):
     RELEVANCE   = auto()
 
 
-
-
-
 ### Interface Class for VectorStore
 class VectorStore(ABC):
     """Common interface every vector store implementation must satisfy."""

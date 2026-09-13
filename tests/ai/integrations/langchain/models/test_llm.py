@@ -1,4 +1,4 @@
-"""Tests for velari_ai.integrations.langchain.llm."""
+"""Tests for velari_ai.integrations.langchain.models.llm."""
 
 
 class _StubBoundLLM:
@@ -22,7 +22,7 @@ def _lookup_account_balance_tool():
 
 
 def test_toolcallingllm_bind_sets_bound_llm_and_tools_by_name():
-    from velari_ai.integrations.langchain.llm import ToolCallingLLM
+    from velari_ai.integrations.langchain.models.llm import ToolCallingLLM
 
     tool = _lookup_account_balance_tool()
     tool_llm = ToolCallingLLM(api_key="test-key")
@@ -35,7 +35,7 @@ def test_toolcallingllm_bind_sets_bound_llm_and_tools_by_name():
 
 def test_toolcallingllm_query_without_bind_raises_runtimeerror():
     import pytest
-    from velari_ai.integrations.langchain.llm import ToolCallingLLM
+    from velari_ai.integrations.langchain.models.llm import ToolCallingLLM
 
     tool_llm = ToolCallingLLM(api_key="test-key")
 
@@ -45,7 +45,7 @@ def test_toolcallingllm_query_without_bind_raises_runtimeerror():
 
 def test_toolcallingllm_query_executes_tool_and_returns_final_answer(monkeypatch):
     from langchain_core.messages import AIMessage
-    from velari_ai.integrations.langchain.llm import ToolCallingLLM
+    from velari_ai.integrations.langchain.models.llm import ToolCallingLLM
 
     tool_llm = ToolCallingLLM(api_key="test-key")
     tool_llm.bind([_lookup_account_balance_tool()])
@@ -71,7 +71,7 @@ def test_toolcallingllm_query_executes_tool_and_returns_final_answer(monkeypatch
 
 def test_toolcallingllm_query_populates_message_stats_from_tool_calling_turns(monkeypatch):
     from langchain_core.messages import AIMessage
-    from velari_ai.integrations.langchain.llm import ToolCallingLLM
+    from velari_ai.integrations.langchain.models.llm import ToolCallingLLM
 
     tool_llm = ToolCallingLLM(api_key="test-key")
     tool_llm.bind([_lookup_account_balance_tool()])
@@ -99,7 +99,7 @@ def test_toolcallingllm_query_populates_message_stats_from_tool_calling_turns(mo
 def test_toolcallingllm_query_with_response_model_returns_parsed_object_after_tool_calls(monkeypatch):
     from langchain_core.messages import AIMessage
     from pydantic import BaseModel
-    from velari_ai.integrations.langchain.llm import ToolCallingLLM
+    from velari_ai.integrations.langchain.models.llm import ToolCallingLLM
 
     class _ParsedBalance:
         def __init__(self, balance):
@@ -153,7 +153,7 @@ def test_toolcallingllm_query_with_response_model_returns_parsed_object_after_to
 def test_toolcallingllm_query_exceeding_max_tool_calls_raises_runtimeerror(monkeypatch):
     import pytest
     from langchain_core.messages import AIMessage
-    from velari_ai.integrations.langchain.llm import ToolCallingLLM
+    from velari_ai.integrations.langchain.models.llm import ToolCallingLLM
     from velari_ai.ai.types import AgentConfig
 
     tool_llm = ToolCallingLLM(agent_config=AgentConfig(max_tool_calls=2), api_key="test-key")
@@ -180,7 +180,7 @@ def test_toolcallingllm_query_exceeding_max_tool_calls_raises_runtimeerror(monke
 
 def test_llm_run_sends_system_and_human_messages(monkeypatch):
     from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-    from velari_ai.integrations.langchain.llm import LLM
+    from velari_ai.integrations.langchain.models.llm import LLM
 
     class _StubModel:
         def __init__(self):
@@ -207,7 +207,7 @@ def test_llm_run_sends_system_and_human_messages(monkeypatch):
 
 def test_llm_run_populates_usage_stats_from_response(monkeypatch):
     from langchain_core.messages import AIMessage
-    from velari_ai.integrations.langchain.llm import LLM
+    from velari_ai.integrations.langchain.models.llm import LLM
 
     class _StubModel:
         def invoke(self, messages):
@@ -234,7 +234,7 @@ def test_llm_run_populates_usage_stats_from_response(monkeypatch):
 
 def test_llm_run_with_response_model_returns_parsed_object(monkeypatch):
     from pydantic import BaseModel
-    from velari_ai.integrations.langchain.llm import LLM
+    from velari_ai.integrations.langchain.models.llm import LLM
 
     class _ParsedTicket:
         def __init__(self, priority):
@@ -279,7 +279,7 @@ def test_llm_run_with_response_model_returns_parsed_object(monkeypatch):
 
 def test_llm_batch_invokes_model_once_per_message_with_shared_system_prompt(monkeypatch):
     from langchain_core.messages import AIMessage, SystemMessage
-    from velari_ai.integrations.langchain.llm import LLM
+    from velari_ai.integrations.langchain.models.llm import LLM
 
     class _StubModel:
         def __init__(self):
@@ -308,7 +308,7 @@ def test_llm_batch_invokes_model_once_per_message_with_shared_system_prompt(monk
 
 def test_llm_batch_gives_every_item_the_same_latency(monkeypatch):
     from langchain_core.messages import AIMessage
-    from velari_ai.integrations.langchain.llm import LLM
+    from velari_ai.integrations.langchain.models.llm import LLM
 
     class _StubModel:
         def batch(self, inputs):
@@ -327,7 +327,7 @@ def test_llm_batch_gives_every_item_the_same_latency(monkeypatch):
 
 def test_llm_stream_yields_chunks_from_model_stream(monkeypatch):
     from langchain_core.messages import SystemMessage
-    from velari_ai.integrations.langchain.llm import LLM
+    from velari_ai.integrations.langchain.models.llm import LLM
 
     class _StubModel:
         def __init__(self):

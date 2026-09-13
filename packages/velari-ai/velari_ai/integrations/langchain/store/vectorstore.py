@@ -7,8 +7,8 @@ from     langchain_core.documents import Document
 from     langchain_core.vectorstores import InMemoryVectorStore
 from     langchain_chroma import Chroma
 # package modules
-from    ...ai.retrieval.vectorstore import RetrieverStrategy, VectorStore
-from    ...ai.state import SearchResult
+from    ....ai.retrieval.vectorstore import RetrieverStrategy, VectorStore
+from    ....ai.retrieval.types import SearchScoreResult
 
 logger = logging.getLogger(__name__)
 
@@ -91,8 +91,8 @@ class LangChainVectorStorage(VectorStore):
     def to_search_results(
         self,
         candidates: Sequence[Union[Document, Tuple[Document, float]]],
-        strategy: RetrieverStrategy = RetrieverStrategy.VECTORSTORE_SIMILARITY,
-    ) -> List[SearchResult]:
+        strategy:   RetrieverStrategy = RetrieverStrategy.VECTORSTORE_SIMILARITY,
+    ) -> List[SearchScoreResult]:
         """Normalize retrieve_candidates() output into SearchResult entries.
 
         Args:
@@ -102,7 +102,7 @@ class LangChainVectorStorage(VectorStore):
                 score field (`_distance`/`_relevance`) gets populated, when a score is present.
 
         Returns:
-            List[SearchResult]: `text` holds the `Document`; the score field for `strategy` is set
+            List[SearchScoreResult]: `text` holds the `Document`; the score field for `strategy` is set
                 only when `candidates` carries a score (e.g. not for `VECTORSTORE_SIMILARITY`).
 
         Examples:
@@ -120,8 +120,8 @@ class LangChainVectorStorage(VectorStore):
             case _:
                 score_field = None
 
-        def _to_result(doc: Document, score: Optional[float]) -> SearchResult:
-            result: SearchResult = {"text": doc}
+        def _to_result(doc: Document, score: Optional[float]) -> SearchScoreResult:
+            result: SearchScoreResult = {"text": doc}
             if score is not None and score_field is not None:
                 result[score_field] = score
             return result
@@ -167,7 +167,6 @@ class ChromaVectorStorage(LangChainVectorStorage):
     def load(self) -> Self:
         self._vectorstore = Chroma(embedding_function=self._embedding_fn, **self._collection_kwargs)
         return self
-
 
     def _require_vectorstore(self) -> Any:
         if self._vectorstore is None:

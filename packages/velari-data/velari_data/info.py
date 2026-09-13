@@ -45,7 +45,7 @@ class InfoText(object):
             word_sz     =  lambda df_: df_["words"].apply(len),
             token_sz    =  lambda df_: df_["tokens"].apply(len),
         ).assign(
-            page_sz     =  lambda df_: (df_["token_sz"] / cls.TOKENS_PER_PAGE).round(1),
+            page_sz     =  lambda df_: (df_["token_sz"] / cls.TOKENS_PER_PAGE).round(3),
         )
 
     @classmethod

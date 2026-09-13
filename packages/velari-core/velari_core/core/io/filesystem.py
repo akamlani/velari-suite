@@ -2,6 +2,7 @@ import httpx
 import json
 import logging
 import mimetypes
+import pandas as pd
 import shutil
 import tempfile
 import yaml
@@ -9,6 +10,7 @@ from omegaconf import OmegaConf
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
+from . import reader
 from .types import ArtifactFormat, ArtifactKind, ArtifactProperties
 
 logger = logging.getLogger(__name__)
@@ -142,18 +144,40 @@ class Filesystem(object):
             fmt = ArtifactFormat.from_ext(suffix)
             match fmt:
                 case ArtifactFormat.JSON:
-                    return json.loads(file_path.read_text())
+                    return reader.read_json(str(file_path))
                 case ArtifactFormat.YAML:
-                    return yaml.safe_load(file_path.read_text())
+                    return yaml.safe_load(reader.read_text(str(file_path)))
                 case _ if Filesystem.get_mime_type(file_path).startswith("text/"):
-                    return file_path.read_text()
+                    return reader.read_text(str(file_path))
                 case _:
                     return file_path.read_bytes()
         except FileNotFoundError as e:
             logger.error(f"file not found: {e}")
             raise
-        except json.JSONDecodeError as e:
-            logger.error(f"invalid JSON in {path}: {e}")
+        except IOError as e:
+            logger.error(f"failed to read {path}: {e}")
+            raise
+
+    @staticmethod
+    def parse(path: Union[str, Path], *args: Any, **kwargs: Any) -> pd.DataFrame:
+        file_path = Path(path)
+        try:
+            suffix = file_path.suffix.lower()
+            fmt = ArtifactFormat.from_ext(suffix)
+            match fmt:
+                case ArtifactFormat.JSON:
+                    return pd.json_normalize(reader.read_json(str(file_path)), *args, **kwargs)
+                case ArtifactFormat.EXCEL:
+                    return reader.read_excel(str(file_path), *args, **kwargs)
+                case ArtifactFormat.CSV:
+                    return reader.read_csv(str(file_path), *args, **kwargs)
+                case _:
+                    raise ValueError(f"Filesystem.parse() does not support {suffix!r} — expected .json/.csv/.xlsx/.xls")
+        except FileNotFoundError as e:
+            logger.error(f"file not found: {e}")
+            raise
+        except IOError as e:
+            logger.error(f"failed to parse {path}: {e}")
             raise
 
     @staticmethod

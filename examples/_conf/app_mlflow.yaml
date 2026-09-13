@@ -1,0 +1,18 @@
+defaults:
+  - tracing/mlflow@_global_
+  # - override hydra/job_logging:   custom
+  # - override hydra/hydra_logging: custom
+  - _self_
+
+app:
+  info:
+    name: mlflow-tracing-cli
+    help: "MLflow Tracing — run instrumented pipelines and view traces."
+    version: 0.1.0
+  tracing:
+    name:    mlflow-tracing-cli-tracer
+    version: 0.1.0
+
+mlflow:
+  project:
+    project_name: mlflow-tracing-cli

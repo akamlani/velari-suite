@@ -1,0 +1,142 @@
+tasks:
+  question_answering_task:
+    meta:
+      task: question answering
+    system: |
+      ## Objective
+      Answer the question based solely on the provided context.
+
+      ## Instructions
+      - Focus on providing accurate and complete answers based on the context.
+      - Avoid including information not present in the context.
+    user: |
+      Context:
+      {{ context }}
+
+      Question:
+      {{ question }}
+
+  classification_task:
+    meta:
+      task: content and query classification
+    system: |
+      ## Objective
+      Classify the intent or category of the following text.
+
+      ## Instructions
+      - Think step-by-step and provide a brief reasoning for the label.
+      - Produce a confidence level reflecting how clear-cut the classification is.
+      - Describe the specific task represented by this text (e.g. "define a term", "compare two
+        options", "summarize an article") — not a restatement of this classification objective.
+      {%- if categories %}
+      - Choose exactly one category from the list below.
+
+      ## Categories
+      {%- for category in categories %}
+      {%- if categories is mapping %}
+      - {{ category }}: {{ categories[category] }}
+      {%- else %}
+      - {{ category }}
+      {%- endif %}
+      {%- endfor %}
+      {%- endif %}
+
+      ## Constraints
+      {%- if categories %}
+      - Do not invent a category outside the list above.
+      {%- else %}
+      - You are not restricted to a fixed list of categories; use whatever label best fits the text.
+      {%- endif %}
+      - Keep the reasoning brief — within one (1) sentence.
+      - Do not fabricate details that are not present in the text.
+    user: |
+      Text:
+      {{ query }}
+
+  topic_analysis_task:
+    meta:
+      task: topic analysis
+    system: |
+      ## Objective
+      Analyze the {{ content_type }} content and identify the key topics.
+
+      ## Instructions
+      - Identify the main topics discussed in the content.
+      - For each topic, provide a brief description and a relevance score reflecting how central
+        it is to the overall content.
+      - Provide a list of the most relevant topics — a given piece of content may contain multiple topics.
+      - Cluster content into coherent groups based on shared themes or characteristics.
+
+      ## Constraints
+      - Ground every identified topic in the actual content — do not invent topics that aren't present.
+    user: |
+      Analyze the following {{ content_type }} content for Topic Analysis:
+      {{ content }}
+
+  extractive_summarization_task:
+    meta:
+      task: structured information extraction
+    system: |
+      ## Objective
+      Extract structured information from the following text — keywords, named entities, key
+      concepts, highlighted phrases or sentences, and dates or time expressions.
+
+      ## Instructions
+      - Keywords: identify the most important individual words or short phrases in the text.
+      - Entities: identify specific, named instances only — standard NER types (people,
+        organizations, locations, dates, products) or narrow domain/industry-specific NER types
+        relevant to the text's subject matter. Do not tag generic terms or general
+        techniques/methods — those belong under keywords or concepts.
+      - Concepts: identify the main topics, themes, or ideas discussed in the text; give each one a
+        short name and a brief description.
+      - Highlights: select the most salient phrases or sentences that best represent the text; give
+        each one its exact text as the name and a brief description of why it's notable.
+      - Dates: identify standalone dates or time expressions mentioned in the text (e.g. "Q3 2024",
+        "last Tuesday").
+
+      ## Constraints
+      - Ground every item in the actual text — do not invent anything that isn't present.
+      - A category with nothing to report should return an empty list, not fabricated entries.
+      - Attempt to avoid being too general or broad in your extraction; focus on specific, identifiable items.
+    user: |
+      Text:
+      {{ text }}
+
+  abstractive_summarization_task:
+    meta:
+      task: abstractive summarization
+    system: |
+      ## Objective
+      Generate an abstractive summary of the following {{ content_type }} content — a concise
+      restatement in new wording, not a selection of verbatim spans from the source.
+
+      ## Instructions
+      - Paraphrase the content in your own words; do not copy sentences verbatim.
+      - Capture the main point and overall meaning in as few sentences as possible.
+      - Preserve the original meaning and tone; do not introduce interpretation or opinion.
+
+      ## Constraints
+      - Ground the summary in the provided content — do not invent information.
+      - Do not quote or lift phrases directly from the source text.
+    user: |
+      Abstractively summarize the following {{ content_type }} content:
+      {{ content }}
+
+  synthesis_task:
+    meta:
+      task: content synthesis
+    system: |
+      ## Objective
+      Synthesize the {{ content_type }} content into a concise, coherent summary.
+
+      ## Instructions
+      - Provide a concise summary of the main points.
+      - Highlight key insights and findings as a separate list.
+      - Eliminate repetition and redundancy.
+
+      ## Constraints
+      - Ground the synthesis in the provided content — do not invent information.
+      - Ensure the summary is coherent and logically structured.
+    user: |
+      Synthesize the following {{ content_type }} content:
+      {{ content }}

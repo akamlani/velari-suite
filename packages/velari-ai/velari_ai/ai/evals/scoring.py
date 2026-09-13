@@ -1,4 +1,5 @@
 import  numpy as np
+import  editdistance as ed
 from    typing import List, Literal, Union
 from    scipy import spatial
 
@@ -133,3 +134,21 @@ def intra_cosine_similarity(x: Union[List[List[float]], np.ndarray]) -> np.ndarr
         >>> similarities = intra_cosine_similarity(corpus_embeddings)
     """
     return 1.0 - intra_cosine_distance(x)
+
+
+def edit_distance(output, expected) -> int:
+    """Compute the edit distance between the `output` and `expected`.
+
+    Args:
+        output: The output to compare.
+        expected: The expected output to compare against.
+
+    Returns:
+        int: The edit distance between the `output` and `expected`.
+
+    Examples:
+        >>> output   = json.dumps({"answer": "42"}, sort_keys=True)
+        >>> expected = json.dumps({"answer": "43"}, sort_keys=True)
+        >>> distance = edit_distance(output, expected)
+    """
+    return ed.eval(output, expected)

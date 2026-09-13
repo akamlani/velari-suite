@@ -1,0 +1,181 @@
+analysis:
+  decompose_query:
+    meta:
+      task: query decomposition for retrieval
+    system: |
+      ## Objective
+      Decide whether the user's question should be split into multiple atomic sub-queries before retrieval, and
+      if so, produce those sub-queries.
+
+      ## When to skip decomposition
+      - Simple queries: single lookups or straightforward factual questions.
+      - Queries with time-specific or precise technical terms, identifiers, or exact phrasing — splitting risks
+        losing or paraphrasing away wording that needs to stay intact for accurate retrieval.
+
+      ## When to decompose
+      - Multi-hop questions: the answer requires information spread across different documents, collections, or
+        tables.
+      - Multi-part prompts: several distinct asks bundled into one sentence (e.g. comparing two things, or asking
+        for both a definition and a separate procedure).
+      - Semantic dilution: a single long or compound query would confuse embedding-based retrieval, returning weak
+        or mixed-relevance results instead of precise ones.
+
+      ## Instructions
+      - Each sub-query should be a single, atomic, self-contained question — retrievable on its own.
+      - Preserve exact terminology, names, and identifiers from the original question in each sub-query.
+      - Do not invent sub-queries that go beyond what the original question actually asks.
+
+      ## Examples
+      - "What is an LLM agent?" -> no decomposition (simple lookup)
+      - "What's the account balance for ACC-10293?" -> no decomposition (precise identifier, don't paraphrase)
+      - "Compare the memory and planning components of LLM agents" -> decompose into: "What is the memory
+        component of an LLM agent?", "What is the planning component of an LLM agent?"
+    user: |
+      Question:
+      {{ query }}
+
+  expand_query:
+    meta:
+      task: query expansion for retrieval recall
+    system: |
+      ## Objective
+      Decide whether the user's query would benefit from being expanded into multiple alternate
+      phrasings for retrieval, and generate those phrasings if so — the goal is to broaden recall by
+      covering different wordings, synonyms, and phrasings of the same underlying question, not to
+      change or split what's being asked.
+
+      ## When to skip expansion
+      - The query already uses precise, unambiguous terminology (identifiers, exact names, technical
+        terms) where alternate phrasings would not surface different relevant results.
+      - The query is already broad/general enough that paraphrasing wouldn't meaningfully change
+        retrieval coverage.
+
+      ## When to expand
+      - The query uses casual, ambiguous, or narrow phrasing where different wording (synonyms,
+        rephrasing, alternate terminology) could surface relevant documents that don't share the
+        exact same words.
+      - Retrieval is embedding-based and sensitive to phrasing/wording differences.
+
+      ## Instructions
+      - Each expanded query must preserve the exact same intent and scope as the original — do not
+        introduce new asks, narrow, or broaden what's being asked.
+      - Vary wording, synonyms, and phrasing structure across expansions; avoid trivial rewordings.
+      - Produce 2-4 expanded queries when expansion is warranted.
+      - Preserve exact identifiers, names, and technical terms that must not be paraphrased away.
+
+      ## Examples
+      - "how do agents remember things" -> expand into: "What mechanisms do LLM agents use for
+        memory?", "How is memory implemented in autonomous AI agents?"
+      - "What's the account balance for ACC-10293?" -> no expansion (precise identifier, don't
+        paraphrase)
+      - "What is an LLM agent?" -> expand into: "Define an LLM-powered agent.", "What does it mean
+        for an agent to be built on a large language model?"
+    user: |
+      Query:
+      {{ query }}
+
+  augment_query:
+    meta:
+      task: query augmentation via hypothetical answer generation (HyDE)
+    system: |
+      ## Objective
+      Decide whether generating a hypothetical answer to the user's query would improve retrieval,
+      and generate one if so — a synthesized passage written as if it were a real answer/document,
+      whose embedding can be used for retrieval instead of (or alongside) the raw query's embedding.
+      This technique (Hypothetical Document Embeddings / HyDE) works because a plausible answer
+      passage tends to be closer, in embedding space, to the actual relevant documents than a short
+      question is.
+
+      ## When to skip augmentation
+      - The query is a precise, identifier-based lookup (exact account/order/ticket number, exact
+        name) where a fabricated hypothetical answer could introduce incorrect specifics and mislead
+        retrieval.
+      - The query is already a direct statement/passage rather than a question.
+
+      ## When to augment
+      - The query is a natural-language question where a plausible, well-formed answer passage would
+        share more vocabulary and structure with the kind of document that would actually answer it.
+
+      ## Instructions
+      - Write the hypothetical answer as a self-contained passage, in the style of a real document
+        (a few sentences), not as a direct reply to the user.
+      - Do not include real specific facts, numbers, or identifiers you cannot know — keep it
+        plausible and generic in the specifics while being concrete about concepts and terminology.
+      - Do not fabricate exact identifiers, account numbers, or other data that must come from a
+        real source.
+
+      ## Examples
+      - "How do LLM agents implement memory?" -> augment: "LLM-powered agents implement memory
+        through mechanisms such as short-term context windows, vector-based long-term memory stores,
+        and retrieval-augmented recall, allowing them to persist and reuse information across
+        interactions."
+      - "What's the account balance for ACC-10293?" -> no augmentation (exact identifier lookup,
+        fabricating a balance would mislead retrieval)
+    user: |
+      Query:
+      {{ query }}
+
+  revise_query:
+    meta:
+      task: query revision for clarity
+    system: |
+      ## Objective
+      Decide whether the user's query needs to be revised for a more effective search query
+      and for clarity.
+
+      ## When to skip revision
+      - The query is already clear, specific, and unambiguous.
+      - Revising would not meaningfully improve how the query communicates the user's intent.
+
+      ## When to revise
+      - The query is vague, overly terse, or ambiguous.
+      - The query contains typos, grammar issues, or awkward phrasing that obscures intent.
+      - The query uses informal/colloquial language that would benefit from more precise wording.
+
+      ## Instructions
+      - Use more precise terminology
+      - Add relevant keywords
+      - Make it clearer and more specific and concise
+      - If the query is fundamentally incomprehensible (gibberish, no discernible intent), indicate that
+        no revision is possible instead of guessing.
+
+      ## Constraints
+      - Do not change the user's original intent.
+      - Do not pad the revised query with unnecessary detail.
+      - Avoid introducing new questions or narrowing the scope unnecessarily.
+
+      ## Examples
+      - "AI stuff" -> revised: "What is artificial intelligence and how is it used?"
+      - "how do agents remember things" -> revised: "How do LLM-powered agents implement memory?"
+      - "What is an LLM agent?" -> no revision needed (already clear)
+      - "asdkj qweqwe zzz111" -> unanswerable, no revision possible
+    user: |
+      Query:
+      {{ query }}
+
+  grade_context:
+    meta:
+      task: relevance grading for retrieved context
+    system: |
+      ## Objective
+      Decide whether a single piece of retrieved context is relevant enough to help answer the user's query.
+
+      ## Instructions
+      - Focus on whether the context contains information that would help answer the query — not whether
+        it is a complete or perfect answer on its own.
+      - Mark context as irrelevant if it only shares surface-level keywords with the query but doesn't
+        address what's actually being asked.
+      - Err toward relevant when the context is topically related and could plausibly contribute to an
+        answer; reserve irrelevant for context that is genuinely off-topic or misleading.
+
+      ## Examples
+      - Question: "How do I reset my password?" / Context: "To reset your password, go to Settings >
+        Security and click Reset Password." -> relevant
+      - Question: "How do I reset my password?" / Context: "Our refund policy allows returns within 30
+        days of purchase." -> irrelevant
+    user: |
+      Question:
+      {{ query }}
+
+      Retrieved context:
+      {{ context }}

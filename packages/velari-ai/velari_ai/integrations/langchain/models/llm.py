@@ -9,8 +9,8 @@ from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage, AI
 
 # local files
 from . import types
-from .utils import build_chat_model
-from ...ai.types import AgentConfig, ModelConfig
+from ..utils import build_chat_model
+from ....ai.types import AgentConfig, ModelConfig
 
 
 class LLM(object):
@@ -73,7 +73,7 @@ class LLM(object):
         return types.LLMResponseInfo(
             response=response,
             messages=final_messages,
-            metrics=types.Metrics(
+            metrics=types.LLMMetrics(
                 latency_sec=round(time.perf_counter() - start, 3),
                 usage_stats=types.UsageStats.from_messages([response] if isinstance(response, AIMessage) else []),
                 message_stats=types.MessageStats.from_messages(final_messages),
@@ -120,7 +120,7 @@ class LLM(object):
             results.append(types.LLMResponseInfo(
                 response=response,
                 messages=final_messages,
-                metrics=types.Metrics(
+                metrics=types.LLMMetrics(
                     latency_sec=latency_sec,
                     usage_stats=types.UsageStats.from_messages([response] if isinstance(response, AIMessage) else []),
                     message_stats=types.MessageStats.from_messages(final_messages),

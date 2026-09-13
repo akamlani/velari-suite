@@ -1,104 +1,10 @@
-from __future__ import annotations
-
+from    __future__ import annotations
+from    typing import List, Union, Optional, Self, Any
 from    dataclasses import dataclass, field
-from    typing import Any, Dict, List, NotRequired, TypedDict, Optional, Self, Annotated, Sequence, Union
-from    langchain.agents import AgentState
-from    langchain_core.documents import Document
+from    pydantic import BaseModel, Field
+# specific modules
 from    langchain_core.messages import AIMessage, BaseMessage, ToolMessage, AnyMessage
-from    langgraph.graph.message import add_messages, MessagesState
-from    pydantic import BaseModel
 
-
-
-
-### Retrieval
-class IngressState(TypedDict):
-    "The state of a web-content ingestion pipeline feeding a retrieval vectorstore."
-    uris: List[str]                         # URLs to fetch via Loader
-    documents: NotRequired[List[Document]]  # loaded Documents, one per URL
-    chunks: NotRequired[List[Document]]     # documents after text-splitting, ready to index
-    num_documents: NotRequired[int]         # number of documents loaded from the URLs
-    num_chunks: NotRequired[int]            # number of chunks after splitting the documents
-
-class RoutingSource(TypedDict):
-    """The state of a single router collection execution."""
-    collection: str                         # the name of the table or collection to route query based on intent
-    reasoning:  str                         # the reasoning behind the routing decision
-    metadata:   Dict[str, Any]              # additional metadata about the routing process, e.g. source, timestamp, etc.
-
-class RetrievalState(TypedDict):
-    "The state of a single retrieval execution."
-    query: str                              # user question
-    context: List[str]                      # relative list of documents context retrieved for the query
-    answer: str                             # generated response
-    metadata: Dict[str, Any]                # additional metadata about the retrieval process, e.g. source, timestamp.
-    collection: NotRequired[RoutingSource]  # routing: the name of the table or collection to route query based on intent
-
-
-
-
-
-
-
-
-class ActorCritic(TypedDict):
-    """A single actor-critic pair review, revisions, recommendations of an actor task execution."""
-    actor:      str
-    critic:     str
-    sufficient: bool # whether the actor's output is sufficient to complete the task
-    quality:    str  # acceptance ["accepted", "rejected", "review", "improve"]
-                     # acceptance can go to next stage, else repeat actor task
-    reason:     str  # feedback explanation of the critic's assessment of the actor's output
-    iteration:  int  # number of actor-critic revision iterations performed for this task
-                     # bail out at max iterations to avoid infinite loops
-
-
-class TaskState(TypedDict):
-    "The state of a single task execution."
-    task_name:  str
-    source:     str # input source (e.g. user query, tool output, etc.)
-    draft:      str
-    critique:   str
-    revised:    str
-    quality:    str # acceptance ["accepted", "rejected", "review", "improve"]
-
-class ClassifierState(TypedDict):
-    messages:   Annotated[Sequence[BaseMessage], add_messages]  # reducer for accumulation of messages
-    intent:     NotRequired[str]                                # user intent classification or category (if any)
-    route:      NotRequired[str]                                # the current flow the agent is executing (if any)
-    result:     NotRequired[Any]                                # the result of the route execution (if any)
-
-
-
-
-
-
-# class RuntimeAgentState(AgentState):
-class RuntimeAgentState(TypedDict):
-    "The runtime state of an agent lifecycle"
-    # default from AgentState: messages (reducer), remaining_steps
-    messages:    Annotated[Sequence[BaseMessage], add_messages] # reducer for accumulation of messages
-    intent:      NotRequired[str]                               # user query intent classification (if any)
-    active_flow: NotRequired[str]                               # the current flow the agent is executing (if any)
-    iterations:  NotRequired[int]                               # per-turn LLM<->tool round-trip counter (guard)
-    steps:       NotRequired[List[Dict[str, Any]]]
-    result:      NotRequired[Any]
-    metadata:    NotRequired[Dict[str, Any]]
-
-
-
-
-
-
-@dataclass
-class ContextSchema:
-    """Runtime context for Agent.run() — passed through to LangGraph's `context=` at invoke time."""
-    experiment_name: Optional[str]  = field(default=None)
-    seed:            Optional[int]  = field(default=None)
-    install_dir:     Optional[str]  = field(default=None)
-    username:        Optional[str]  = field(default=None)
-    agent_id:        Optional[str]  = field(default=None)
-    extra:           Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -194,17 +100,17 @@ class ToolCallMessageStats(MessageStats):
 
 
 @dataclass(frozen=True)
-class Metrics:
+class LLMMetrics:
     """Latency/usage/message metrics common to every LLM/ToolCallingLLM/Agent call."""
     latency_sec:   float
     usage_stats:   UsageStats
     message_stats: MessageStats
 
-
 @dataclass(frozen=True)
-class ToolCallMetrics(Metrics):
+class ToolCallMetrics(LLMMetrics):
     """Metrics for a call that runs a tool-calling loop (ToolCallingLLM, Agent)."""
     message_stats: ToolCallMessageStats
+
 
 
 @dataclass(frozen=True)
@@ -212,7 +118,11 @@ class ResponseInfo:
     """Result of an LLM/ToolCallingLLM/Agent call — the response plus this call's metrics."""
     response: Union[AIMessage, BaseModel]
     messages: List[BaseMessage]
-    metrics:  Metrics
+    metrics:  LLMMetrics
+
+    @staticmethod
+    def _extract_content(content: Any) -> str:
+        return content.content if hasattr(content, "content") else str(content)
 
     @property
     def text(self) -> str:
@@ -223,7 +133,7 @@ class ResponseInfo:
                 not a message; access its fields on `.response` directly instead.
         """
         if isinstance(self.response, AIMessage):
-            return str(self.response.content)
+            return self._extract_content(self.response.content)
         raise RuntimeError(
             f"'{type(self.response).__name__}' response has no text content — it was parsed via "
             "response_model; access its fields on .response directly instead."
@@ -231,21 +141,18 @@ class ResponseInfo:
 
 
 @dataclass(frozen=True)
+class LLMResponseInfo(ResponseInfo):
+    """Result of LLM.run()/batch() — the response plus this call's latency/usage metrics."""
+
+@dataclass(frozen=True)
 class ToolCallResponseInfo(ResponseInfo):
     """ResponseInfo for a call that runs a tool-calling loop (ToolCallingLLM, Agent)."""
     metrics: ToolCallMetrics
 
+@dataclass(frozen=True)
+class ToolCallingLLMResponseInfo(ToolCallResponseInfo):
+    """Result of ToolCallingLLM.query() — the response plus this call's tool-loop metrics."""
 
 @dataclass(frozen=True)
 class AgentResponseInfo(ToolCallResponseInfo):
     """Result of Agent.run() — the agent's response plus this call's metrics."""
-
-
-@dataclass(frozen=True)
-class LLMResponseInfo(ResponseInfo):
-    """Result of LLM.run()/batch() — the response plus this call's latency/usage metrics."""
-
-
-@dataclass(frozen=True)
-class ToolCallingLLMResponseInfo(ToolCallResponseInfo):
-    """Result of ToolCallingLLM.query() — the response plus this call's tool-loop metrics."""

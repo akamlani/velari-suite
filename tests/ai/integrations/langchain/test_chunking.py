@@ -10,7 +10,8 @@ def _long_document(source="https://example.com/doc"):
 
 
 def test_default_strategy_is_recursive_character():
-    from velari_ai.integrations.langchain.chunking import ChunkingStrategy, DocumentChunker
+    from velari_ai.integrations.langchain.chunking import DocumentChunker
+    from velari_ai.ai.retrieval.types import ChunkingStrategy
 
     chunker = DocumentChunker()
 
@@ -18,7 +19,8 @@ def test_default_strategy_is_recursive_character():
 
 
 def test_recursive_character_splits_into_multiple_chunks_preserving_metadata():
-    from velari_ai.integrations.langchain.chunking import ChunkingStrategy, DocumentChunker
+    from velari_ai.integrations.langchain.chunking import DocumentChunker
+    from velari_ai.ai.retrieval.types import ChunkingStrategy
 
     chunker = DocumentChunker(strategy=ChunkingStrategy.RECURSIVE_CHARACTER, chunk_size=100, chunk_overlap=10)
 
@@ -29,7 +31,8 @@ def test_recursive_character_splits_into_multiple_chunks_preserving_metadata():
 
 
 def test_character_strategy_splits_into_multiple_chunks():
-    from velari_ai.integrations.langchain.chunking import ChunkingStrategy, DocumentChunker
+    from velari_ai.integrations.langchain.chunking import DocumentChunker
+    from velari_ai.ai.retrieval.types import ChunkingStrategy
 
     chunker = DocumentChunker(strategy=ChunkingStrategy.CHARACTER, chunk_size=100, chunk_overlap=10, separator=" ")
 
@@ -40,7 +43,8 @@ def test_character_strategy_splits_into_multiple_chunks():
 
 
 def test_token_strategy_splits_into_multiple_chunks():
-    from velari_ai.integrations.langchain.chunking import ChunkingStrategy, DocumentChunker
+    from velari_ai.integrations.langchain.chunking import DocumentChunker
+    from velari_ai.ai.retrieval.types import ChunkingStrategy
 
     chunker = DocumentChunker(strategy=ChunkingStrategy.TOKEN, chunk_size=20, chunk_overlap=5)
 
@@ -52,7 +56,8 @@ def test_token_strategy_splits_into_multiple_chunks():
 
 def test_markdown_header_splits_on_headers_and_merges_original_metadata():
     from langchain_core.documents import Document
-    from velari_ai.integrations.langchain.chunking import ChunkingStrategy, DocumentChunker
+    from velari_ai.integrations.langchain.chunking import DocumentChunker
+    from velari_ai.ai.retrieval.types import ChunkingStrategy
 
     chunker = DocumentChunker(strategy=ChunkingStrategy.MARKDOWN_HEADER)
     markdown = "# Title\n\nIntro text.\n\n## Section A\n\nContent A here.\n\n## Section B\n\nContent B here."
@@ -69,7 +74,8 @@ def test_markdown_header_splits_on_headers_and_merges_original_metadata():
 
 def test_markdown_header_accepts_custom_headers_to_split_on():
     from langchain_core.documents import Document
-    from velari_ai.integrations.langchain.chunking import ChunkingStrategy, DocumentChunker
+    from velari_ai.integrations.langchain.chunking import DocumentChunker
+    from velari_ai.ai.retrieval.types import ChunkingStrategy
 
     chunker = DocumentChunker(strategy=ChunkingStrategy.MARKDOWN_HEADER, headers_to_split_on=[("#", "title")])
     document = Document(page_content="# Only Header\n\nBody text.", metadata={"source": "notes.md"})
@@ -81,7 +87,8 @@ def test_markdown_header_accepts_custom_headers_to_split_on():
 
 
 def test_split_text_returns_chunk_strings_for_recursive_character():
-    from velari_ai.integrations.langchain.chunking import ChunkingStrategy, DocumentChunker
+    from velari_ai.integrations.langchain.chunking import DocumentChunker
+    from velari_ai.ai.retrieval.types import ChunkingStrategy
 
     chunker = DocumentChunker(strategy=ChunkingStrategy.RECURSIVE_CHARACTER, chunk_size=100, chunk_overlap=10)
 
@@ -92,7 +99,8 @@ def test_split_text_returns_chunk_strings_for_recursive_character():
 
 
 def test_split_text_on_markdown_header_raises_typeerror():
-    from velari_ai.integrations.langchain.chunking import ChunkingStrategy, DocumentChunker
+    from velari_ai.integrations.langchain.chunking import DocumentChunker
+    from velari_ai.ai.retrieval.types import ChunkingStrategy
 
     chunker = DocumentChunker(strategy=ChunkingStrategy.MARKDOWN_HEADER)
 

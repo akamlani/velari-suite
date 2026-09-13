@@ -1,8 +1,8 @@
-"""Tests for velari_ai.integrations.langchain.vectorstore."""
+"""Tests for velari_ai.integrations.langchain.store.vectorstore."""
 
 
 def test_is_empty_true_before_collection_exists():
-    from velari_ai.integrations.langchain.vectorstore import ChromaVectorStorage
+    from velari_ai.integrations.langchain.store.vectorstore import ChromaVectorStorage
 
     store = ChromaVectorStorage(embedding_fn=None, collection_name="test-collection")
 
@@ -10,7 +10,7 @@ def test_is_empty_true_before_collection_exists():
 
 
 def test_is_empty_true_when_loaded_with_no_documents():
-    from velari_ai.integrations.langchain.vectorstore import ChromaVectorStorage
+    from velari_ai.integrations.langchain.store.vectorstore import ChromaVectorStorage
 
     store = ChromaVectorStorage(embedding_fn=None, collection_name="test-collection")
     store._client.create_collection("test-collection")
@@ -21,7 +21,7 @@ def test_is_empty_true_when_loaded_with_no_documents():
 
 def test_is_empty_false_after_adding_a_document():
     from langchain_core.embeddings import DeterministicFakeEmbedding
-    from velari_ai.integrations.langchain.vectorstore import ChromaVectorStorage
+    from velari_ai.integrations.langchain.store.vectorstore import ChromaVectorStorage
 
     store = ChromaVectorStorage(
         embedding_fn=DeterministicFakeEmbedding(size=8), collection_name="test-collection",

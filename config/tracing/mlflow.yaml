@@ -1,0 +1,15 @@
+mlflow:
+  project:
+    project_name: default
+  connection:
+    host: localhost
+    port: 5001
+  storage:
+    working_dir: stores/databases/sqlite/mlflow
+    db_name: mlflow.db
+    artifacts_dir: stores/artifacts/mlflow
+  security:
+    allowed_hosts: []
+    cors_allowed_origins: []
+  options:
+    auto_instrument: true

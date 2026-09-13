@@ -9,6 +9,8 @@ license         = {text = "Apache-2.0"}
 keywords        = ["ai", "data", "experiments", "incubation", "innovation"]
 dependencies    = [
     "velari-core",
+    "pandas>=2.0",
+    "omegaconf>=2.3",
 ]
 
 [tool.uv.sources]

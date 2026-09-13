@@ -11,3 +11,10 @@ app:
     name: tracing-cli
     help: "Arize Phoenix Tracing — run instrumented pipelines and view traces."
     version: 0.1.0
+  tracing:
+    name:    tracing-cli-tracer
+    version: 0.1.0
+
+phoenix:
+  project:
+    project_name: tracing-cli

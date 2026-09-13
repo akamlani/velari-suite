@@ -28,6 +28,7 @@ class ArtifactFormat(StrEnum):
     DICT        = auto()
     DICTCONFIG  = auto()
     DATAFRAME   = auto()
+    CSV         = auto()
     EXCEL       = auto()
     WEB         = auto()
 
@@ -41,6 +42,7 @@ class ArtifactFormat(StrEnum):
             ".yaml": cls.YAML,
             ".yml":  cls.YAML,
             ".py":   cls.PY,
+            ".csv":  cls.CSV,
             ".xlsx": cls.EXCEL,
             ".xls":  cls.EXCEL,
         }

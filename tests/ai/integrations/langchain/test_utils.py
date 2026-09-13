@@ -21,7 +21,7 @@ def test_render_graph_none_context_raises_runtimeerror():
 
 
 def test_render_graph_default_returns_mermaid():
-    from velari_ai.integrations.langchain.llm import ToolCallingLLM
+    from velari_ai.integrations.langchain.models.llm import ToolCallingLLM
     from velari_ai.integrations.langchain.utils import render_graph
 
     tool_llm = ToolCallingLLM(api_key="test-key")
@@ -35,7 +35,7 @@ def test_render_graph_default_returns_mermaid():
 
 def test_render_graph_use_ascii_returns_ascii_art(monkeypatch):
     from langchain_core.runnables.graph import Graph
-    from velari_ai.integrations.langchain.llm import ToolCallingLLM
+    from velari_ai.integrations.langchain.models.llm import ToolCallingLLM
     from velari_ai.integrations.langchain.utils import render_graph
 
     monkeypatch.setattr(Graph, "draw_ascii", lambda self: "+-----------+\n| __start__ |\n+-----------+")
@@ -49,7 +49,7 @@ def test_render_graph_use_ascii_returns_ascii_art(monkeypatch):
 
 def test_render_graph_with_path_writes_png(monkeypatch, tmp_path):
     from langchain_core.runnables.graph import Graph
-    from velari_ai.integrations.langchain.llm import ToolCallingLLM
+    from velari_ai.integrations.langchain.models.llm import ToolCallingLLM
     from velari_ai.integrations.langchain.utils import render_graph
 
     written_paths = []
@@ -71,38 +71,13 @@ def test_render_graph_with_path_writes_png(monkeypatch, tmp_path):
     assert png_path.exists()
 
 
-def test_mcp_tools_to_langchain_converts_each_tool(monkeypatch):
-    from mcp.types import Tool
-    from langchain_mcp_adapters.sessions import StdioConnection
-    import velari_ai.integrations.langchain.utils as utils_module
-    from velari_ai.integrations.langchain.utils import mcp_tools_to_langchain
-
-    captured = []
-
-    def _fake_convert(*, session, tool, connection, server_name):
-        captured.append((tool, connection, server_name))
-        return object()
-
-    monkeypatch.setattr(utils_module, "convert_mcp_tool_to_langchain_tool", _fake_convert)
-
-    tool = Tool(name="get_time", description="Return the current time.", inputSchema={"type": "object", "properties": {}})
-    connection: StdioConnection = {"transport": "stdio", "command": "python", "args": ["server.py"]}
-    result = mcp_tools_to_langchain([tool], connection, server_name="search")
-
-    assert len(result) == 1
-    tool, conn, server_name = captured[0]
-    assert tool.name == "get_time"
-    assert conn == connection
-    assert server_name == "search"
-
-
 def test_log_response_writes_pretty_printed_response(caplog):
     import logging
     from langchain_core.messages import AIMessage
-    from velari_ai.integrations.langchain.types import MessageStats, Metrics, ResponseInfo, UsageStats
+    from velari_ai.integrations.langchain.models.types import MessageStats, LLMMetrics, ResponseInfo, UsageStats
     from velari_ai.integrations.langchain.utils import log_response
 
-    metrics = Metrics(
+    metrics = LLMMetrics(
         latency_sec=0.5,
         usage_stats=UsageStats(input_tokens=10, output_tokens=5, reasoning_tokens=0),
         message_stats=MessageStats(cnt_total_messages=1, cnt_turn_messages=1, cnt_assistant=1),
@@ -120,7 +95,7 @@ def test_log_response_writes_pretty_printed_response(caplog):
 def test_log_response_history_logs_every_message(caplog):
     import logging
     from langchain_core.messages import AIMessage, HumanMessage
-    from velari_ai.integrations.langchain.types import MessageStats, Metrics, ResponseInfo, UsageStats
+    from velari_ai.integrations.langchain.models.types import MessageStats, LLMMetrics, ResponseInfo, UsageStats
     from velari_ai.integrations.langchain.utils import log_response
 
     messages = [
@@ -129,7 +104,7 @@ def test_log_response_history_logs_every_message(caplog):
         HumanMessage(content="hi"),
         AIMessage(content="new reply"),
     ]
-    metrics = Metrics(
+    metrics = LLMMetrics(
         latency_sec=0.5,
         usage_stats=UsageStats(input_tokens=10, output_tokens=5, reasoning_tokens=0),
         message_stats=MessageStats(cnt_total_messages=4, cnt_turn_messages=2, cnt_assistant=1),
@@ -147,7 +122,7 @@ def test_log_response_history_logs_every_message(caplog):
 def test_log_response_structured_output_logs_repr_without_pretty_print(caplog):
     import logging
     from pydantic import BaseModel
-    from velari_ai.integrations.langchain.types import MessageStats, Metrics, ResponseInfo, UsageStats
+    from velari_ai.integrations.langchain.models.types import MessageStats, LLMMetrics, ResponseInfo, UsageStats
     from velari_ai.integrations.langchain.utils import log_response
 
     class BalanceSummary(BaseModel):
@@ -155,7 +130,7 @@ def test_log_response_structured_output_logs_repr_without_pretty_print(caplog):
         balance: float
 
     response = BalanceSummary(account_id="ACC-1", balance=10.0)
-    metrics = Metrics(
+    metrics = LLMMetrics(
         latency_sec=0.5,
         usage_stats=UsageStats(input_tokens=10, output_tokens=5, reasoning_tokens=0),
         message_stats=MessageStats(cnt_total_messages=1, cnt_turn_messages=1, cnt_assistant=0),

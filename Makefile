@@ -64,7 +64,7 @@ install_setup:
 	@echo "Installing Setup for $(PACKAGE_NAME)..."
 	mkdir -p .$(PACKAGE_NAME)/.memory
 	mkdir -p _build config data docs scripts templates examples apps packages
-#	mkdir -p .agents .claude .codex .gemini .opencode
+#	mkdir -p .agents .claude .cursor .codex .gemini .opencode
 	touch .env.template
 	touch docs/.gitkeep
 

@@ -1,10 +1,10 @@
-"""Tests for velari_ai.integrations.langchain.provider."""
+"""Tests for velari_ai.integrations.langchain.models.provider."""
 
 import pytest
 
 
 def test_default_provider_is_openai():
-    from velari_ai.integrations.langchain.provider import ProviderEmbeddingFactory
+    from velari_ai.integrations.langchain.models.provider import ProviderEmbeddingFactory
     from velari_ai.ai.types import ProviderName
 
     factory = ProviderEmbeddingFactory()
@@ -14,7 +14,7 @@ def test_default_provider_is_openai():
 
 
 def test_from_config_separates_known_and_extra_fields():
-    from velari_ai.integrations.langchain.provider import ProviderEmbeddingFactory
+    from velari_ai.integrations.langchain.models.provider import ProviderEmbeddingFactory
     from velari_ai.ai.types import ProviderName
 
     factory = ProviderEmbeddingFactory.from_config({
@@ -30,7 +30,7 @@ def test_from_config_separates_known_and_extra_fields():
 
 def test_get_config_openai_includes_model_and_wraps_raw_api_key():
     from pydantic import SecretStr
-    from velari_ai.integrations.langchain.provider import ProviderEmbeddingFactory
+    from velari_ai.integrations.langchain.models.provider import ProviderEmbeddingFactory
     from velari_ai.ai.types import ProviderName
 
     factory = ProviderEmbeddingFactory(provider=ProviderName.OPENAI, extra={"api_key": "sk-test"})
@@ -43,7 +43,7 @@ def test_get_config_openai_includes_model_and_wraps_raw_api_key():
 
 
 def test_get_config_huggingface_includes_model_and_provider_defaults():
-    from velari_ai.integrations.langchain.provider import ProviderEmbeddingFactory
+    from velari_ai.integrations.langchain.models.provider import ProviderEmbeddingFactory
     from velari_ai.ai.types import ProviderName
 
     factory = ProviderEmbeddingFactory(provider=ProviderName.HUGGINGFACE)
@@ -57,7 +57,7 @@ def test_get_config_huggingface_includes_model_and_provider_defaults():
 
 
 def test_get_config_unsupported_provider_does_not_raise():
-    from velari_ai.integrations.langchain.provider import ProviderEmbeddingFactory
+    from velari_ai.integrations.langchain.models.provider import ProviderEmbeddingFactory
     from velari_ai.ai.types import ProviderName
 
     factory = ProviderEmbeddingFactory(provider=ProviderName.ANTHROPIC, model="voyage-3", extra={"api_key": "sk-test"})
@@ -69,7 +69,7 @@ def test_get_config_unsupported_provider_does_not_raise():
 
 def test_build_openai_returns_openaiembeddings_with_configured_model():
     from langchain_openai import OpenAIEmbeddings
-    from velari_ai.integrations.langchain.provider import ProviderEmbeddingFactory
+    from velari_ai.integrations.langchain.models.provider import ProviderEmbeddingFactory
     from velari_ai.ai.types import ProviderName
 
     factory = ProviderEmbeddingFactory(
@@ -84,7 +84,7 @@ def test_build_openai_returns_openaiembeddings_with_configured_model():
 
 def test_build_openai_defaults_to_text_embedding_3_small():
     from langchain_openai import OpenAIEmbeddings
-    from velari_ai.integrations.langchain.provider import ProviderEmbeddingFactory
+    from velari_ai.integrations.langchain.models.provider import ProviderEmbeddingFactory
     from velari_ai.ai.types import ProviderName
 
     factory = ProviderEmbeddingFactory(provider=ProviderName.OPENAI, extra={"api_key": "sk-test"})
@@ -98,7 +98,7 @@ def test_build_openai_defaults_to_text_embedding_3_small():
 def test_build_openai_wraps_raw_api_key_in_secretstr():
     from langchain_openai import OpenAIEmbeddings
     from pydantic import SecretStr
-    from velari_ai.integrations.langchain.provider import ProviderEmbeddingFactory
+    from velari_ai.integrations.langchain.models.provider import ProviderEmbeddingFactory
     from velari_ai.ai.types import ProviderName
 
     factory = ProviderEmbeddingFactory(provider=ProviderName.OPENAI, extra={"api_key": "sk-test"})
@@ -111,8 +111,8 @@ def test_build_openai_wraps_raw_api_key_in_secretstr():
 
 
 def test_build_huggingface_constructs_with_resolved_model_name(monkeypatch):
-    import velari_ai.integrations.langchain.provider as provider_module
-    from velari_ai.integrations.langchain.provider import ProviderEmbeddingFactory
+    import velari_ai.integrations.langchain.models.provider as provider_module
+    from velari_ai.integrations.langchain.models.provider import ProviderEmbeddingFactory
     from velari_ai.ai.types import ProviderName
 
     captured = {}
@@ -133,8 +133,8 @@ def test_build_huggingface_constructs_with_resolved_model_name(monkeypatch):
 
 
 def test_build_huggingface_defaults_cache_folder_to_read_cache_dir(monkeypatch):
-    import velari_ai.integrations.langchain.provider as provider_module
-    from velari_ai.integrations.langchain.provider import ProviderEmbeddingFactory
+    import velari_ai.integrations.langchain.models.provider as provider_module
+    from velari_ai.integrations.langchain.models.provider import ProviderEmbeddingFactory
     from velari_ai.ai.types import ProviderName
 
     captured = {}
@@ -153,8 +153,8 @@ def test_build_huggingface_defaults_cache_folder_to_read_cache_dir(monkeypatch):
 
 
 def test_build_huggingface_defaults_encode_kwargs_to_normalize_embeddings(monkeypatch):
-    import velari_ai.integrations.langchain.provider as provider_module
-    from velari_ai.integrations.langchain.provider import ProviderEmbeddingFactory
+    import velari_ai.integrations.langchain.models.provider as provider_module
+    from velari_ai.integrations.langchain.models.provider import ProviderEmbeddingFactory
     from velari_ai.ai.types import ProviderName
 
     captured = {}
@@ -172,8 +172,8 @@ def test_build_huggingface_defaults_encode_kwargs_to_normalize_embeddings(monkey
 
 
 def test_build_huggingface_merges_caller_encode_kwargs_with_default(monkeypatch):
-    import velari_ai.integrations.langchain.provider as provider_module
-    from velari_ai.integrations.langchain.provider import ProviderEmbeddingFactory
+    import velari_ai.integrations.langchain.models.provider as provider_module
+    from velari_ai.integrations.langchain.models.provider import ProviderEmbeddingFactory
     from velari_ai.ai.types import ProviderName
 
     captured = {}
@@ -193,8 +193,8 @@ def test_build_huggingface_merges_caller_encode_kwargs_with_default(monkeypatch)
 
 
 def test_build_huggingface_caller_can_override_normalize_embeddings(monkeypatch):
-    import velari_ai.integrations.langchain.provider as provider_module
-    from velari_ai.integrations.langchain.provider import ProviderEmbeddingFactory
+    import velari_ai.integrations.langchain.models.provider as provider_module
+    from velari_ai.integrations.langchain.models.provider import ProviderEmbeddingFactory
     from velari_ai.ai.types import ProviderName
 
     captured = {}
@@ -214,8 +214,8 @@ def test_build_huggingface_caller_can_override_normalize_embeddings(monkeypatch)
 
 
 def test_build_huggingface_defaults_model_kwargs_to_trust_remote_code_false(monkeypatch):
-    import velari_ai.integrations.langchain.provider as provider_module
-    from velari_ai.integrations.langchain.provider import ProviderEmbeddingFactory
+    import velari_ai.integrations.langchain.models.provider as provider_module
+    from velari_ai.integrations.langchain.models.provider import ProviderEmbeddingFactory
     from velari_ai.ai.types import ProviderName
 
     captured = {}
@@ -233,8 +233,8 @@ def test_build_huggingface_defaults_model_kwargs_to_trust_remote_code_false(monk
 
 
 def test_build_huggingface_merges_caller_model_kwargs_with_default(monkeypatch):
-    import velari_ai.integrations.langchain.provider as provider_module
-    from velari_ai.integrations.langchain.provider import ProviderEmbeddingFactory
+    import velari_ai.integrations.langchain.models.provider as provider_module
+    from velari_ai.integrations.langchain.models.provider import ProviderEmbeddingFactory
     from velari_ai.ai.types import ProviderName
 
     captured = {}
@@ -254,8 +254,8 @@ def test_build_huggingface_merges_caller_model_kwargs_with_default(monkeypatch):
 
 
 def test_build_huggingface_caller_can_override_trust_remote_code(monkeypatch):
-    import velari_ai.integrations.langchain.provider as provider_module
-    from velari_ai.integrations.langchain.provider import ProviderEmbeddingFactory
+    import velari_ai.integrations.langchain.models.provider as provider_module
+    from velari_ai.integrations.langchain.models.provider import ProviderEmbeddingFactory
     from velari_ai.ai.types import ProviderName
 
     captured = {}
@@ -275,8 +275,8 @@ def test_build_huggingface_caller_can_override_trust_remote_code(monkeypatch):
 
 
 def test_build_sentence_transformers_uses_same_huggingface_backend(monkeypatch):
-    import velari_ai.integrations.langchain.provider as provider_module
-    from velari_ai.integrations.langchain.provider import ProviderEmbeddingFactory
+    import velari_ai.integrations.langchain.models.provider as provider_module
+    from velari_ai.integrations.langchain.models.provider import ProviderEmbeddingFactory
     from velari_ai.ai.types import ProviderName
 
     captured = {}
@@ -297,7 +297,7 @@ def test_build_sentence_transformers_uses_same_huggingface_backend(monkeypatch):
 
 
 def test_build_unsupported_provider_raises_valueerror():
-    from velari_ai.integrations.langchain.provider import ProviderEmbeddingFactory
+    from velari_ai.integrations.langchain.models.provider import ProviderEmbeddingFactory
     from velari_ai.ai.types import ProviderName
 
     factory = ProviderEmbeddingFactory(provider=ProviderName.ANTHROPIC)

@@ -88,9 +88,15 @@ class TestConnector:
                 captured["client_api_key"]  = api_key
                 captured["client_headers"]  = headers
 
+        def _fake_register(**kwargs):
+            from opentelemetry.sdk.trace import TracerProvider
+
+            captured["register"] = kwargs
+            return TracerProvider()
+
         monkeypatch.setattr(connection, "ThreadSession", _FakeSession)
         monkeypatch.setattr(connection, "Client", _FakeClient)
-        monkeypatch.setattr(connection, "register", lambda **kwargs: captured.update(register=kwargs))
+        monkeypatch.setattr(connection, "register", _fake_register)
         return captured
 
     def test_init_builds_session_and_client(self, tmp_path, monkeypatch):
@@ -137,10 +143,20 @@ class TestConnector:
         from velari_ai.integrations.arize.connection import Connector, ConnectorConfig
 
         self._patch_phoenix(monkeypatch)
-        config = ConnectorConfig.from_config(_make_cfg(tmp_path, with_project=False))
+        config = ConnectorConfig.from_config(_make_cfg(tmp_path, with_project=True))
         connector = Connector(config)
 
         assert isinstance(connector.get_tracer("velari-ai.test"), Tracer)
+
+    def test_get_tracer_raises_without_project_configured(self, tmp_path, monkeypatch):
+        from velari_ai.integrations.arize.connection import Connector, ConnectorConfig
+
+        self._patch_phoenix(monkeypatch)
+        config = ConnectorConfig.from_config(_make_cfg(tmp_path, with_project=False))
+        connector = Connector(config)
+
+        with pytest.raises(RuntimeError):
+            connector.get_tracer("velari-ai.test")
 
     def test_init_uses_remote_client_and_skips_thread_session(self, monkeypatch):
         import velari_ai.integrations.arize.connection as connection

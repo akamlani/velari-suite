@@ -1,5 +1,6 @@
+import  textwrap
 from    pathlib     import Path
-from    typing      import Any, Dict, Optional
+from    typing      import Any, Dict, Optional, Sequence
 from    dataclasses import dataclass
 # package modules
 from    velari_core.core import read_root_dir
@@ -21,6 +22,10 @@ class PromptBuilder(object):
         prompt_dir (Optional[Path]): Directory containing prompt YAML files; defaults to
             `<repo_root>/config/prompts/templates` when omitted.
     """
+    format_request    = lambda r: textwrap.dedent(r).strip()
+    format_response   = lambda r: textwrap.fill(r, width=100)
+    format_to_bullets = lambda r: "\n".join(f"- {line.strip()}" for line in r.splitlines() if line.strip())
+
     def __init__(self, prompt_dir: Optional[Path] = None) -> None:
         self._prompt_dir = prompt_dir or Path(read_root_dir()) / "config" / "prompts" / "templates"
 

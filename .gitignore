@@ -20,6 +20,7 @@ logs/
 *.egg-info/
 dist/
 build/
+node_modules/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 .pytest_cache/

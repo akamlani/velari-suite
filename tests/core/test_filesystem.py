@@ -100,18 +100,18 @@ class TestReadWrite:
         Filesystem.write(path, b"\x00\x01\x02")
         assert Filesystem.read(path) == b"\x00\x01\x02"
 
-    def test_read_missing_file_raises_filenotfounderror(self, tmp_path):
+    def test_read_missing_file_raises_ioerror(self, tmp_path):
         from velari_core.core.io.filesystem import Filesystem
 
-        with pytest.raises(FileNotFoundError):
+        with pytest.raises(IOError):
             Filesystem.read(tmp_path / "missing.txt")
 
-    def test_read_invalid_json_raises_jsondecodeerror(self, tmp_path):
+    def test_read_invalid_json_raises_ioerror(self, tmp_path):
         from velari_core.core.io.filesystem import Filesystem
 
         path = tmp_path / "bad.json"
         path.write_text("{not valid json")
-        with pytest.raises(json.JSONDecodeError):
+        with pytest.raises(IOError):
             Filesystem.read(path)
 
 

@@ -36,6 +36,12 @@ addopts   = ["--import-mode=importlib"]
 [tool.pyright]
 extraPaths = ["packages/velari-core", "packages/velari-data", "packages/velari-ai"]
 typeCheckingMode = "standard"
+# mlflow is intentionally not in the shared venv (pins pandas<3, conflicts with the workspace's
+# pandas>=3) — run via `uv run --isolated --with mlflow --with pyright pyright <path>` instead.
+exclude = [
+    "packages/velari-ai/velari_ai/integrations/mlflow",
+    "examples/ai/integrations/mlflow",
+]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

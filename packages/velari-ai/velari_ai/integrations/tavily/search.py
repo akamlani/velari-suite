@@ -5,7 +5,7 @@ from    typing import Literal
 from    tavily import TavilyClient
 
 # local files
-from    ...ai.response import SearchResponse, SearchResult
+from    ...ai.response import ResponseSearch, ResponseSearchResult
 
 
 class TavilySearch(object):
@@ -29,7 +29,7 @@ class TavilySearch(object):
         max_results: int = 5,
         search_depth: Literal["basic", "advanced", "fast", "ultra-fast"] = "basic",
         include_answer: bool = False,
-    ) -> SearchResponse:
+    ) -> ResponseSearch:
         """Search the web for current, relevant information to ground answers in evidence.
 
         Search the internet for any query — facts, news, documentation, how-to guides, or research on any subject.
@@ -43,7 +43,7 @@ class TavilySearch(object):
             include_answer (bool): Also ask Tavily to generate a short summary answer.
 
         Returns:
-            SearchResponse: `results` (title/url/content/score per hit) and, when
+            ResponseSearch: `results` (title/url/content/score per hit) and, when
                 `include_answer=True`, an `answer` summary string.
 
         Raises:
@@ -65,10 +65,12 @@ class TavilySearch(object):
         except Exception as e:
             raise RuntimeError(f"search() failed to query Tavily: {e}") from e
         results = [
-            SearchResult(title=r["title"], url=r["url"], content=r["content"], score=r["score"])
+            ResponseSearchResult(
+                title=r["title"], url=r["url"], content=r["content"], preview=r["content"], score=r["score"]
+            )
             for r in raw.get("results", [])
         ]
-        return SearchResponse(
+        return ResponseSearch(
             query     = query,
             results   = results,
             rationale = raw.get("rationale"),

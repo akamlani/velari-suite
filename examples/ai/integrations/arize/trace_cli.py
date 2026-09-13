@@ -3,15 +3,16 @@
 # uv run --extra evals python examples/ai/integrations/arize/trace_cli.py --endpoint http://localhost:6006
 # See examples/ai/integrations/arize/README.md for details.
 
+import typer
 import logging
+
 from pathlib import Path
 from typing import Optional
-
-import typer
 from omegaconf import DictConfig
+
 from rich.console import Console
 from rich.panel import Panel
-
+# sub-package modules
 from velari_core.core import read_root_dir
 from velari_core.core.io.partition.hydra import read_hydra_compose
 from velari_ai.integrations.arize.connection import Connector, ConnectorConfig
@@ -44,7 +45,7 @@ def main(cfg: DictConfig, nested: bool, endpoint: Optional[str]) -> None:
         # in-process — no ThreadSession, so the UI's lifetime isn't tied to this script's.
         config = ConnectorConfig(
             remote  = ConnectorConfig.Remote(endpoint=endpoint),
-            project = ConnectorConfig.Project(project_name=cfg.app.info.name),
+            project = ConnectorConfig.Project(project_name=cfg.phoenix.project.project_name),
         )
         connector = Connector(config)
     else:
@@ -54,7 +55,7 @@ def main(cfg: DictConfig, nested: bool, endpoint: Optional[str]) -> None:
     console.print(Panel(f"[bold cyan]{cfg.app.info.name}[/bold cyan]", expand=False))
     console.print(f"[dim]Phoenix UI → {connector.url}[/dim]")
 
-    tracer = connector.get_tracer(cfg.app.info.name, str(cfg.app.info.version))
+    tracer = connector.get_tracer(cfg.app.tracing.name, str(cfg.app.tracing.version))
     if nested:
         with tracer.start_as_current_span("example-parent-span") as parent_span:
             parent_span.set_attribute("example.attribute", "hello-phoenix-parent")

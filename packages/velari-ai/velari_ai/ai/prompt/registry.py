@@ -1,44 +1,38 @@
+from    typing import Any, List, Optional
 import  pandas as pd
-from    typing import Any, Optional
+from    omegaconf import OmegaConf
 # package modules
 from    velari_core.core.io.partition.hydra import read_hydra
+from    velari_data.registry import Registry
 
 
-class PromptRegistry(object):
+class PromptRegistry(Registry):
     """Build and format prompts from a YAML-backed catalog of named templates.
 
     Args:
-        uri (Optional[str]): Path to the YAML catalog file. When None, the catalog is empty.
-        key (Optional[str]): Top-level key within the YAML file that contains the template
-            list. When None, an empty dict is used as the catalog source.
+        uri (Optional[str]): Path to the YAML catalog file — a flat mapping of prompt name to
+            template string. When None, the catalog is empty.
 
     Examples:
-        >>> registry = PromptRegistry(uri="config/prompts/catalog.yaml", key="prompts")
+        >>> registry = PromptRegistry(uri="config/prompts/catalog.yaml")
         >>> text = registry.format_template("billing_reminder", account_id="ACC-10293", due_date="2026-09-01")
     """
-    def __init__(self, uri: Optional[str] = None, key: Optional[str] = None) -> None:
-        self.df_catalog = pd.DataFrame(self.load_catalog(uri=uri, key=key))
+    def __init__(self, uri: Optional[str] = None) -> None:
+        self.create(uri=uri)
 
-    def load_catalog(self, uri: Optional[str] = None, key: Optional[str] = None) -> Any:
-        """Load a named section from a Hydra YAML file and return it as a config object.
+    def create(self, uri: Optional[str] = None, **kwargs) -> pd.DataFrame:
+        """Load a flat name→template mapping from a YAML file into the catalog.
 
         Args:
-            uri (Optional[str]): Path to the YAML file to read. When None, returns an empty dict.
-            key (Optional[str]): Top-level key whose value is returned. When None, or when the
-                key is absent from the file, an empty dict is returned.
+            uri (Optional[str]): Path to the YAML file to read. When None, the catalog is empty.
 
         Returns:
-            Any: The value stored under `key` in the parsed YAML — typically a list of
-                `{name, template}` records — or an empty dict.
+            pd.DataFrame: The loaded catalog as a name/value DataFrame (via `to_dataframe()`).
         """
-        if uri is None or key is None:
-            return {}
-        cfg = read_hydra(filepath=uri)
-        if cfg is None:
-            return {}
-        return cfg.get(key, {})
+        cfg = read_hydra(filepath=uri) if uri is not None else None
+        return super().create(cfg if cfg is not None else OmegaConf.create({}))
 
-    def get_template(self, name: str) -> str:
+    def get(self, name: str, **kwargs) -> str:
         """Retrieve the raw template string for a named prompt entry.
 
         Args:
@@ -50,11 +44,20 @@ class PromptRegistry(object):
         Raises:
             KeyError: If no entry named `name` exists in the catalog.
         """
-        try:
-            matches = self.df_catalog[self.df_catalog["name"] == name]
-            return matches.iloc[0]["template"]
-        except (KeyError, IndexError) as e:
-            raise KeyError(f"No prompt template registered under name {name!r}") from e
+        return self._catalog[name]
+
+    def list(self, **kwargs: Any) -> List[str]:
+        """List the names of all prompt entries in the catalog.
+
+        Returns:
+            List[str]: Registered entry names, or an empty list if the catalog is empty.
+
+        Examples:
+            >>> registry = PromptRegistry(uri="config/prompts/catalog.yaml")
+            >>> registry.list()
+            ['summarise', 'classify', 'billing_reminder']
+        """
+        return self._catalog.keys()
 
     def format_template(self, name: str, **kwargs: Any) -> str:
         """Retrieve and format a named template with the provided keyword arguments.
@@ -67,8 +70,8 @@ class PromptRegistry(object):
             str: Formatted string with all placeholders replaced by their corresponding values.
 
         Examples:
-            >>> registry = PromptRegistry(uri="config/prompts/catalog.yaml", key="prompts")
+            >>> registry = PromptRegistry(uri="config/prompts/catalog.yaml")
             >>> text = registry.format_template("summarise", topic="climate change", length=200)
         """
-        template = self.get_template(name)
+        template = self.get(name)
         return template.format(**kwargs)

@@ -21,9 +21,9 @@ from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.memory import MemorySaver
 
 # local files
-from . import types
-from .utils import build_chat_model
-from ...ai.types import AgentConfig, ModelConfig
+from ..models import types
+from ..utils import build_chat_model
+from ....ai.types import AgentConfig, ModelConfig
 
 
 class Agent(object):

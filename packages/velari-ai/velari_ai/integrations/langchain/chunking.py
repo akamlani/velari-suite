@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from    enum import StrEnum, auto
-from    typing import Any, List, Union
+from    typing import List, Optional, Union
 
-from langchain_text_splitters import (
+from    langchain_text_splitters import (
     # Splits text into chunks based on a specified number of characters.
     # Useful for consistent chunk sizes regardless of content structure.
     CharacterTextSplitter,
@@ -23,15 +22,9 @@ from langchain_text_splitters import (
     # Useful for word-based processing or when word count is more relevant than character count.
     TextSplitter,
 )
-from langchain_core.documents import Document
-
-
-class ChunkingStrategy(StrEnum):
-    CHARACTER                   = auto()
-    TOKEN                       = auto()
-    SENTENCE_TRANSFORMER_TOKEN  = auto()
-    RECURSIVE_CHARACTER         = auto()
-    MARKDOWN_HEADER             = auto()
+from    langchain_core.documents import Document
+# package modules
+from    ...ai.retrieval.types import ChunkingConfig, ChunkingStrategy
 
 
 class DocumentChunker(object):
@@ -44,48 +37,33 @@ class DocumentChunker(object):
     `SENTENCE_TRANSFORMER_TOKEN` requires the optional `sentence-transformers` package.
 
     Args:
-        strategy (ChunkingStrategy): Which splitter to use; defaults to `RECURSIVE_CHARACTER`
-            (attempts natural boundaries — sentences/paragraphs — within `chunk_size`).
-        chunk_size (int): Target chunk size in characters or tokens, per strategy. Not forwarded
-            for `MARKDOWN_HEADER` (no fixed size) or `SENTENCE_TRANSFORMER_TOKEN` (use
-            `tokens_per_chunk` via `**kwargs` instead — its real size knob).
-        chunk_overlap (int): Overlap between adjacent chunks, to preserve context across boundaries.
-        **kwargs (Any): Strategy-specific constructor kwargs, forwarded to the underlying splitter:
+        config (Optional[ChunkingConfig]): Strategy + chunk_size/chunk_overlap + strategy-specific
+            extra kwargs; defaults to `ChunkingConfig()` (`RECURSIVE_CHARACTER`, size 512, overlap
+            50). `config.extra` is forwarded to the underlying splitter:
             - `CHARACTER`: `separator` (default `"\n\n"`), `is_separator_regex`.
             - `TOKEN`: `encoding_name` (default `"gpt2"`), `model_name`, `allowed_special`,
               `disallowed_special`.
             - `SENTENCE_TRANSFORMER_TOKEN`: `model_name`, `tokens_per_chunk`, `model_kwargs`.
+              `chunk_size` isn't forwarded here — use `tokens_per_chunk` via `extra` instead.
             - `RECURSIVE_CHARACTER`: `separators`, `keep_separator`, `is_separator_regex`.
             - `MARKDOWN_HEADER`: `headers_to_split_on` (default `h1`/`h2`/`h3`),
-              `return_each_line`, `strip_headers`, `custom_header_patterns`.
+              `return_each_line`, `strip_headers`, `custom_header_patterns`. `chunk_size` isn't
+              forwarded here either — there's no fixed size for this strategy.
 
     Examples:
         >>> loader = WebBaseLoader("https://docs.langchain.com/oss/python/integrations/document_loaders")
-        >>> chunker = DocumentChunker(strategy=ChunkingStrategy.RECURSIVE_CHARACTER, chunk_size=512, chunk_overlap=50)
+        >>> chunker = DocumentChunker(ChunkingConfig(strategy=ChunkingStrategy.RECURSIVE_CHARACTER, chunk_size=512, chunk_overlap=50))
         >>> chunks = chunker.split_documents(loader.load())
     """
     _MARKDOWN_DEFAULT_HEADERS = [("#", "h1"), ("##", "h2"), ("###", "h3")]
 
-    def __init__(
-        self,
-        strategy: ChunkingStrategy = ChunkingStrategy.RECURSIVE_CHARACTER,
-        chunk_size:    int = 512,
-        chunk_overlap: int = 50,
-        **kwargs: Any,
-    ) -> None:
-        self._strategy = strategy
-        self._splitter: Union[TextSplitter, MarkdownHeaderTextSplitter] = self._build_splitter(
-            strategy, chunk_size, chunk_overlap, **kwargs,
-        )
+    def __init__(self, config: Optional[ChunkingConfig] = None) -> None:
+        self._config = config or ChunkingConfig()
+        self._splitter: Union[TextSplitter, MarkdownHeaderTextSplitter] = self._build_splitter(self._config)
 
-    def _build_splitter(
-        self,
-        strategy: ChunkingStrategy,
-        chunk_size: int,
-        chunk_overlap: int,
-        **kwargs: Any,
-    ) -> Union[TextSplitter, MarkdownHeaderTextSplitter]:
-        match strategy:
+    def _build_splitter(self, config: ChunkingConfig) -> Union[TextSplitter, MarkdownHeaderTextSplitter]:
+        chunk_size, chunk_overlap, kwargs = config.chunk_size, config.chunk_overlap, dict(config.extra)
+        match config.strategy:
             case ChunkingStrategy.CHARACTER:
                 return CharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap, **kwargs)
             case ChunkingStrategy.TOKEN:
@@ -113,10 +91,10 @@ class DocumentChunker(object):
                 instead, which is the only method that can preserve that metadata.
 
         Examples:
-            >>> chunker = DocumentChunker(strategy=ChunkingStrategy.RECURSIVE_CHARACTER, chunk_size=200, chunk_overlap=20)
+            >>> chunker = DocumentChunker(ChunkingConfig(strategy=ChunkingStrategy.RECURSIVE_CHARACTER, chunk_size=200, chunk_overlap=20))
             >>> chunks = chunker.split_text("Retrieval-augmented generation combines a retriever with a generator model.")
         """
-        if self._strategy == ChunkingStrategy.MARKDOWN_HEADER:
+        if self._config.strategy == ChunkingStrategy.MARKDOWN_HEADER:
             raise TypeError(
                 "MARKDOWN_HEADER splits into Documents carrying header metadata, not plain strings — "
                 "use split_documents() instead"
@@ -134,12 +112,12 @@ class DocumentChunker(object):
                 of its own, so this merge is done manually to avoid losing the source metadata.
 
         Examples:
-            >>> chunker = DocumentChunker(strategy=ChunkingStrategy.MARKDOWN_HEADER)
+            >>> chunker = DocumentChunker(ChunkingConfig(strategy=ChunkingStrategy.MARKDOWN_HEADER))
             >>> chunks = chunker.split_documents([Document(page_content="# Title\\n\\nIntro.", metadata={"source": "readme.md"})])
             >>> chunks[0].metadata
             {'source': 'readme.md', 'h1': 'Title'}
         """
-        if self._strategy == ChunkingStrategy.MARKDOWN_HEADER:
+        if self._config.strategy == ChunkingStrategy.MARKDOWN_HEADER:
             assert isinstance(self._splitter, MarkdownHeaderTextSplitter)
             return [
                 Document(page_content=chunk.page_content, metadata={**doc.metadata, **chunk.metadata})

@@ -9,6 +9,7 @@ license         = {text = "Apache-2.0"}
 keywords        = ["ai", "experiments", "incubation", "innovation"]
 dependencies    = [
     "velari-core",
+    "velari-data",
     "numpy>=1.26",
     "pandas>=2.0",
     "pydantic>=2.9",
@@ -54,6 +55,7 @@ evals = [
 
 [tool.uv.sources]
 velari-core = { workspace = true }
+velari-data = { workspace = true }
 
 [build-system]
 requires      = ["setuptools>=68"]

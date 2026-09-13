@@ -1,9 +1,9 @@
-"""Tests for velari_ai.integrations.langchain.types."""
+"""Tests for velari_ai.integrations.langchain.models.types."""
 
 
 def test_agentresponseinfo_holds_response_and_metrics():
     from langchain_core.messages import AIMessage
-    from velari_ai.integrations.langchain.types import (
+    from velari_ai.integrations.langchain.models.types import (
         AgentResponseInfo, ToolCallMessageStats, ToolCallMetrics, UsageStats,
     )
 
@@ -25,9 +25,9 @@ def test_agentresponseinfo_holds_response_and_metrics():
 
 def test_responseinfo_text_returns_content_for_aimessage_response():
     from langchain_core.messages import AIMessage
-    from velari_ai.integrations.langchain.types import MessageStats, Metrics, ResponseInfo, UsageStats
+    from velari_ai.integrations.langchain.models.types import MessageStats, LLMMetrics, ResponseInfo, UsageStats
 
-    metrics = Metrics(
+    metrics = LLMMetrics(
         latency_sec=0.5,
         usage_stats=UsageStats(input_tokens=10, output_tokens=5, reasoning_tokens=0),
         message_stats=MessageStats(cnt_total_messages=1, cnt_turn_messages=1, cnt_assistant=1),
@@ -38,16 +38,33 @@ def test_responseinfo_text_returns_content_for_aimessage_response():
     assert info.text == "Account ACC-1 balance: $10"
 
 
+def test_extract_content_returns_content_attribute_when_present():
+    from velari_ai.integrations.langchain.models.types import ResponseInfo
+
+    class _NestedContent:
+        def __init__(self, content):
+            self.content = content
+
+    assert ResponseInfo._extract_content(_NestedContent("nested text")) == "nested text"
+
+
+def test_extract_content_stringifies_when_no_content_attribute():
+    from velari_ai.integrations.langchain.models.types import ResponseInfo
+
+    assert ResponseInfo._extract_content("Account ACC-1 balance: $10") == "Account ACC-1 balance: $10"
+    assert ResponseInfo._extract_content(42) == "42"
+
+
 def test_responseinfo_text_raises_for_structured_response():
     import pytest
     from pydantic import BaseModel
-    from velari_ai.integrations.langchain.types import MessageStats, Metrics, ResponseInfo, UsageStats
+    from velari_ai.integrations.langchain.models.types import MessageStats, LLMMetrics, ResponseInfo, UsageStats
 
     class BalanceSummary(BaseModel):
         account_id: str
         balance: float
 
-    metrics = Metrics(
+    metrics = LLMMetrics(
         latency_sec=0.5,
         usage_stats=UsageStats(input_tokens=10, output_tokens=5, reasoning_tokens=0),
         message_stats=MessageStats(cnt_total_messages=1, cnt_turn_messages=1, cnt_assistant=0),
@@ -61,7 +78,7 @@ def test_responseinfo_text_raises_for_structured_response():
 
 def test_messagestats_from_messages_counts_general_turn():
     from langchain_core.messages import AIMessage, HumanMessage
-    from velari_ai.integrations.langchain.types import MessageStats
+    from velari_ai.integrations.langchain.models.types import MessageStats
 
     messages = [HumanMessage(content="hi"), AIMessage(content="Your balance is $10.")]
 
@@ -74,7 +91,7 @@ def test_messagestats_from_messages_counts_general_turn():
 
 def test_messagestats_from_messages_defaults_cnt_total_messages_to_turn_length():
     from langchain_core.messages import AIMessage, HumanMessage
-    from velari_ai.integrations.langchain.types import MessageStats
+    from velari_ai.integrations.langchain.models.types import MessageStats
 
     messages = [HumanMessage(content="hi"), AIMessage(content="Your balance is $10.")]
 
@@ -85,7 +102,7 @@ def test_messagestats_from_messages_defaults_cnt_total_messages_to_turn_length()
 
 def test_toolcallmessagestats_from_messages_counts_tool_calling_turn():
     from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
-    from velari_ai.integrations.langchain.types import ToolCallMessageStats
+    from velari_ai.integrations.langchain.models.types import ToolCallMessageStats
 
     messages = [
         HumanMessage(content="hi"),
@@ -108,7 +125,7 @@ def test_toolcallmessagestats_from_messages_counts_tool_calling_turn():
 
 def test_toolcallmessagestats_from_messages_defaults_cnt_total_messages_to_turn_length():
     from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
-    from velari_ai.integrations.langchain.types import ToolCallMessageStats
+    from velari_ai.integrations.langchain.models.types import ToolCallMessageStats
 
     messages = [
         HumanMessage(content="hi"),
@@ -128,7 +145,7 @@ def test_toolcallmessagestats_from_messages_defaults_cnt_total_messages_to_turn_
 def test_usagestats_from_messages_sums_usage_metadata():
     from typing import List
     from langchain_core.messages import AIMessage, BaseMessage
-    from velari_ai.integrations.langchain.types import UsageStats
+    from velari_ai.integrations.langchain.models.types import UsageStats
 
     messages: List[BaseMessage] = [AIMessage(
         content="ok",

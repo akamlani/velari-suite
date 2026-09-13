@@ -25,9 +25,13 @@ logger = logging.getLogger(__name__)
 )
 def main(cfg: DictConfig) -> None:
     # due to deprecation of launch_app, we manually set the environment variables Phoenix expects
-    os.environ["PHOENIX_HOST"]        = str(cfg.phoenix.connection.host)
-    os.environ["PHOENIX_PORT"]        = str(cfg.phoenix.connection.port)
-    os.environ["PHOENIX_WORKING_DIR"] = str(Path(read_root_dir()) / cfg.phoenix.storage.working_dir)
+    os.environ["PHOENIX_HOST"]               = str(cfg.phoenix.connection.host)
+    os.environ["PHOENIX_PORT"]               = str(cfg.phoenix.connection.port)
+    os.environ["PHOENIX_WORKING_DIR"]        = str(Path(read_root_dir()) / cfg.phoenix.storage.working_dir)
+    # lets other code (register()/Client() with no explicit endpoint) auto-discover this server —
+    # bare host:port, no /v1/traces: register() appends that itself for the OTLP exporter, while
+    # Client() uses this value as-is for its REST API base URL
+    os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = f"http://{cfg.phoenix.connection.host}:{cfg.phoenix.connection.port}"
     # launch Phoenix with the environment variables set
     session = px.launch_app(use_temp_dir=False, run_in_thread=True)
     if session is None:
