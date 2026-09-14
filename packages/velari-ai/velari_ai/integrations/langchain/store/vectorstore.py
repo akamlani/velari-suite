@@ -6,6 +6,8 @@ from     typing import Any, Optional, List, Dict, Tuple, Union, Sequence, Self
 from     langchain_core.documents import Document
 from     langchain_core.vectorstores import InMemoryVectorStore
 from     langchain_chroma import Chroma
+# from     langchain_core.retrievers import BaseRetriever
+# from     langchain_core.tools import retriever
 # package modules
 from    ....ai.retrieval.vectorstore import RetrieverStrategy, VectorStore
 from    ....ai.retrieval.types import SearchScoreResult
