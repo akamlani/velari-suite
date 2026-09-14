@@ -38,8 +38,8 @@ def parse_args(argv: Sequence[str]) -> Tuple[str, int, str]:
     if not argv or argv[0] in {"-h", "--help"}:
         raise ValueError("usage: sys_cli.py WORKSPACE [--count N] [--mode MODE]")
 
-    # First positional value is the workspace name.
-    workspace = argv[0]
+    workspace = argv[0]   # First positional value is the workspace name.
+    num_args  = len(argv) # Total number of command-line arguments provided.
 
     # Optional flags use list lookup, keeping the sys example intentionally small.
     try:
@@ -71,4 +71,6 @@ def main(argv: Sequence[str]) -> int:
 
 
 if __name__ == "__main__":
+    program_name = sys.argv[0]
+    # Pass all arguments except the script name.
     raise SystemExit(main(sys.argv[1:]))
