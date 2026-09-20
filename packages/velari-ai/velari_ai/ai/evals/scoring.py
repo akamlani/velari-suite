@@ -1,6 +1,6 @@
 import  numpy as np
 import  editdistance as ed
-from    typing import List, Literal, Union
+from    typing import Any, List, Literal, Sequence, Union
 from    scipy import spatial
 
 # cdist: cross-distance (inter),    compute distance between each pair of the two collections of inputs
@@ -43,7 +43,6 @@ def euclidean_distance(a: Union[List[float], np.ndarray], b: Union[List[float], 
     """
     return _pairwise_distance(a, b, metric="euclidean")
 
-
 def cosine_distance(a: Union[List[float], np.ndarray], b: Union[List[float], np.ndarray]) -> Union[float, np.ndarray]:
     """Compute cosine distance between embedding vectors and/or matrices.
 
@@ -63,7 +62,6 @@ def cosine_distance(a: Union[List[float], np.ndarray], b: Union[List[float], np.
         >>> scores_batch = cosine_distance(corpus_embeddings, query_embedding)  # vectorized, same values as `scores`
     """
     return _pairwise_distance(a, b, metric="cosine")
-
 
 def cosine_similarity(a: Union[List[float], np.ndarray], b: Union[List[float], np.ndarray]) -> Union[float, np.ndarray]:
     """Compute cosine similarity between embedding vectors and/or matrices.
@@ -85,8 +83,6 @@ def cosine_similarity(a: Union[List[float], np.ndarray], b: Union[List[float], n
     """
     return 1.0 - cosine_distance(a, b)
 
-
-
 def intra_euclidean_distance(x: Union[List[List[float]], np.ndarray]) -> np.ndarray:
     """Compute condensed pairwise Euclidean (L2) distances within one embedding matrix.
 
@@ -103,7 +99,6 @@ def intra_euclidean_distance(x: Union[List[List[float]], np.ndarray]) -> np.ndar
     """
     return _condensed_distance(x, metric="euclidean")
 
-
 def intra_cosine_distance(x: Union[List[List[float]], np.ndarray]) -> np.ndarray:
     """Compute condensed pairwise cosine distances within one embedding matrix.
 
@@ -118,7 +113,6 @@ def intra_cosine_distance(x: Union[List[List[float]], np.ndarray]) -> np.ndarray
         >>> distances = intra_cosine_distance(corpus_embeddings)
     """
     return _condensed_distance(x, metric="cosine")
-
 
 def intra_cosine_similarity(x: Union[List[List[float]], np.ndarray]) -> np.ndarray:
     """Compute condensed pairwise cosine similarities within one embedding matrix.
@@ -135,13 +129,12 @@ def intra_cosine_similarity(x: Union[List[List[float]], np.ndarray]) -> np.ndarr
     """
     return 1.0 - intra_cosine_distance(x)
 
-
-def edit_distance(output, expected) -> int:
+def edit_distance(output: Sequence[Any], expected: Sequence[Any]) -> int:
     """Compute the edit distance between the `output` and `expected`.
 
     Args:
-        output: The output to compare.
-        expected: The expected output to compare against.
+        output (Sequence[Any]): The output to compare (a string, or any sequence of hashable items).
+        expected (Sequence[Any]): The expected output to compare against.
 
     Returns:
         int: The edit distance between the `output` and `expected`.
@@ -152,3 +145,75 @@ def edit_distance(output, expected) -> int:
         >>> distance = edit_distance(output, expected)
     """
     return ed.eval(output, expected)
+
+def cross_entropy(values: Union[Sequence[float], np.ndarray], is_logprob: bool = False) -> float:
+    """Compute cross-entropy (mean negative log-likelihood, natural log) of the tokens a model assigned to a text.
+
+    Log-scale form of `perplexity()` (`perplexity = exp(cross_entropy)`). Prefer it for math on the
+    number: averaging across documents, tracking eval loss, or comparing small model differences.
+    Measures confidence, not correctness; only comparable across models sharing a tokenizer.
+
+    Args:
+        values (Union[Sequence[float], np.ndarray]): 1-D probabilities of the true tokens in (0, 1], or natural-log probabilities if `is_logprob`.
+        is_logprob (bool): Set True for API-style `logprobs`; avoids a lossy exp/log round trip.
+
+    Returns:
+        float: Cross-entropy (natural log, unit "nats") >= 0.0; 0.0 = fully certain, larger = more uncertain.
+
+    Raises:
+        ValueError: If `values` is empty, or contains a non-positive probability.
+
+    Examples:
+        >>> client   = OpenAI()
+        >>> response = client.chat.completions.create(
+        ...     model="gpt-4o-mini",
+        ...     messages=[{"role": "user", "content": "Summarize the Q3 churn-analysis report."}],
+        ...     logprobs=True,
+        ... )
+        >>> logprobs = [t.logprob for t in response.choices[0].logprobs.content]   # natural-log, generated tokens only
+        >>> loss = cross_entropy(logprobs, is_logprob=True)
+    """
+    arr = np.asarray(values, dtype=np.float64)
+    if arr.size == 0:
+        raise ValueError("values must be non-empty")
+    if not is_logprob and np.any(arr <= 0):
+        raise ValueError("probabilities must all be > 0")
+    log_probs = arr if is_logprob else np.log(arr)
+    return float(-np.mean(log_probs))
+
+def perplexity(values: Union[Sequence[float], np.ndarray], is_logprob: bool = False) -> float:
+    """Compute perplexity, the exponentiated average negative log-likelihood a model assigns to a text.
+
+    Human-readable form of `cross_entropy()`: roughly "as unsure as choosing among PPL equally likely
+    tokens per step". Prefer it for reporting: comparing models on a held-out corpus, or flagging
+    low-confidence generations and drift. Use `cross_entropy()` to average or track loss.
+    Measures confidence, not correctness; only comparable across models sharing a tokenizer.
+
+    Computation, given per-token probabilities p_1..p_N:
+        1. log_probs    = log(p)                 # skipped if `is_logprob`; values are already log(p)
+        2. avg_log_prob = mean(log_probs)        # average over the N tokens
+        3. perplexity   = exp(-avg_log_prob)     # step 2 negated is `cross_entropy()`
+    The log base only has to match its inverse: `2 ** (-mean(log2(p)))` gives the same result.
+
+    Args:
+        values (Union[Sequence[float], np.ndarray]): 1-D per-token probabilities in (0, 1], or natural-log probabilities if `is_logprob`.
+        is_logprob (bool): Set True for API-style `logprobs`; avoids a lossy exp/log round trip.
+
+    Returns:
+        float: Perplexity >= 1.0; 1.0 = fully certain, larger = more uncertain.
+
+    Raises:
+        ValueError: If `values` is empty, or contains a non-positive probability.
+
+    Examples:
+        >>> client   = OpenAI()
+        >>> response = client.chat.completions.create(
+        ...     model="gpt-4o-mini",
+        ...     messages=[{"role": "user", "content": "Draft a reply to support ticket TCK-2291."}],
+        ...     logprobs=True,
+        ... )
+        >>> logprobs = [t.logprob for t in response.choices[0].logprobs.content]   # natural-log, generated tokens only
+        >>> ppl = perplexity(logprobs, is_logprob=True)
+        >>> ppl = perplexity([0.95, 0.73, 0.30, 0.98])   # same idea from raw token probabilities
+    """
+    return float(np.exp(cross_entropy(values, is_logprob=is_logprob)))
