@@ -29,4 +29,4 @@ class GatewayMessage(BaseModel):
     content:      str                             = Field(default="", description="Text content of the message.")
     tool_call_id: Optional[str]                   = Field(default=None, description="Set on a TOOL message — the GatewayToolCall.id it answers.")
     tool_calls:   Optional[List[GatewayToolCall]] = Field(default=None, description="Set on an ASSISTANT message that requests tool calls.")
-    created_at:   datetime                        = Field(default_factory=lambda: datetime.now(timezone.utc), description="UTC timestamp of when this message was created.")
+    created_at:   datetime                        = Field(default_factory=lambda: datetime.now(timezone.utc), description="UTC timestamp this message was created.")
