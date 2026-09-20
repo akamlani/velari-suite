@@ -79,6 +79,45 @@ def test_compress_extract_roundtrip_zip(self, tmp_path): ...
 def test_compress_extract_roundtrip_targz(self, tmp_path): ...
 ```
 
+## Minimize Test Count and Verbosity
+
+- Prefer fewer, higher-signal tests over exhaustive coverage of every getter, default, or
+  trivial code path. Before adding a test, check whether it would fail for any reason other
+  than the declaration itself being wrong — if not, it's testing the language/framework, not
+  your code, and isn't worth the maintenance cost.
+- Don't test the same code path twice at different layers with equivalent fake data. If a
+  private helper's behavior is already fully exercised by a higher-level test (e.g. a public
+  method that calls it) using the same fake response shape, keep the test at whichever layer
+  is more informative on failure and drop the other — don't verify both.
+- When two subclasses share a base class's method unchanged (neither overrides it), test that
+  method's behavior once, through either subclass — not once per subclass.
+- If a fake/mock class is copy-pasted verbatim across two test files, that's a signal the two
+  tests cover the same scenario, not a signal to extract a shared fixture — remove the
+  redundant test instead.
+
+```python
+# wrong — tests a Pydantic field's declared default, not any logic of ours
+def test_gateway_message_tool_calls_default_to_none():
+    message = GatewayMessage(role=Role.ASSISTANT, content="")
+    assert message.tool_calls is None
+
+# wrong — EmbeddingAdapter.embed_texts() is already covered directly (unit-level, below);
+# re-verifying the identical translation through LLMGateway.embed() with the same fake
+# response class adds no new coverage, since embed() is a one-line delegation
+def test_embed_resolves_adapter_and_returns_gateway_embedding_response(monkeypatch): ...
+def test_openai_embedding_adapter_embed_texts_returns_gateway_response(monkeypatch): ...
+
+# wrong — ModelRegistry and EmbeddingRegistry both inherit _AdapterRegistry.resolve()
+# unchanged; testing the shared "unregistered provider raises" path via both subclasses
+# tests the same lines of code twice
+def test_resolve_unregistered_provider_raises_valueerror(): ...
+def test_embedding_registry_resolve_unregistered_provider_raises_valueerror(): ...
+
+# correct — one test per distinct behavior, parametrized where the behavior itself repeats
+@pytest.mark.parametrize("provider, adapter_cls", [(OPENAI, OpenAIAdapter), (ANTHROPIC, AnthropicAdapter)])
+def test_resolve_returns_adapter_registered_for_provider(provider, adapter_cls): ...
+```
+
 ## Exercise the Public API
 
 - Test through the public entry points (e.g. `upsert()`/`get()`), not private helpers (`_to_dict()`), even when the goal is covering a private method's branches — keeps tests resilient to internal refactors.
