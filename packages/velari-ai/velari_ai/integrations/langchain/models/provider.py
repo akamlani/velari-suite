@@ -9,8 +9,7 @@ from    langchain_openai import OpenAIEmbeddings
 from    langchain_huggingface import HuggingFaceEmbeddings
 
 # package modules
-from    velari_core.config import ConfigBase
-from    velari_core.core import read_cache_dir
+from    velari_core.core import ConfigBase, read_cache_dir
 from    ....ai.types import ProviderName
 
 _DEFAULT_MODELS: Dict[ProviderName, str] = {

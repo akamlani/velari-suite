@@ -1,4 +1,5 @@
 from    typing import Any, Generic, Mapping, TypeVar
+from    langgraph.types import Send, Command
 
 # Bound to Mapping[str, Any] — every real graph state in this codebase is a TypedDict, which is
 # structurally a Mapping, so route()'s state[...] access below type-checks without needing Any.
