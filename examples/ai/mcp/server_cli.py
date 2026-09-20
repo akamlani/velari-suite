@@ -115,7 +115,7 @@ def main(
 
 if __name__ == "__main__":
     read_env(str(Path(read_root_dir()) / ".env"))
-    cfg_path: Path       = Path(__file__).parent / "conf" / "mcp_config.yaml"
+    cfg_path: Path       = Path(__file__).parents[2] / "_conf" / "mcp" / "mcp_config.yaml"
     cfg_data: DictConfig = OmegaConf.create(read_config(cfg_path))
     server = MCPServerImpl.from_config(cfg_data)
     app()
