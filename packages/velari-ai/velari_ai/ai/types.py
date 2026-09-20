@@ -1,9 +1,11 @@
 
-from    enum import StrEnum, auto
+from    enum        import StrEnum, auto
 from    dataclasses import dataclass, field
-from    typing import Optional, TypedDict, Literal, Tuple, List
+from    typing      import Any, Dict, List, Optional, Tuple
+from    pydantic    import BaseModel
 # package modules
-from    velari_core.config import ConfigBase
+from    .schemas.response   import PerfMetrics, UsageMetrics
+from    velari_core.core    import ConfigBase
 
 ### Constants
 MAX_ITERATIONS       = 2     # retrieve/rewrite retry budget for agentic RAG loops (see retrieval_agent.py)
@@ -11,10 +13,6 @@ MAX_REFLECTIONS      = 3     # critique/revise retry budget for the standalone r
 MAX_TURNS            = 5     # max LLM<->tool round-trips within a single agent call (AgentConfig.max_tool_calls)
 MAX_SEARCH_RESULTS   = 10    # max results returned per search query (SearchSpec.max_results_k)
 RELEVANCE_THRESHOLD  = 0.5   # minimum heuristic relevance score to accept retrieved context as sufficient
-
-class ProviderMode(StrEnum):
-    CHAT                    = auto()
-    RESPONSES               = auto()
 
 class ProviderName(StrEnum):
     OPENAI                  = auto()
@@ -35,11 +33,51 @@ class PersistenceBackend(StrEnum):
     MEMORY                  = auto()
     SQLITE                  = auto()
 
-class Message(TypedDict):
-    role:    Literal["user", "assistant"]
-    content: str
+#### Shared Structures across Vendor Integrations
+@dataclass
+class ProviderMetrics(object):
+    """`PerfMetrics` + `UsageMetrics` for one provider call — identical for every vendor client
+    and every call kind (chat or embedding), so `OpenAIClient`/`AnthropicClient`/
+    `SentenceTransformerClient` all share this one type instead of each declaring their own.
+    """
+    perf:  PerfMetrics
+    usage: UsageMetrics
+
+@dataclass
+class Completion(object):
+    """A provider chat call's generated completion — shared by every vendor client's
+    `CompletionResult`.
+    """
+    content:       str
+    tool_calls:    List[Dict[str, Any]]
+    finish_reason: str
+    parsed:        Optional[BaseModel] = field(default=None)
+    raw:           Optional[Any]       = field(default=None)
+
+@dataclass
+class CompletionResult(object):
+    """Plain result of one provider chat call — returned by every vendor client's `chat()`/
+    `achat()`/`stream()`/`astream()`, never a raw SDK response type.
+    """
+    completion: Completion
+    metrics:    ProviderMetrics
+
+@dataclass
+class EmbeddingVectors(object):
+    """An embedding call's output vectors — shared by every vendor client's `EmbeddingResult`."""
+    embeddings: List[List[float]]
+    raw:        Optional[Any] = field(default=None)
+
+@dataclass
+class EmbeddingResult(object):
+    """Plain result of one provider embedding call — returned by every vendor client's
+    `create_embeddings()`/`embed()`, never a raw SDK response type.
+    """
+    result:  EmbeddingVectors
+    metrics: ProviderMetrics
 
 
+##### Configuration Structures
 @dataclass
 class ModelConfig(ConfigBase):
     """Model-level settings for an agent — the provider:model string plus provider-specific kwargs."""

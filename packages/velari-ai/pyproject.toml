@@ -15,10 +15,12 @@ dependencies    = [
     "pydantic>=2.9",
     "omegaconf>=2.3",
     "scipy>=1.13",
+    "scikit-learn>=1.5",
     "openai>=2.0",
     "editdistance>=0.8",
 ]
 
+# used with --extra {dependency} or --all-extras
 [project.optional-dependencies]
 agents = [
     "agno>=2.8.7",
@@ -52,6 +54,10 @@ evals = [
     "arize-phoenix-otel>=0.8",
     "arize-phoenix-client>=1.0",
     "opentelemetry-api>=1.30",
+]
+gateway = [
+    "anthropic>=0.40",
+    "sentence-transformers>=5.7",
 ]
 
 [tool.uv.sources]

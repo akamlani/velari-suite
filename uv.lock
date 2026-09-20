@@ -6,10 +6,10 @@ resolution-markers = [
     "python_full_version >= '3.14' and sys_platform == 'emscripten'",
     "python_full_version >= '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version == '3.13.*' and sys_platform == 'win32'",
-    "python_full_version < '3.13' and sys_platform == 'win32'",
     "python_full_version == '3.13.*' and sys_platform == 'emscripten'",
-    "python_full_version < '3.13' and sys_platform == 'emscripten'",
     "python_full_version == '3.13.*' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version < '3.13' and sys_platform == 'win32'",
+    "python_full_version < '3.13' and sys_platform == 'emscripten'",
     "python_full_version < '3.13' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 
@@ -5826,6 +5826,7 @@ dependencies = [
     { name = "openai" },
     { name = "pandas" },
     { name = "pydantic" },
+    { name = "scikit-learn" },
     { name = "scipy" },
     { name = "velari-core" },
     { name = "velari-data" },
@@ -5862,10 +5863,15 @@ evals = [
     { name = "arize-phoenix-otel" },
     { name = "opentelemetry-api" },
 ]
+gateway = [
+    { name = "anthropic" },
+    { name = "sentence-transformers" },
+]
 
 [package.metadata]
 requires-dist = [
     { name = "agno", marker = "extra == 'agents'", specifier = ">=2.8.7" },
+    { name = "anthropic", marker = "extra == 'gateway'", specifier = ">=0.40" },
     { name = "arize-phoenix", marker = "extra == 'evals'", specifier = ">=8.0" },
     { name = "arize-phoenix-client", marker = "extra == 'evals'", specifier = ">=1.0" },
     { name = "arize-phoenix-otel", marker = "extra == 'evals'", specifier = ">=0.8" },
@@ -5893,13 +5899,15 @@ requires-dist = [
     { name = "opentelemetry-api", marker = "extra == 'evals'", specifier = ">=1.30" },
     { name = "pandas", specifier = ">=2.0" },
     { name = "pydantic", specifier = ">=2.9" },
+    { name = "scikit-learn", specifier = ">=1.5" },
     { name = "scipy", specifier = ">=1.13" },
     { name = "sentence-transformers", marker = "extra == 'agents'", specifier = ">=5.7" },
+    { name = "sentence-transformers", marker = "extra == 'gateway'", specifier = ">=5.7" },
     { name = "tavily-python", marker = "extra == 'agents'", specifier = ">=0.7.27" },
     { name = "velari-core", editable = "packages/velari-core" },
     { name = "velari-data", editable = "packages/velari-data" },
 ]
-provides-extras = ["agents", "data", "evals"]
+provides-extras = ["agents", "data", "evals", "gateway"]
 
 [[package]]
 name = "velari-core"

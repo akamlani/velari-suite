@@ -1,48 +1,57 @@
 from __future__ import annotations
 import  numpy as np
 import  pandas as pd
-from    abc        import ABC, abstractmethod
-from    omegaconf  import DictConfig
-from    pydantic   import BaseModel
-from    typing     import Type, TypeVar, List, Union, Optional, overload
+from    abc    import ABC, abstractmethod
+from    typing import Any, AsyncIterator, ClassVar, Dict, Generic, Iterator, List, Optional, Type, TypeVar, Union, overload
+from    pydantic import BaseModel
 # package modules
-from    .types import ProviderMode
 from    .evals.scoring import euclidean_distance, cosine_distance, cosine_similarity
 
-T = TypeVar("T", bound=BaseModel)
+TResponseResult = TypeVar("TResponseResult")
 
 
-class Provider(ABC):
-    def __init__(self, api_key: str, model: str, base_url: str) -> None:
-        self._api_key  = api_key
-        self._model    = model
-        self._base_url = base_url
+class Provider(ABC, Generic[TResponseResult]):
+    """Abstract base for vendor chat clients — the sync/async/streaming/structured-output
+    request+parse layer beneath `infra/gateway/llm/adapters/<vendor>/provider.py`'s field-mapping.
+    Each vendor's client (`OpenAIClient`, `AnthropicClient`) implements this over its own SDK
+    and returns the shared `CompletionResult` (`ai/types.py`), never a raw SDK response type —
+    mirrors `infra/gateway/llm/adapters/base.py`'s `ProviderAdapter` one layer up.
 
-    @classmethod
-    def from_config(cls, cfg: DictConfig, api_key: str) -> Provider:
-        return cls(
-            api_key  = api_key,
-            model    = cfg.model,
-            base_url = cfg.get("base_url", "https://api.openai.com/v1"),
-        )
+    Concrete subclasses set `_sync_cls`/`_async_cls` to their vendor's SDK client classes;
+    `__init__` builds both from the same kwargs, so subclasses only need to declare them.
 
-    @property
-    def model(self) -> str:
-        return self._model
+    Args:
+        **kwargs (Any): Forwarded to both `_sync_cls()` and `_async_cls()` — e.g. `api_key`,
+            `base_url`, `timeout`.
+    """
+    _sync_cls:  ClassVar[Type[Any]]
+    _async_cls: ClassVar[Type[Any]]
 
-    @property
-    def base_url(self) -> str:
-        return self._base_url
+    def __init__(self, **kwargs: Any) -> None:
+        self._client       = self._sync_cls(**kwargs)
+        self._async_client = self._async_cls(**kwargs)
 
     @abstractmethod
-    def ask(
-        self,
-        prompt: str,
-        system_prompt: str = "",
-        mode: ProviderMode = ProviderMode.CHAT,
-        response_format: Optional[Type[T]] = None,
-        **kwargs,
-    ) -> Union[str, T]: ...
+    def chat(
+        self, model: str, messages: List[Dict[str, str]], tools: Optional[List[Dict[str, Any]]] = None,
+        response_model: Optional[Type[BaseModel]] = None, **parameters: Any,
+    ) -> TResponseResult: ...
+
+    @abstractmethod
+    async def achat(
+        self, model: str, messages: List[Dict[str, str]], tools: Optional[List[Dict[str, Any]]] = None,
+        response_model: Optional[Type[BaseModel]] = None, **parameters: Any,
+    ) -> TResponseResult: ...
+
+    @abstractmethod
+    def stream(
+        self, model: str, messages: List[Dict[str, str]], tools: Optional[List[Dict[str, Any]]] = None, **parameters: Any,
+    ) -> Iterator[TResponseResult]: ...
+
+    @abstractmethod
+    def astream(
+        self, model: str, messages: List[Dict[str, str]], tools: Optional[List[Dict[str, Any]]] = None, **parameters: Any,
+    ) -> AsyncIterator[TResponseResult]: ...
 
 
 class ProviderEmbeddings(ABC):
