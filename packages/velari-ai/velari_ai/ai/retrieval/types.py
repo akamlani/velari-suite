@@ -4,7 +4,7 @@ from    dataclasses import dataclass, field
 from    enum         import StrEnum, auto
 from    typing       import Any, Dict, Required, NotRequired, TypedDict
 # package modules
-from    velari_core.config import ConfigBase
+from    velari_core.core import ConfigBase
 from    ..types import MAX_SEARCH_RESULTS
 
 class RetrieverStrategy(StrEnum):
