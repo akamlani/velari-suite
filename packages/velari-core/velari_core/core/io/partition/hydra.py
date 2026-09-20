@@ -42,7 +42,7 @@ def read_hydra_defaults(config_dir: str, config_name: str) -> DictConfig:
         >>> from velari_core.core import read_root_dir
         >>> config_dir = Path(read_root_dir()) / "config"
         >>> cfg = read_hydra_defaults(str(config_dir), "config")
-        >>> log_filename = cfg.logging  # resolve the logging config path
+        >>> log_filename = cfg.logging.name  # resolve the logging config path
     """
     def resolve_tuple(*args):
         return tuple(args)

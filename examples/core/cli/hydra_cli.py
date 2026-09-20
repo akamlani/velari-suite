@@ -5,9 +5,12 @@ from __future__ import annotations
 
 import  hydra
 from    dataclasses             import dataclass
+from    pathlib                 import Path
 from    hydra.core.config_store import ConfigStore
 from    omegaconf               import DictConfig, OmegaConf
 from    typing                  import Any, Dict, cast
+# package modules
+from    velari_core.core        import read_root_dir
 
 
 @dataclass
@@ -52,10 +55,10 @@ def read_config(config: DictConfig) -> CliConfig:
     )
 
 
-ConfigStore.instance().store(name="config", node=CliConfig)
+ConfigStore.instance().store(name="hydra_cli", node=CliConfig)
 
 
-@hydra.main(config_name="config", version_base=None)
+@hydra.main(config_path=str(Path(read_root_dir()) / "config"), config_name="hydra_cli", version_base=None)
 def main(config: DictConfig) -> None:
     """Process a Velari workspace with Hydra."""
     cli_config = read_config(config)

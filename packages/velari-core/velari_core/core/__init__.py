@@ -1,2 +1,3 @@
+from .config import ConfigBase
 from .utils.env_utils import read_root_dir, read_env, read_cache_dir
 from .utils.core_utils import unpack_obj_attr
