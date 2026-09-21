@@ -3,7 +3,7 @@ from __future__ import annotations
 from    dataclasses import dataclass, field, fields
 from    typing       import Any, Dict, Self, Union
 
-from    omegaconf import DictConfig
+from    omegaconf import DictConfig, ListConfig, OmegaConf
 
 
 @dataclass
@@ -38,6 +38,36 @@ class ConfigBase:
         extra  = {str(k): v for k, v in entry.items() if k not in known}
         kwargs = cls._coerce_kwargs(kwargs)
         return cls(**kwargs, extra=extra)
+
+    @classmethod
+    def from_section(cls, section: Union[DictConfig, ListConfig], **overrides: Any) -> Self:
+        """Build this config from a Hydra/OmegaConf section, optionally layering runtime values over it.
+
+        Converts the section to plain dicts/lists (resolving `${...}` interpolations) so nested values
+        like `parameters` are real `dict`s, then delegates to `from_config()`.
+
+        Args:
+            section (Union[DictConfig, ListConfig]): Section of a composed config (e.g. `cfg.chat`) or a loaded
+                YAML file; anything but a mapping raises `TypeError`.
+            **overrides (Any): Runtime values layered over the section — a dict override is unioned into
+                the section's dict of the same key, anything else replaces the section's value.
+
+        Returns:
+            Self: Ready to pass into whatever this config configures.
+
+        Examples:
+            >>> model_config = ModelConfig.from_section(cfg.chat, parameters={"seed": experiment.seed})
+            >>> policy_config = PolicyConfig.from_section(cfg.policy, tags=["pii"])
+        """
+        container = OmegaConf.to_container(section, resolve=True)
+        if not isinstance(container, dict):
+            raise TypeError(f"Config section must be a mapping, got {type(container).__name__}")
+        entry     = {str(k): v for k, v in container.items()}
+        layered   = {
+            key: {**entry[key], **value} if isinstance(entry.get(key), dict) and isinstance(value, dict) else value
+            for key, value in overrides.items()
+        }
+        return cls.from_config({**entry, **layered})
 
     @classmethod
     def _coerce_kwargs(cls, kwargs: Dict[str, Any]) -> Dict[str, Any]:

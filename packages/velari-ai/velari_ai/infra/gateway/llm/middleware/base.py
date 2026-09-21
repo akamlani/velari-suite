@@ -8,11 +8,11 @@ from    ..schemas.response import GatewayResponse
 class GatewayMiddleware(Protocol):
     """Extension seam for cross-cutting gateway behavior — retry, rate-limit, cache, tracing.
 
-    Only `ComplianceDisclaimerMiddleware` ships as a concrete implementation so far;
+    `PolicyMiddleware` and `LoggingMiddleware` ship as concrete implementations so far;
     `MiddlewareChain` runs whatever is registered, a no-op pass-through when the list is empty.
 
     Examples:
-        >>> gateway = LLMGateway(middleware=MiddlewareChain([ComplianceDisclaimerMiddleware(disclaimer="Not financial advice.")]))
+        >>> gateway = LLMGateway(middleware=MiddlewareChain([PolicyMiddleware(rules=[DisclaimerRule(disclaimer="Not financial advice.")])]))
         >>> result = gateway.chat(
         ...     GatewayRequest(messages=[GatewayMessage(role=Role.USER, content="Should I buy this stock?")]),
         ...     model_config=ModelConfig(model="openai:gpt-4o-mini"),
@@ -27,7 +27,7 @@ class MiddlewareChain(object):
     """Runs an ordered list of `GatewayMiddleware` around a `ProviderAdapter` call.
 
     Examples:
-        >>> chain    = MiddlewareChain([ComplianceDisclaimerMiddleware(disclaimer="Not financial advice.")])
+        >>> chain    = MiddlewareChain([PolicyMiddleware(rules=[DisclaimerRule(disclaimer="Not financial advice.")])])
         >>> request  = chain.run_before(request)
         >>> response = adapter.chat(request)
         >>> response = chain.run_after(response)
