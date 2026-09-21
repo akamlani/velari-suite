@@ -22,6 +22,7 @@ class TestCrossEntropyDist:
     def test_2d_inputs_return_one_value_per_row(self):
         from velari_ai.ai.evals.distribution import cross_entropy_dist
         scores = cross_entropy_dist(np.stack([P, P]), np.stack([Q, P]))
+        assert isinstance(scores, np.ndarray)
         assert scores.shape == (2,)
         assert scores[0] == pytest.approx(cross_entropy_dist(P, Q))
 

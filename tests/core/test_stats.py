@@ -92,7 +92,7 @@ class TestCalcPctChange:
 class TestCalcWeightedAvg:
     def test_matches_numpy_average(self):
         from velari_core.core.statistics.stats import calc_weighted_avg
-        latencies, tokens = [1.2, 2.5, 0.8], [500, 1500, 200]
+        latencies, tokens = [1.2, 2.5, 0.8], [500.0, 1500.0, 200.0]
         assert calc_weighted_avg(latencies, tokens) == pytest.approx(np.average(latencies, weights=tokens))
 
     @pytest.mark.parametrize("values, weights", [([1.0, 2.0], [1.0]), ([1.0, 2.0], [0.0, 0.0])])
