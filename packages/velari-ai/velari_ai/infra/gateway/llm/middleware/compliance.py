@@ -16,8 +16,8 @@ PayloadT = TypeVar("PayloadT")
 ##### Policy Enforcement Types and Errors
 class Enforcement(StrEnum):
     ALLOW           = auto()  # PolicyMiddleware skips the rule entirely — check() isn't run, nothing is logged
-    BLOCK           = auto()  # on violation, raises PolicyViolationError — before the provider call for a request rule, before the caller sees the reply for a response rule
-    MODIFY          = auto()  # on violation, replaces the request/response with a corrected copy from rule.modify() (e.g. redacted text, stripped tool, appended disclaimer) and sends that on
+    BLOCK           = auto()  # on violation, raises PolicyViolationError — before the provider call (request rule) or before the caller sees the reply (response rule)
+    MODIFY          = auto()  # on violation, sends on a corrected copy from rule.modify() (e.g. redacted text, stripped tool, appended disclaimer)
     SHADOW          = auto()  # on violation, logs a warning only; the request/response goes through unchanged
 
 class RuleType(StrEnum):
