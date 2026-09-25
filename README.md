@@ -20,7 +20,7 @@ Monorepo for Core Operations, Data, and AI native Development and Workflow Orche
 | [python-workflow.yml](.github/workflows/python-workflow.yml) | Push/PR/Manual | Python CI with uv package manager and caching |
 | [shell-workflow.yml](.github/workflows/shell-workflow.yml) | Manual | First workflow — self-hosted and Ubuntu runners |
 | [claude.yml](.github/workflows/claude.yml) | Issue/PR comments, Issues | Claude AI agent integration via `@claude` mentions |
-| [claude-code-review.yml](.github/workflows/claude-code-review.yml) | Pull Request | Automated code review on PRs using Claude |
+| [claude-code-review.yml](.github/workflows/claude-code-review.yml) | Pull Request | Optional automated code review on PRs using Claude (enable after installing the Claude Code GitHub App and setting `CLAUDE_CODE_REVIEW_ENABLED` to the exact lowercase string `true`) |
 | [daily-repo-status.lock.yml](.github/workflows/daily-repo-status.lock.yml) | Schedule (daily) | Daily repo status report generated as a GitHub issue |
 
 ## Directory Structure
