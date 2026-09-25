@@ -8,6 +8,7 @@ from    .schemas.response   import PerfMetrics, UsageMetrics
 from    velari_core.core    import ConfigBase
 
 ### Constants
+MAX_ATTEMPTS         = 3     # maximum number of allowable attempts for certain retryable operations
 MAX_ITERATIONS       = 2     # retrieve/rewrite retry budget for agentic RAG loops (see retrieval_agent.py)
 MAX_REFLECTIONS      = 3     # critique/revise retry budget for the standalone reflection graphs (retrieval_agent.py)
 MAX_TURNS            = 5     # max LLM<->tool round-trips within a single agent call (AgentConfig.max_tool_calls)
