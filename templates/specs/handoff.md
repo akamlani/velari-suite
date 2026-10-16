@@ -48,6 +48,14 @@ Reusable template for handing work from one agent session to the next — across
 
 - `<change>` — `<path>` — `<why>` — `<verified / unverified>`
 
+## Assumptions
+
+Things taken as true without confirming. Risk = how costly it is if the assumption is wrong: **high** = work must be redone or the result is incorrect, **medium** = a part needs rework, **low** = minor or easily corrected.
+
+| Assumption | Basis | Evidence | Risk Category | Risk Description | Verify by |
+|---|---|---|---|---|---|
+| `<what was assumed in place of a confirmed fact>` | `<why believed: user hint, convention, inference>` | `<what was observed so far: output, path:line; None if nothing yet>` | `<high / medium / low>` | `<what breaks or must be redone if wrong>` | `<exact command, path:line, or person to ask>` |
+
 ## Failed Attempts
 
 | Approach | Result | Lesson |
@@ -69,5 +77,5 @@ Reusable template for handing work from one agent session to the next — across
 
 ```text
 Read <path/to/handoff.md> and the files under "Read first". Start with Next Steps #1.
-Don't retry anything under "Failed Attempts"; treat "Decisions" as settled.
+Don't retry anything under "Failed Attempts"; treat "Decisions" as settled; verify "Assumptions" before relying on them.
 ```
