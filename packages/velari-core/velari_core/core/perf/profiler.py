@@ -1,3 +1,4 @@
+import contextlib
 import functools
 import inspect
 import multiprocessing
@@ -39,7 +40,6 @@ def profile_system(gb_unit: bool = True) -> dict:
         ),
         **profile_memory(),
     )
-
 
 def profile_time(
     attr: str = "latency_sec", target: Optional[Callable[[Any], Any]] = None,
@@ -87,9 +87,10 @@ def profile_time(
             @functools.wraps(func)
             async def async_gen_wrapper(*args: Any, **kwargs: Any) -> Any:
                 start = time.perf_counter()
-                async for item in func(*args, **kwargs):
-                    _write(item, time.perf_counter() - start)
-                    yield item
+                async with contextlib.aclosing(func(*args, **kwargs)) as items:
+                    async for item in items:
+                        _write(item, time.perf_counter() - start)
+                        yield item
             return async_gen_wrapper
 
         if inspect.isgeneratorfunction(func):
