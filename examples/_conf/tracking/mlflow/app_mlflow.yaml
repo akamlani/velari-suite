@@ -1,5 +1,6 @@
+# @package _global_
 defaults:
-  - tracing/mlflow@_global_
+  - /tracing/mlflow@_global_
   # - override hydra/job_logging:   custom
   # - override hydra/hydra_logging: custom
   - _self_

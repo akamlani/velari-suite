@@ -1,0 +1,14 @@
+# @package _global_
+defaults:
+  - /tracing/mlflow@_global_
+  - _self_
+
+app:
+  info:
+    name: mlflow-registry-cli
+    help: "MLflow Prompt Registry — register, load, alias, tag, and list versioned prompts."
+    version: 0.1.0
+
+mlflow:
+  options:
+    auto_instrument: false

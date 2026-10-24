@@ -42,12 +42,6 @@ typeCheckingMode = "standard"
 # before exclude globs can prune it, which is what caused pyright to hang for minutes on a plain
 # `uv run pyright` (individual `uv run pyright <package>` runs were always fast).
 include = ["packages/velari-core", "packages/velari-data", "packages/velari-ai", "examples", "tests"]
-# mlflow is intentionally not in the shared venv (pins pandas<3, conflicts with the workspace's
-# pandas>=3) — run via `uv run --isolated --with mlflow --with pyright pyright <path>` instead.
-exclude = [
-    "packages/velari-ai/velari_ai/integrations/mlflow",
-    "examples/ai/integrations/mlflow",
-]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
