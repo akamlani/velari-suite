@@ -20,23 +20,20 @@ from Arize" below); `serve_cli.py` is the only thing that ever serves a browsabl
 
 ## Prerequisites
 
-MLflow is **not** part of this workspace's `evals` extra — the full `mlflow` package (needed for
-`serve_cli.py`'s `mlflow server` command) pins `pandas<3`, which conflicts with this workspace's
-`pandas>=3`. Adding it to the shared extras would force a workspace-wide pandas downgrade on every
-`uv sync --all-extras`. Instead, run these scripts via `uv run --isolated --with mlflow`, which
-resolves `mlflow` into a throwaway environment for that one invocation only — the shared
-`.venv`/`uv.lock` is never touched:
+MLflow is the `mlflow` extra of `velari-ai` (`mlflow>=3.17`, which allows `pandas>=3`), so it is
+installed into the shared `.venv` by `uv sync --all-extras` (`make install_python`). To add just
+this extra:
 
 ```
-uv run --isolated --with mlflow python examples/ai/integrations/mlflow/trace_cli.py
+uv sync --extra mlflow
 ```
 
 ## `trace_cli.py`
 
 ```
-uv run --isolated --with mlflow python examples/ai/integrations/mlflow/trace_cli.py
-uv run --isolated --with mlflow python examples/ai/integrations/mlflow/trace_cli.py --nested
-uv run --isolated --with mlflow python examples/ai/integrations/mlflow/trace_cli.py --endpoint http://localhost:5001
+uv run python examples/ai/integrations/mlflow/trace_cli.py
+uv run python examples/ai/integrations/mlflow/trace_cli.py --nested
+uv run python examples/ai/integrations/mlflow/trace_cli.py --endpoint http://localhost:5001
 ```
 
 - No flags: sets the tracking URI to a local sqlite store (`stores/databases/sqlite/mlflow/`) and
@@ -45,11 +42,33 @@ uv run --isolated --with mlflow python examples/ai/integrations/mlflow/trace_cli
 - `--endpoint <url>`: connects to an already-running, externally-managed MLflow tracking server
   instead of a local store. Pair with `serve_cli.py` (see below) for a browser-viewable UI.
 
+## `registry_cli.py`
+
+Drives `velari_ai.integrations.mlflow.registry.PromptRegistry` (built on `mlflow.genai`) — one
+subcommand per registry method:
+
+```
+uv run python examples/ai/integrations/mlflow/registry_cli.py register ticket-triage --template "Classify: {{ticket_text}}" --commit-message v1 --tag team=support
+uv run python examples/ai/integrations/mlflow/registry_cli.py set-alias ticket-triage production 1
+uv run python examples/ai/integrations/mlflow/registry_cli.py load ticket-triage --alias production
+uv run python examples/ai/integrations/mlflow/registry_cli.py list --filter "name LIKE 'ticket%'"
+uv run python examples/ai/integrations/mlflow/registry_cli.py list --endpoint http://localhost:5001
+```
+
+- `register NAME` — `--template` or `--template-file` (exactly one), optional `--commit-message` and
+  repeatable `--tag KEY=VALUE`. Registers a new prompt, or a new version of an existing one.
+- `load NAME` — `--version N` or `--alias A` (not both); with neither, loads the latest version.
+- `list` — `--filter` / `--max-results`.
+- `set-alias NAME ALIAS VERSION`, `delete-alias NAME ALIAS`, `set-tag NAME KEY VALUE`, `delete-tag NAME KEY`.
+- Every subcommand takes `--endpoint <url>` to use a running tracking server instead of the local store
+  (the same sqlite store `trace_cli.py` and `serve_cli.py` use). A missing prompt/version/alias exits 1.
+- Config is `examples/_conf/tracking/mlflow/app_mlflow_registry.yaml`, which composes `config/tracing/mlflow.yaml`.
+
 ## `serve_cli.py`
 
 ```
-uv run --isolated --with mlflow python examples/ai/integrations/mlflow/serve_cli.py
-uv run --isolated --with mlflow python examples/ai/integrations/mlflow/serve_cli.py mlflow.connection.port=5002
+uv run python examples/ai/integrations/mlflow/serve_cli.py
+uv run python examples/ai/integrations/mlflow/serve_cli.py mlflow.connection.port=5002
 ```
 
 Runs in the foreground until Ctrl+C — that's expected: this script *is* the persistent server,
@@ -94,7 +113,7 @@ MLflow doesn't have as standardized a custom-header mechanism as `api_key`.
   `security.cors_allowed_origins` are empty by default (MLflow's own localhost-only defaults apply
   untouched); set them — e.g. via `mlflow.connection.host=0.0.0.0` plus
   `+mlflow.security.allowed_hosts=[...]` — when exposing the server beyond localhost.
-- **`examples/_conf/app_mlflow.yaml`** — `trace_cli.py`'s Hydra config; composes
+- **`examples/_conf/tracking/mlflow/app_mlflow.yaml`** — `trace_cli.py`'s Hydra config; composes
   `config/tracing/mlflow.yaml` via the `tracing/mlflow@_global_` package directive (so
   `cfg.mlflow.*` is usable directly), plus this example's own `app.info.*` metadata (name/help/
   version). `tracing/mlflow.yaml` itself lives under the root `config/` directory rather than

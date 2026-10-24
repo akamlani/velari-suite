@@ -68,7 +68,7 @@ own `AppService` subprocess runs `main.py` with `cwd` set to `.../phoenix/server
   location (`stores/databases/sqlite/phoenix/`, repo-relative). `serve_cli.py` composes this file
   directly as its Hydra root config (`config_path` computed via `read_root_dir()`), so its CLI
   overrides use `phoenix.*` dotted paths (e.g. `phoenix.connection.port=6007`).
-- **`examples/_conf/app_arize.yaml`** — `trace_cli.py`'s Hydra config; composes
+- **`examples/_conf/tracking/arize/app_arize.yaml`** — `trace_cli.py`'s Hydra config; composes
   `config/tracing/phoenix.yaml` via the `tracing/phoenix@_global_` package directive (so
   `cfg.phoenix.*` is usable directly, no `cfg.tracing.phoenix` indirection), plus this example's own
   `app.info.*` metadata (name/help/version, used to populate the Typer app and `get_tracer()`).

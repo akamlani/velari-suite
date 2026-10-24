@@ -55,6 +55,9 @@ evals = [
     "arize-phoenix-client>=1.0",
     "opentelemetry-api>=1.30",
 ]
+mlflow = [
+    "mlflow>=3.17",
+]
 gateway = [
     "anthropic>=0.40",
     "sentence-transformers>=5.7",

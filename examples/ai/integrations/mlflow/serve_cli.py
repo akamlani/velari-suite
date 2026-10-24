@@ -1,5 +1,5 @@
-# uv run --isolated --with mlflow python examples/ai/integrations/mlflow/serve_cli.py
-# uv run --isolated --with mlflow python examples/ai/integrations/mlflow/serve_cli.py mlflow.connection.port=5002
+# uv run python examples/ai/integrations/mlflow/serve_cli.py
+# uv run python examples/ai/integrations/mlflow/serve_cli.py mlflow.connection.port=5002
 # See examples/ai/integrations/mlflow/README.md for details.
 
 import  os

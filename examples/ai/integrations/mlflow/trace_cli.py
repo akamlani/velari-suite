@@ -1,6 +1,6 @@
-# uv run --isolated --with mlflow python examples/ai/integrations/mlflow/trace_cli.py
-# uv run --isolated --with mlflow python examples/ai/integrations/mlflow/trace_cli.py --nested
-# uv run --isolated --with mlflow python examples/ai/integrations/mlflow/trace_cli.py --endpoint http://localhost:5001
+# uv run python examples/ai/integrations/mlflow/trace_cli.py
+# uv run python examples/ai/integrations/mlflow/trace_cli.py --nested
+# uv run python examples/ai/integrations/mlflow/trace_cli.py --endpoint http://localhost:5001
 # See examples/ai/integrations/mlflow/README.md for details.
 
 import logging
@@ -77,7 +77,7 @@ if __name__ == "__main__":
     config_dir    = str(root / "config")
 
     app = typer.Typer(rich_markup_mode="rich", add_completion=False)
-    cfg = _configure_app(app, examples_conf, config_dir, "app_mlflow.yaml")
+    cfg = _configure_app(app, examples_conf, config_dir, "tracking/mlflow/app_mlflow.yaml")
 
     def run(
         nested: bool = typer.Option(

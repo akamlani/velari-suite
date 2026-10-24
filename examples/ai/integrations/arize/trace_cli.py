@@ -78,7 +78,7 @@ if __name__ == "__main__":
     config_dir    = str(root / "config")
 
     app = typer.Typer(rich_markup_mode="rich", add_completion=False)
-    cfg = _configure_app(app, examples_conf, config_dir, "app_arize.yaml")
+    cfg = _configure_app(app, examples_conf, config_dir, "tracking/arize/app_arize.yaml")
 
     def run(
         nested: bool = typer.Option(
