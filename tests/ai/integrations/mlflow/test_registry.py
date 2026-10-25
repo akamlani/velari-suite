@@ -101,3 +101,74 @@ def test_list_forwards_filter_and_returns_list(monkeypatch):
 
     assert registry.list("name LIKE 'ticket%'") == ["p1", "p2"]
     assert calls[-1] == ("search_prompts", (), {"filter_string": "name LIKE 'ticket%'"})
+
+
+def _make_artifact_loader(monkeypatch, load_result=None):
+    import mlflow
+    from velari_ai.integrations.mlflow import registry as registry_module
+    from velari_ai.integrations.mlflow.connection import Connector
+
+    calls = []
+
+    def _record(name, result=None):
+        def _fn(*args, **kwargs):
+            calls.append((name, args, kwargs))
+            return result
+        return _fn
+
+    monkeypatch.setattr(mlflow, "set_tracking_uri", _record("set_tracking_uri"))
+    monkeypatch.setattr(registry_module, "load_model", _record("load_model", load_result))
+    monkeypatch.setattr(mlflow, "register_model", _record("register_model", _FakeVersion()))
+    monkeypatch.setattr(mlflow, "search_registered_models", _record("search_registered_models", ["m1", "m2"]))
+
+    class _FakeConnector(Connector):
+        def __init__(self) -> None:
+            self._url = "sqlite:///registry-test.db"
+
+    return registry_module.ArtifactLoader(_FakeConnector()), calls
+
+
+@pytest.mark.parametrize(
+    "kwargs, expected_uri",
+    [
+        ({"version": 3}, "models:/research-agent/3"),
+        ({"alias": "champion"}, "models:/research-agent@champion"),
+        ({}, "models:/research-agent/latest"),
+    ],
+)
+def test_artifact_load_resolves_version_alias_or_latest(monkeypatch, kwargs, expected_uri):
+    sentinel = object()
+    loader, calls = _make_artifact_loader(monkeypatch, load_result=sentinel)
+
+    assert loader.load("research-agent", **kwargs) is sentinel
+    assert calls == [
+        ("set_tracking_uri", ("sqlite:///registry-test.db",), {}),
+        ("load_model", (expected_uri,), {}),
+    ]
+
+
+def test_artifact_load_with_version_and_alias_raises_valueerror(monkeypatch):
+    loader, _ = _make_artifact_loader(monkeypatch)
+
+    with pytest.raises(ValueError):
+        loader.load("research-agent", version=1, alias="champion")
+
+
+def test_artifact_loader_register_forwards_tags_and_kwargs(monkeypatch):
+    loader, calls = _make_artifact_loader(monkeypatch)
+
+    version = loader.register("models:/m-abc123", "contract-review-agent", tags={"team": "legal"}, await_registration_for=0)
+
+    assert version.version == 1
+    assert calls[-1] == (
+        "register_model",
+        ("models:/m-abc123", "contract-review-agent"),
+        {"tags": {"team": "legal"}, "await_registration_for": 0},
+    )
+
+
+def test_artifact_loader_list_forwards_filter_and_returns_list(monkeypatch):
+    loader, calls = _make_artifact_loader(monkeypatch)
+
+    assert loader.list("name LIKE 'contract%'") == ["m1", "m2"]
+    assert calls[-1] == ("search_registered_models", (), {"filter_string": "name LIKE 'contract%'", "max_results": None})

@@ -64,6 +64,23 @@ uv run python examples/ai/integrations/mlflow/registry_cli.py list --endpoint ht
   (the same sqlite store `trace_cli.py` and `serve_cli.py` use). A missing prompt/version/alias exits 1.
 - Config is `examples/_conf/tracking/mlflow/app_mlflow_registry.yaml`, which composes `config/tracing/mlflow.yaml`.
 
+The `artifact` group drives `velari_ai.integrations.mlflow.registry.ArtifactLoader` — registered GenAI
+apps/agents (logged models) rather than prompts:
+
+```
+uv run python examples/ai/integrations/mlflow/registry_cli.py artifact register models:/m-abc123 billing-agent --tag team=support
+uv run python examples/ai/integrations/mlflow/registry_cli.py artifact list --filter "name LIKE 'billing%'"
+uv run python examples/ai/integrations/mlflow/registry_cli.py artifact load billing-agent --alias champion --input '[{"question": "..."}]'
+```
+
+- `artifact register MODEL_URI NAME` — `MODEL_URI` is a model you already logged (`models:/<model_id>` or
+  `runs:/<run_id>/<path>`); optional repeatable `--tag KEY=VALUE`.
+- `artifact load NAME` — `--version N` or `--alias A` (not both; neither loads the latest). Prints the model id,
+  flavors, and signature; `--input JSON` also runs `predict()` on it.
+- `artifact list` — `--filter` / `--max-results`. Takes `--endpoint` like the prompt commands.
+- Aliases and tags for registered apps aren't exposed here — `ArtifactLoader` has none (they live on
+  `ArtifactRegistry` in `client.py`).
+
 ## `serve_cli.py`
 
 ```
