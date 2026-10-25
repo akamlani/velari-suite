@@ -3,7 +3,10 @@ import  logging
 import  mlflow
 from    typing import Any, Dict, List, Optional, Union
 from    mlflow import genai
+from    mlflow.pyfunc import PyFuncModel, load_model
 from    mlflow.entities.model_registry import Prompt, PromptVersion
+from    mlflow.entities.model_registry.model_version import ModelVersion
+from    mlflow.entities.model_registry.registered_model import RegisteredModel
 # package modules
 from .connection import Connector
 
@@ -151,3 +154,83 @@ class PromptRegistry(object):
         """
         options = {"filter_string": filter_string, "max_results": max_results}
         return list(genai.search_prompts(**{k: v for k, v in options.items() if v is not None}))
+
+
+class ArtifactLoader(object):
+    """Client-side, global-state MLflow API for registered apps: load into this process, plus register and list.
+
+    Args:
+        connector (Connector): Connected MLflow tracking server; its URI is (re)applied since these calls read global state.
+    """
+    def __init__(self, connector: Connector) -> None:
+        mlflow.set_tracking_uri(connector.url)
+
+    def load(self, name: str, version: Optional[Union[str, int]] = None, alias: Optional[str] = None) -> PyFuncModel:
+        """Load a registered app by version, by alias, or (with neither) its latest version.
+
+        Args:
+            name (str): Registered name.
+            version (Optional[Union[str, int]]): Specific version; mutually exclusive with `alias`.
+            alias (Optional[str]): Alias to resolve, e.g. `"champion"`.
+
+        Returns:
+            PyFuncModel: The loaded app; call `.predict()` on it.
+
+        Raises:
+            ValueError: If both `version` and `alias` are given.
+            MlflowException: If the name, version, or alias doesn't exist.
+
+        Examples:
+            >>> loader = ArtifactLoader(Connector.from_config(cfg))
+            >>> agent = loader.load("research-assistant", alias="champion")
+            >>> agent.predict([{"question": "Summarize Q3 churn drivers for ORG-4471."}])
+        """
+        if version is not None and alias is not None:
+            raise ValueError("Pass either 'version' or 'alias', not both")
+        ref = f"@{alias}" if alias else f"/{'latest' if version is None else version}"
+        return load_model(f"models:/{name}{ref}")
+
+    def register(
+        self,
+        model_uri: str,
+        name: str,
+        tags: Optional[Dict[str, str]] = None,
+        **kwargs: Any,
+    ) -> ModelVersion:
+        """Register a logged app under a name, creating it if new or adding a version if it already exists.
+
+        Args:
+            model_uri (str): Logged model to register, e.g. `info.model_uri` from `pyfunc.log_model()`.
+            name (str): Registered name.
+            tags (Optional[Dict[str, str]]): Version-level tags.
+            **kwargs (Any): Passed to `mlflow.register_model` (e.g. `await_registration_for`).
+
+        Returns:
+            ModelVersion: The newly created version.
+
+        Examples:
+            >>> loader = ArtifactLoader(Connector.from_config(cfg))
+            >>> info = mlflow.pyfunc.log_model(name="agent", python_model=contract_review_agent)
+            >>> loader.register(info.model_uri, "contract-review-agent").version
+            1
+        """
+        model_version = mlflow.register_model(model_uri, name, tags=tags, **kwargs)
+        logger.info(f"Registered app {name!r} version {model_version.version}")
+        return model_version
+
+    def list(self, filter_string: Optional[str] = None, max_results: Optional[int] = None) -> List[RegisteredModel]:
+        """List registered apps, optionally filtered.
+
+        Args:
+            filter_string (Optional[str]): MLflow filter, e.g. `"name LIKE 'contract%'"`.
+            max_results (Optional[int]): Cap on results; MLflow's default applies when omitted.
+
+        Returns:
+            List[RegisteredModel]: Matching registered apps.
+
+        Examples:
+            >>> loader = ArtifactLoader(Connector.from_config(cfg))
+            >>> [m.name for m in loader.list("name LIKE 'contract%'")]
+            ['contract-review-agent', 'contract-clause-extractor']
+        """
+        return mlflow.search_registered_models(filter_string=filter_string, max_results=max_results)

@@ -6,7 +6,7 @@ defaults:
 app:
   info:
     name: mlflow-registry-cli
-    help: "MLflow Prompt Registry — register, load, alias, tag, and list versioned prompts."
+    help: "MLflow registries — versioned prompts (register, load, alias, tag, list) and registered apps (`artifact` group)."
     version: 0.1.0
 
 mlflow:

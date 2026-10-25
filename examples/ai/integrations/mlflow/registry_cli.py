@@ -3,12 +3,16 @@
 # uv run python examples/ai/integrations/mlflow/registry_cli.py load ticket-triage --alias production
 # uv run python examples/ai/integrations/mlflow/registry_cli.py list --filter "name LIKE 'ticket%'"
 # uv run python examples/ai/integrations/mlflow/registry_cli.py list --endpoint http://localhost:5001
+# uv run python examples/ai/integrations/mlflow/registry_cli.py artifact register models:/m-abc123 billing-agent --tag team=support
+# uv run python examples/ai/integrations/mlflow/registry_cli.py artifact load billing-agent --alias champion --input '[{"question": "..."}]'
+# uv run python examples/ai/integrations/mlflow/registry_cli.py artifact list --filter "name LIKE 'billing%'"
 # See examples/ai/integrations/mlflow/README.md for details.
 
+import  json
 import  logging
 from    contextlib import contextmanager
 from    pathlib import Path
-from    typing import Dict, Generator, List, Optional
+from    typing import Any, Dict, Generator, List, Optional
 
 import  typer
 from    mlflow.exceptions import MlflowException
@@ -20,7 +24,7 @@ from    rich.table import Table
 from    velari_core.core import read_root_dir
 from    velari_core.core.io.partition.hydra import read_hydra_compose
 from    velari_ai.integrations.mlflow.connection import Connector, ConnectorConfig
-from    velari_ai.integrations.mlflow.registry import PromptRegistry
+from    velari_ai.integrations.mlflow.registry import ArtifactLoader, PromptRegistry
 
 logger  = logging.getLogger(__name__)
 console = Console(stderr=True, color_system="auto", force_terminal=True)
@@ -37,11 +41,15 @@ def _load_cfg(primary_config_dir: str, config_name: str, searchpath_dir: str) ->
     return cfg
 
 
-def _connect(cfg: DictConfig, endpoint: Optional[str]) -> PromptRegistry:
-    """Build a PromptRegistry on a remote tracking server (`endpoint`) or the config's local store."""
+def _connector(cfg: DictConfig, endpoint: Optional[str]) -> Connector:
+    """Build a Connector to a remote tracking server (`endpoint`) or the config's local store."""
     connector = Connector(ConnectorConfig(remote=ConnectorConfig.Remote(endpoint=endpoint))) if endpoint else Connector.from_config(cfg)
     console.print(f"[dim]MLflow tracking → {connector.url}[/dim]")
-    return PromptRegistry(connector)
+    return connector
+
+
+def _connect(cfg: DictConfig, endpoint: Optional[str]) -> PromptRegistry:
+    return PromptRegistry(_connector(cfg, endpoint))
 
 
 @contextmanager
@@ -61,7 +69,7 @@ def _parse_tags(tags: List[str]) -> Dict[str, str]:
 
 
 def build_app(cfg: DictConfig) -> typer.Typer:
-    """Build the Typer app, with name/help from `app.info.*` and one subcommand per PromptRegistry method."""
+    """Build the Typer app: one subcommand per PromptRegistry method, plus an `artifact` group for ArtifactLoader."""
     app = typer.Typer(name=cfg.app.info.name, help=cfg.app.info.help, rich_markup_mode="rich", add_completion=False)
 
     @app.command(help="Register a prompt, creating it or adding a new version.")
@@ -152,6 +160,59 @@ def build_app(cfg: DictConfig) -> typer.Typer:
         with _report_mlflow_errors():
             _connect(cfg, endpoint).delete_tag(name, key)
         console.print(f"[green]Removed tag[/green] {key} from {name}")
+
+    artifact = typer.Typer(help="Registered GenAI apps/agents (logged models): register, load, and list.", rich_markup_mode="rich")
+    app.add_typer(artifact, name="artifact")
+
+    @artifact.command(name="register", help="Register a logged model, creating it or adding a new version.")
+    def register_artifact(
+        model_uri: str                 = typer.Argument(..., help="Logged model URI, e.g. models:/m-abc123 or runs:/<run_id>/agent."),
+        name:      str                 = typer.Argument(..., help="Registered name."),
+        tag:       Optional[List[str]] = typer.Option(None, help="Version tag as KEY=VALUE; repeatable."),
+        endpoint:  Optional[str]       = EndpointOption,
+    ) -> None:
+        with _report_mlflow_errors():
+            version = ArtifactLoader(_connector(cfg, endpoint)).register(model_uri, name, tags=_parse_tags(tag or []) or None)
+        console.print(f"[green]Registered[/green] {name} version {version.version}")
+
+    @artifact.command(name="load", help="Load a registered app by version, by alias, or its latest version; optionally run it.")
+    def load_artifact(
+        name:       str           = typer.Argument(..., help="Registered name."),
+        version:    Optional[int] = typer.Option(None, help="Version number; not combinable with --alias."),
+        alias:      Optional[str] = typer.Option(None, help="Alias to resolve, e.g. champion."),
+        input_json: Optional[str] = typer.Option(None, "--input", help="JSON passed to the model's predict(), e.g. '[1, 2]'."),
+        endpoint:   Optional[str] = EndpointOption,
+    ) -> None:
+        data: Any = None
+        try:
+            data = json.loads(input_json) if input_json is not None else None
+        except json.JSONDecodeError as exc:
+            raise typer.BadParameter(f"--input must be valid JSON: {exc}")
+        with _report_mlflow_errors():
+            try:
+                model = ArtifactLoader(_connector(cfg, endpoint)).load(name, version=version, alias=alias)
+            except ValueError as exc:
+                raise typer.BadParameter(str(exc))
+            console.print(Panel(
+                f"model_id={model.model_id}\nflavors={list(model.metadata.flavors)}\nsignature={model.metadata.signature}",
+                title=f"{name} loaded",
+            ))
+            if input_json is not None:
+                console.print(model.predict(data))
+
+    @artifact.command(name="list", help="List registered apps.")
+    def list_artifacts(
+        filter_string: Optional[str] = typer.Option(None, "--filter", help="MLflow filter, e.g. \"name LIKE 'billing%'\"."),
+        max_results:   Optional[int] = typer.Option(None, help="Cap on the number of apps returned."),
+        endpoint:      Optional[str] = EndpointOption,
+    ) -> None:
+        with _report_mlflow_errors():
+            models = ArtifactLoader(_connector(cfg, endpoint)).list(filter_string, max_results)
+        table = Table("name", "latest", "latest tags", "description")
+        for model in models:
+            latest = max(model.latest_versions or [], key=lambda v: int(v.version), default=None)
+            table.add_row(model.name, str(latest.version) if latest else "-", str(latest.tags) if latest else "", model.description or "")
+        console.print(table)
 
     return app
 
