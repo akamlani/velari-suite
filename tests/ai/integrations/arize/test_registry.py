@@ -270,7 +270,9 @@ class TestDatasetRegistry:
         call = client.datasets.create_calls[0]
         assert call["name"] == "qa-dataset"
         assert call["input_keys"] == ["question"]
+        assert call["dataframe"] is df
         assert "output_keys" not in call
+        assert "metadata_keys" not in call
         assert "dataset_description" not in call
 
     def test_create_includes_output_keys_and_description_when_given(self):
@@ -292,14 +294,24 @@ class TestDatasetRegistry:
         assert call["output_keys"] == ["answer"]
         assert call["dataset_description"] == "support ticket QA pairs"
 
-    def test_add_examples_passes_required_fields(self):
+    def test_create_includes_metadata_keys_when_given(self):
+        from velari_ai.integrations.arize.registry import DatasetRegistry
+
+        client: Any = _FakeClient()
+        registry = DatasetRegistry(client)
+
+        registry.create("qa-dataset", _make_dataframe(), input_keys=["question"], metadata_keys=["team"])
+
+        assert client.datasets.create_calls[0]["metadata_keys"] == ["team"]
+
+    def test_extend_passes_required_fields(self):
         from velari_ai.integrations.arize.registry import DatasetRegistry
 
         client: Any = _FakeClient()
         registry = DatasetRegistry(client)
         df = _make_dataframe()
 
-        dataset = registry.add_examples("qa-dataset", df, input_keys=["question"])
+        dataset = registry.extend("qa-dataset", df, input_keys=["question"])
 
         assert dataset.name == "qa-dataset"
         assert dataset.version_id == "version-2"
@@ -308,7 +320,7 @@ class TestDatasetRegistry:
         assert call["input_keys"] == ["question"]
         assert "output_keys" not in call
 
-    def test_add_examples_forwards_dataset_object(self):
+    def test_extend_forwards_dataset_object(self):
         from velari_ai.integrations.arize.registry import DatasetRegistry
 
         client: Any = _FakeClient()
@@ -316,22 +328,32 @@ class TestDatasetRegistry:
         existing: Any = _FakeDataset(name="qa-dataset")
         df = _make_dataframe()
 
-        registry.add_examples(existing, df, input_keys=["question"])
+        registry.extend(existing, df, input_keys=["question"])
 
         call = client.datasets.add_examples_calls[0]
         assert call["dataset"] is existing
 
-    def test_add_examples_includes_output_keys_when_given(self):
+    def test_extend_includes_output_keys_when_given(self):
         from velari_ai.integrations.arize.registry import DatasetRegistry
 
         client: Any = _FakeClient()
         registry = DatasetRegistry(client)
         df = _make_dataframe()
 
-        registry.add_examples("qa-dataset", df, input_keys=["question"], output_keys=["answer"])
+        registry.extend("qa-dataset", df, input_keys=["question"], output_keys=["answer"])
 
         call = client.datasets.add_examples_calls[0]
         assert call["output_keys"] == ["answer"]
+
+    def test_extend_includes_metadata_keys_when_given(self):
+        from velari_ai.integrations.arize.registry import DatasetRegistry
+
+        client: Any = _FakeClient()
+        registry = DatasetRegistry(client)
+
+        registry.extend("qa-dataset", _make_dataframe(), input_keys=["question"], metadata_keys=["team"])
+
+        assert client.datasets.add_examples_calls[0]["metadata_keys"] == ["team"]
 
     def test_get_defaults_version_id_to_none(self):
         from velari_ai.integrations.arize.registry import DatasetRegistry

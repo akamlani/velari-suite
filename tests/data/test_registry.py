@@ -1,6 +1,7 @@
 """Tests for velari_data.registry."""
 
 import pandas as pd
+import pytest
 from omegaconf import OmegaConf
 
 
@@ -23,6 +24,25 @@ def test_arize_dataset_registry_implements_registry():
     from velari_data.registry import Registry
 
     assert issubclass(DatasetRegistry, Registry)
+
+
+@pytest.mark.parametrize("class_name", ["PromptRegistry", "ArtifactRegistry"])
+def test_mlflow_registries_implement_registry(class_name):
+    from velari_ai.integrations.mlflow import registry as mlflow_registry
+    from velari_data.registry import Registry
+
+    assert issubclass(getattr(mlflow_registry, class_name), Registry)
+
+
+@pytest.mark.parametrize(
+    "module_path",
+    ["velari_ai.integrations.arize.registry", "velari_ai.integrations.mlflow.registry"],
+)
+def test_dataset_registries_implement_dataset_registry_interface(module_path):
+    import importlib
+    from velari_data.registry import DatasetRegistryInterface
+
+    assert issubclass(importlib.import_module(module_path).DatasetRegistry, DatasetRegistryInterface)
 
 
 def _make_fake_registry():
