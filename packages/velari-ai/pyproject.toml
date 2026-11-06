@@ -16,6 +16,8 @@ dependencies    = [
     "omegaconf>=2.3",
     "scipy>=1.13",
     "scikit-learn>=1.5",
+    "umap-learn>=0.5",
+    "hdbscan>=0.8.44",
     "openai>=2.0",
     "editdistance>=0.8",
 ]
@@ -29,8 +31,9 @@ agents = [
     "grandalf>=0.8",
     "griffe>=2.0",
     "jinja2>=3.1",
-    # sentence-transformers for embedding models
-    "sentence-transformers>=5.7",
+    # sentence-transformers for embedding models (embeddinggemma-2 needs >=6.1, the image extra, and transformers>=5.19)
+    "sentence-transformers[image,merge]>=6.2",
+    "transformers>=5.19",
     # search and retrieval utilities
     "tavily-python>=0.7.27",
     # langchain modules
@@ -54,13 +57,15 @@ evals = [
     "arize-phoenix-otel>=0.8",
     "arize-phoenix-client>=1.0",
     "opentelemetry-api>=1.30",
+    "statsmodels>=0.14",
 ]
 mlflow = [
     "mlflow>=3.17",
 ]
 gateway = [
     "anthropic>=0.40",
-    "sentence-transformers>=5.7",
+    "sentence-transformers[image,merge]>=6.2",
+    "transformers>=5.19",
 ]
 
 [tool.uv.sources]

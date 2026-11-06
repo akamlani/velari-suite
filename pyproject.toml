@@ -9,6 +9,7 @@ dev = [
     "ipython>=8.0",
     "ipywidgets>=8.0",
     "nbformat>=4.2",
+    "plotly>=5.18",
     "pytest>=8.0",
     "ruff>=0.9",
     "pyright>=1.1",
@@ -42,6 +43,11 @@ typeCheckingMode = "standard"
 # before exclude globs can prune it, which is what caused pyright to hang for minutes on a plain
 # `uv run pyright` (individual `uv run pyright <package>` runs were always fast).
 include = ["packages/velari-core", "packages/velari-data", "packages/velari-ai", "examples", "tests"]
+
+# ty (the IDE language server) ignores [tool.pyright]; the workspace packages are editable-installed via
+# import hooks it can't follow, so point it at the same source roots.
+[tool.ty.environment]
+extra-paths = ["packages/velari-core", "packages/velari-data", "packages/velari-ai"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
