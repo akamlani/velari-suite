@@ -10,7 +10,7 @@ from    phoenix.client.resources.datasets import Dataset
 from    phoenix.client.resources.experiments.types import ExperimentEvaluators, ExperimentTask, RanExperiment, RateLimitErrors
 from    phoenix.client.types.prompts import PromptVersion
 # package modules
-from    velari_data.registry import Registry
+from    velari_data.registry import DatasetRegistryInterface, Registry
 
 logger = logging.getLogger(__name__)
 
@@ -147,8 +147,8 @@ class PromptRegistry(Registry):
         return pd.DataFrame(self.list())
 
 
-class DatasetRegistry(Registry):
-    """Create, retrieve, and list Arize Phoenix evaluation datasets.
+class DatasetRegistry(DatasetRegistryInterface):
+    """Create, extend, retrieve, and list Arize Phoenix evaluation datasets.
 
     Args:
         client (Client): Already-connected Phoenix client (e.g. `connection.Connector.client`).
@@ -159,22 +159,24 @@ class DatasetRegistry(Registry):
     def create(
         self,
         name: str,
-        dataframe:   pd.DataFrame,
-        input_keys:  List[str],
-        output_keys: Optional[List[str]] = None,
-        description: Optional[str] = None,
+        df_records:    pd.DataFrame,
+        input_keys:    List[str],
+        output_keys:   Optional[List[str]] = None,
+        description:   Optional[str] = None,
+        metadata_keys: Optional[List[str]] = None,
         **kwargs: Any,
     ) -> Dataset:
         """Upload a dataframe as a new Phoenix dataset.
 
         Args:
             name (str): Dataset name, shown in the Phoenix UI.
-            dataframe (pd.DataFrame): Rows to upload; columns referenced by `input_keys`/
+            df_records (pd.DataFrame): Rows to upload; columns referenced by `input_keys`/
                 `output_keys` become the dataset's example fields.
             input_keys (List[str]): Columns holding example inputs.
             output_keys (Optional[List[str]]): Columns holding expected outputs. Omit when the
                 dataframe has no target yet — just inputs.
             description (Optional[str]): Human-readable dataset description.
+            metadata_keys (Optional[List[str]]): Columns stored as per-example metadata.
 
         Returns:
             Dataset: The created dataset, with its assigned `id`/`version_id`.
@@ -204,39 +206,45 @@ class DatasetRegistry(Registry):
         """
         create_kwargs: Dict[str, Any] = dict(
             name       = name,
-            dataframe  = dataframe,
+            dataframe  = df_records,
             input_keys = input_keys,
         )
         if output_keys is not None:
             create_kwargs["output_keys"] = output_keys
         if description is not None:
             create_kwargs["dataset_description"] = description
+        if metadata_keys is not None:
+            create_kwargs["metadata_keys"] = metadata_keys
         dataset = self._client.datasets.create_dataset(**create_kwargs)
         logger.info(f"Created dataset '{dataset.name}' — id={dataset.id}, version={dataset.version_id}, {len(dataset)} examples")
-        logger.info(f"Columns: {dataframe.columns.tolist()}")
-        logger.info(f"Sample:\n{dataframe.head().to_string()}")
+        logger.info(f"Columns: {df_records.columns.tolist()}")
+        logger.info(f"Sample:\n{df_records.head().to_string()}")
         return dataset
 
-    def add_examples(
+    def extend(
         self,
         dataset: Union[str, Dataset, Dict[str, Any]],
-        dataframe:   pd.DataFrame,
-        input_keys:  List[str],
-        output_keys: Optional[List[str]] = None,
+        df_records:    pd.DataFrame,
+        input_keys:    List[str],
+        output_keys:   Optional[List[str]] = None,
+        metadata_keys: Optional[List[str]] = None,
         **kwargs: Any,
     ) -> Dataset:
-        """Append examples to an existing Phoenix dataset.
+        """Append examples to an existing Phoenix dataset, creating a new version.
+
+        Rows are appended, not de-duplicated: re-adding a row duplicates it unless `example_id_key` is passed.
 
         Args:
             dataset (Union[str, Dataset, Dict[str, Any]]): Dataset to append to — a name, a
                 `Dataset` object (e.g. from `create()`/`get()`), or a dict with `id`/`name`.
-            dataframe (pd.DataFrame): Rows to append; columns referenced by `input_keys`/
+            df_records (pd.DataFrame): Rows to append; columns referenced by `input_keys`/
                 `output_keys` become the new examples' fields.
             input_keys (List[str]): Columns holding example inputs.
             output_keys (Optional[List[str]]): Columns holding expected outputs. Omit when the
                 dataframe has no target yet — just inputs.
+            metadata_keys (Optional[List[str]]): Columns stored as per-example metadata.
             **kwargs (Any): Forwarded to Phoenix's `Datasets.add_examples_to_dataset()` (e.g.
-                `metadata_keys`, `split_key`, `example_id_key`).
+                `split_key`, `example_id_key`).
 
         Returns:
             Dataset: The updated dataset, with the new examples included in a new version.
@@ -253,15 +261,17 @@ class DatasetRegistry(Registry):
             ...     "question": ["How do I update my billing address?"],
             ...     "answer":   ["Go to Account Settings > Billing and edit your address."],
             ... })
-            >>> dataset = registry.add_examples(dataset, df_more_tickets, input_keys=["question"], output_keys=["answer"])
+            >>> dataset = registry.extend(dataset, df_more_tickets, input_keys=["question"], output_keys=["answer"])
         """
         add_kwargs: Dict[str, Any] = dict(
             dataset    = dataset,
-            dataframe  = dataframe,
+            dataframe  = df_records,
             input_keys = input_keys,
         )
         if output_keys is not None:
             add_kwargs["output_keys"] = output_keys
+        if metadata_keys is not None:
+            add_kwargs["metadata_keys"] = metadata_keys
         updated = self._client.datasets.add_examples_to_dataset(**add_kwargs, **kwargs)
         logger.info(f"Added examples to dataset '{updated.name}' — id={updated.id}, version={updated.version_id}, {len(updated)} examples")
         return updated
@@ -604,7 +614,7 @@ class ExperimentsRegistry(Registry):
         """
         options = options or ExperimentOptions()
         # unlike run_experiment, evaluate_experiment's dry_run has no "sample size" form
-        execution_kwargs = {**options.execution.to_kwargs(), "dry_run": bool(options.execution.dry_run)}
+        execution_kwargs: Dict[str, Any] = {**options.execution.to_kwargs(), "dry_run": bool(options.execution.dry_run)}
         result = self._client.experiments.evaluate_experiment(
             experiment=experiment,
             evaluators=evaluators,

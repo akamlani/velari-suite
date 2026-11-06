@@ -64,7 +64,7 @@ uv run python examples/ai/integrations/mlflow/registry_cli.py list --endpoint ht
   (the same sqlite store `trace_cli.py` and `serve_cli.py` use). A missing prompt/version/alias exits 1.
 - Config is `examples/_conf/tracking/mlflow/app_mlflow_registry.yaml`, which composes `config/tracing/mlflow.yaml`.
 
-The `artifact` group drives `velari_ai.integrations.mlflow.registry.ArtifactLoader` — registered GenAI
+The `artifact` group drives `velari_ai.integrations.mlflow.registry.ArtifactRegistry` — registered GenAI
 apps/agents (logged models) rather than prompts:
 
 ```
@@ -78,8 +78,36 @@ uv run python examples/ai/integrations/mlflow/registry_cli.py artifact load bill
 - `artifact load NAME` — `--version N` or `--alias A` (not both; neither loads the latest). Prints the model id,
   flavors, and signature; `--input JSON` also runs `predict()` on it.
 - `artifact list` — `--filter` / `--max-results`. Takes `--endpoint` like the prompt commands.
-- Aliases and tags for registered apps aren't exposed here — `ArtifactLoader` has none (they live on
-  `ArtifactRegistry` in `client.py`).
+- Aliases and tags for registered apps aren't exposed here. `registry.ArtifactRegistry` (used by this CLI) has
+  none; they live on the separate `client.ArtifactRegistry` in `client.py`, which shares the class name.
+
+The `dataset` group drives `velari_ai.integrations.mlflow.registry.DatasetRegistry` — evaluation datasets you
+build from a CSV/JSON/Excel file, extend, tag, and snapshot (design: `docs/integrations/mlflow/datasets.md`):
+
+```
+uv run python examples/ai/integrations/mlflow/registry_cli.py dataset create support-qa --file tickets.csv --input-key question --output-key answer --metadata-key team --tag owner=support
+uv run python examples/ai/integrations/mlflow/registry_cli.py dataset snapshot support-qa v1
+uv run python examples/ai/integrations/mlflow/registry_cli.py dataset extend support-qa --file more.csv --input-key question --output-key answer
+uv run python examples/ai/integrations/mlflow/registry_cli.py dataset update support-qa --tag stage=prod --remove-tag owner
+uv run python examples/ai/integrations/mlflow/registry_cli.py dataset get support-qa --head 3
+uv run python examples/ai/integrations/mlflow/registry_cli.py dataset load-snapshot support-qa v1
+```
+
+- `dataset create NAME` — optional `--file` (`.csv`, `.json`, `.xlsx`/`.xls`) seeds it; `--file` needs at least one
+  `--input-key`. `--output-key` (expected outputs) and `--metadata-key` (per-record metadata) are repeatable column
+  names. `--tag KEY=VALUE` (repeatable) and `--description` apply to the **dataset**. Without `--file` it creates an
+  empty dataset.
+- `dataset extend NAME` — `--file` and `--input-key` required, plus the same optional keys and `--tag`. An upsert:
+  MLflow replaces rows it considers the same record and creates **no** version, so use `snapshot` for a restore point.
+- `dataset update NAME` — `--tag KEY=VALUE` and/or `--remove-tag KEY` (repeatable; at least one). Records are untouched.
+- `dataset delete NAME` — deletes the whole dataset after a confirmation prompt (`--yes` skips it). With
+  `--record-id ID` and/or `--tag-key KEY` (repeatable) it deletes only those and keeps the dataset.
+- `dataset get NAME` — id, digest, tags, record count, and the first `--head N` records (default 5). `dataset list` takes
+  `--filter` / `--max-results`.
+- `dataset snapshot NAME LABEL`, `dataset list-snapshots NAME`, `dataset load-snapshot NAME LABEL [--head N]` — MLflow
+  has no dataset versions outside Databricks, so a snapshot saves the records under a label you can reload later.
+- Every `dataset` command takes `--endpoint <url>` like the others. A missing dataset or snapshot exits 1; a bad
+  option (e.g. `--file` without `--input-key`) exits 2.
 
 ## `serve_cli.py`
 
