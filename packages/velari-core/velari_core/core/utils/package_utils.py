@@ -59,9 +59,6 @@ def _version_from_pyproject(package: str) -> Optional[str]:
 def package_version(package: str) -> str:
     """Resolve a package's version from installed metadata, else its own `pyproject.toml`, else `"0.0.0"`.
 
-    The `pyproject.toml` fallback starts from `package`'s own source location, so each workspace
-    package reports its own version, not `velari-core`'s.
-
     Args:
         package (str): Import name of the package; a dotted name uses its top-level package.
 
