@@ -54,7 +54,8 @@ project-template-velari/
 ├── tests/                            # pytest test suite for the workspace (centralized across all packages)
 │   ├── ai/                           # integrations/ (agno, jinja, langchain, tavily), mcp/, providers/
 │   ├── core/                         # Mirrors velari-core
-│   └── data/                         # Mirrors velari-data
+│   ├── data/                         # Mirrors velari-data
+│   └── harness/                      # Mirrors velari-harness
 ├── packages/                         # uv workspace member packages
 │   ├── velari-core/                  # velari-core package
 │   │   ├── pyproject.toml            # Package metadata and dependencies
@@ -65,12 +66,16 @@ project-template-velari/
 │   │   ├── pyproject.toml            # Package metadata and dependencies
 │   │   └── velari_data/
 │   │       └── integrations/         # mongo
-│   └── velari-ai/                    # velari-ai package (depends on velari-core)
+│   ├── velari-ai/                    # velari-ai package (depends on velari-core)
+│   │   ├── Makefile                  # Package-local automation (info/help)
+│   │   ├── pyproject.toml            # Package metadata and dependencies
+│   │   └── velari_ai/
+│   │       ├── ai/                   # evals, features, retrieval, provider.py, response.py, types.py
+│   │       └── integrations/         # agno, fastmcp, huggingface, jinja, langchain, openai, tavily
+│   └── velari-harness/               # velari-harness package (depends on velari-core, velari-ai)
 │       ├── Makefile                  # Package-local automation (info/help)
 │       ├── pyproject.toml            # Package metadata and dependencies
-│       └── velari_ai/
-│           ├── ai/                   # evals, features, retrieval, provider.py, response.py, types.py
-│           └── integrations/         # agno, fastmcp, huggingface, jinja, langchain, openai, tavily
+│       └── velari_harness/           # Scaffold only so far (__init__.py)
 ├── .env                              # Local environment variables and secrets; not tracked by git
 ├── AGENTS.md                         # AI agent context file
 ├── CLAUDE.md                         # Claude Code entry point

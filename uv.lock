@@ -18,6 +18,7 @@ members = [
     "velari-ai",
     "velari-core",
     "velari-data",
+    "velari-harness",
 ]
 
 [manifest.dependency-groups]
@@ -7072,6 +7073,25 @@ dependencies = [
 requires-dist = [
     { name = "omegaconf", specifier = ">=2.3" },
     { name = "pandas", specifier = ">=2.0" },
+    { name = "velari-core", editable = "packages/velari-core" },
+]
+
+[[package]]
+name = "velari-harness"
+version = "0.1.0"
+source = { editable = "packages/velari-harness" }
+dependencies = [
+    { name = "omegaconf" },
+    { name = "pandas" },
+    { name = "velari-ai" },
+    { name = "velari-core" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "omegaconf", specifier = ">=2.3" },
+    { name = "pandas", specifier = ">=2.0" },
+    { name = "velari-ai", editable = "packages/velari-ai" },
     { name = "velari-core", editable = "packages/velari-core" },
 ]
 

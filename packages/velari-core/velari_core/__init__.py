@@ -8,9 +8,11 @@ from    typing import Any, Dict, Optional
 from    hydra.errors import MissingConfigException
 from    omegaconf import OmegaConf
 # package modules
-from    .version import __version__
+from    .core.utils.package_utils import package_version
 from    .core import read_root_dir
 from    .core.io.partition.hydra import read_hydra, read_hydra_defaults
+
+__version__ = package_version(__name__)
 
 
 def _in_notebook() -> bool:

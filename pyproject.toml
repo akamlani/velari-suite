@@ -35,19 +35,19 @@ testpaths = ["tests"]
 addopts   = ["--import-mode=importlib"]
 
 [tool.pyright]
-extraPaths = ["packages/velari-core", "packages/velari-data", "packages/velari-ai"]
+extraPaths = ["packages/velari-core", "packages/velari-data", "packages/velari-ai", "packages/velari-harness"]
 typeCheckingMode = "standard"
 # Explicit include, not just exclude: packages/frontend is a pnpm/Node package (not Python) whose
 # node_modules/.pnpm tree is large and, in this Dropbox-synced repo, slow to enumerate — without an
 # include list, pyright's default project root is the whole repo and it still has to walk that tree
 # before exclude globs can prune it, which is what caused pyright to hang for minutes on a plain
 # `uv run pyright` (individual `uv run pyright <package>` runs were always fast).
-include = ["packages/velari-core", "packages/velari-data", "packages/velari-ai", "examples", "tests"]
+include = ["packages/velari-core", "packages/velari-data", "packages/velari-ai", "packages/velari-harness", "examples", "tests"]
 
 # ty (the IDE language server) ignores [tool.pyright]; the workspace packages are editable-installed via
 # import hooks it can't follow, so point it at the same source roots.
 [tool.ty.environment]
-extra-paths = ["packages/velari-core", "packages/velari-data", "packages/velari-ai"]
+extra-paths = ["packages/velari-core", "packages/velari-data", "packages/velari-ai", "packages/velari-harness"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

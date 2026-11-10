@@ -10,7 +10,7 @@ def test_import_velari_ai():
 
 
 def test_version():
-    from velari_ai.version import __version__
+    from velari_ai import __version__
 
     assert __version__ is not None
     assert isinstance(__version__, str)
