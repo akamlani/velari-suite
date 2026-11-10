@@ -6,7 +6,7 @@ working context instead of duplicating what's already there.
 
 ## Project
 
-- **Package**: `velari-suite` — a `uv` workspace monorepo (`velari-core`, `velari-data`, `velari-ai`)
+- **Package**: `velari-suite` — a `uv` workspace monorepo (`velari-core`, `velari-data`, `velari-ai`, `velari-harness`)
 - **Language**: Python 3.12 (managed via `uv`)
 - **License**: Apache-2.0
 
@@ -34,6 +34,7 @@ Files an AI agent should read first to understand the project's conventions, con
 | `packages/velari-core/pyproject.toml` | `velari-core` package metadata and its runtime dependencies |
 | `packages/velari-data/pyproject.toml` | `velari-data` package metadata; depends on `velari-core` via `[tool.uv.sources] workspace = true` |
 | `packages/velari-ai/pyproject.toml` | `velari-ai` package metadata; depends on `velari-core` via `[tool.uv.sources] workspace = true` |
+| `packages/velari-harness/pyproject.toml` | `velari-harness` package metadata; depends on `velari-core` and `velari-ai` via `[tool.uv.sources] workspace = true` |
 | `.claude/rules/guidelines/python/dev_guides.md` | Coding conventions: logging, type annotations, package structure |
 | `.claude/rules/guidelines/python/import_guides.md` | Import conventions: ordering, alignment, grouping, relative vs. absolute, qualification |
 | `.claude/rules/guidelines/python/doc_guides.md` | Docstring conventions: Google-style sections, spacing, test-code deviation |
@@ -57,7 +58,9 @@ Files an AI agent should read first to understand the project's conventions, con
 
 This repo is a `uv` workspace monorepo (`[tool.uv.workspace] members = ["packages/*"]` in the root `pyproject.toml`) hosting multiple independently-versioned packages under `packages/`. The root `pyproject.toml` has no `[project]` table of its own — it is a virtual workspace root; each package under `packages/<name>/` has its own `pyproject.toml` with its own name and dependencies. A single `uv.lock` and shared `.venv` cover the whole workspace. See README.md's [Directory Structure](README.md#directory-structure) for the current list of packages and their subpackages.
 
-Each package's import name mirrors its own distribution name (`velari-core` → `velari_core`, `velari-data` → `velari_data`, `velari-ai` → `velari_ai`), following the LangChain/Dagster convention — bare `velari` is intentionally left unclaimed for a possible future top-level orchestration package. Future packages should follow the same convention: independent top-level import name mirroring the distribution name, not a nested `velari.<name>` namespace (which would require PEP 420 cross-distribution namespace-package handling).
+Each package's import name mirrors its own distribution name (`velari-core` → `velari_core`, `velari-data` → `velari_data`, `velari-ai` → `velari_ai`, `velari-harness` → `velari_harness`), following the LangChain/Dagster convention — bare `velari` is intentionally left unclaimed for a possible future top-level orchestration package. Future packages should follow the same convention: independent top-level import name mirroring the distribution name, not a nested `velari.<name>` namespace (which would require PEP 420 cross-distribution namespace-package handling).
+
+Packages share one bootstrap pattern: a package's `__init__.py` takes `__version__` from `velari_core.core.utils.package_utils.package_version(__name__)` and defines its own `logger = logging.getLogger(__name__)`. There is no per-package `version.py`; copy `velari_harness/__init__.py` for new packages.
 
 ## Structure Notes
 

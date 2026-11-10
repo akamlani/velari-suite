@@ -1,0 +1,31 @@
+[project]
+name            = "velari-harness"
+authors         = [{name = "Ari Kamlani", email = "akamlani@gmail.com"}]
+description     = "Velari harnesses"
+version         = "0.1.0"
+requires-python = ">=3.12"
+readme          = "README.md"
+license         = {text = "Apache-2.0"}
+keywords        = ["ai", "harness", "evaluation", "experiments", "incubation", "innovation"]
+dependencies    = [
+    "velari-core",
+    "velari-ai",
+    "pandas>=2.0",
+    "omegaconf>=2.3",
+]
+
+# Runtime extras are added here once the harness runtimes are defined, one extra per execution
+# backend that owns its own third-party packages, e.g. `ray = ["ray>=2.0"]`, installed with
+# `velari-harness[ray]`. The default local runner needs no extra.
+
+[tool.uv.sources]
+velari-core = { workspace = true }
+velari-ai   = { workspace = true }
+
+[build-system]
+requires      = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where         = ["."]
+include       = ["velari_harness*"]
