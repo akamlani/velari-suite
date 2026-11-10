@@ -1,10 +1,10 @@
-import platform
-import sys
-import tomllib
-from importlib.metadata import PackageNotFoundError, packages_distributions, version
-from importlib.util import find_spec
-from pathlib import Path
-from typing import Optional
+import  platform
+import  sys
+import  tomllib
+from    importlib.metadata import PackageNotFoundError, packages_distributions, version
+from    importlib.util     import find_spec
+from    pathlib            import Path
+from    typing             import Optional
 
 # format: ('_major', '_minor', '_patch')
 watermark    = dict(python=f"{sys.version_info.major}.{sys.version_info.minor}")
