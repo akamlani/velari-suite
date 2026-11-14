@@ -11,6 +11,12 @@ def _reason(record):
     return failure.reason_code if (failure := record.outcome.failure) else None
 
 
+def _cases(*inputs):
+    from velari_harness.core.schemas.request.case import Case
+
+    return [Case(value) for value in inputs]
+
+
 def _recording_candidate(fail_run_on=None, fail_setup=False, fail_teardown=False, run_exc=None):
     from velari_harness.core.protocols.candidate import Candidate
 
@@ -41,9 +47,9 @@ def test_run_returns_one_record_per_input_in_order():
     from velari_harness.core.execution.runner import Runner
     from velari_harness.core.schemas.types import Status
 
-    records = Runner().run(_recording_candidate(), ["card charged twice", "login fails"])
+    records = Runner().run(_recording_candidate(), _cases("card charged twice", "login fails"))
 
-    assert [(r.index, r.input, r.outcome.output, r.outcome.status, _error(r)) for r in records] == [
+    assert [(r.index, r.case.input, r.outcome.output, r.outcome.status, _error(r)) for r in records] == [
         (0, "card charged twice", "CARD CHARGED TWICE", Status.SUCCESS, None),
         (1, "login fails",        "LOGIN FAILS",        Status.SUCCESS, None),
     ]
@@ -55,7 +61,7 @@ def test_run_runs_candidate_lifecycle_once_per_input():
 
     candidate = _recording_candidate()
 
-    Runner().run(candidate, ["a", "b"])
+    Runner().run(candidate, _cases("a", "b"))
 
     assert candidate.calls == ["setup", "run", "teardown"] * 2
 
@@ -70,7 +76,7 @@ def test_run_failing_input_is_recorded_with_its_error_and_no_output():
     from velari_harness.core.execution.runner import Runner
     from velari_harness.core.schemas.types import Status
 
-    records = Runner().run(_recording_candidate(fail_run_on="bad"), ["ok", "bad", "fine"])
+    records = Runner().run(_recording_candidate(fail_run_on="bad"), _cases("ok", "bad", "fine"))
 
     assert [r.outcome.status for r in records] == [Status.SUCCESS, Status.ERROR, Status.SUCCESS]
     assert (_error(records[1]), records[1].outcome.output) == ("ValueError: cannot route 'bad'", None)
@@ -81,7 +87,7 @@ def test_run_failing_input_does_not_stop_later_inputs():
 
     candidate = _recording_candidate(fail_run_on="bad")
 
-    records = Runner().run(candidate, ["ok", "bad", "fine"])
+    records = Runner().run(candidate, _cases("ok", "bad", "fine"))
 
     assert records[2].outcome.output == "FINE"
     assert candidate.calls == ["setup", "run", "teardown"] * 3
@@ -93,7 +99,7 @@ def test_run_failing_setup_skips_run_and_still_tears_down():
 
     candidate = _recording_candidate(fail_setup=True)
 
-    records = Runner().run(candidate, ["a"])
+    records = Runner().run(candidate, _cases("a"))
 
     assert candidate.calls == ["setup", "teardown"]
     assert (records[0].outcome.status, _error(records[0])) == (Status.ERROR, "RuntimeError: setup failed")
@@ -103,7 +109,7 @@ def test_run_teardown_failure_after_success_is_an_error_and_keeps_output():
     from velari_harness.core.execution.runner import Runner
     from velari_harness.core.schemas.types import Status
 
-    records = Runner().run(_recording_candidate(fail_teardown=True), ["a"])
+    records = Runner().run(_recording_candidate(fail_teardown=True), _cases("a"))
 
     assert (records[0].outcome.status, records[0].outcome.output, _error(records[0])) == (Status.ERROR, "A", "OSError: teardown failed")
 
@@ -118,7 +124,7 @@ def test_run_teardown_failure_after_success_is_an_error_and_keeps_output():
 def test_run_reason_code_is_the_one_of_the_first_failure(candidate_kwargs, expected_reason):
     from velari_harness.core.execution.runner import Runner
 
-    record = Runner().run(_recording_candidate(**candidate_kwargs), ["a"])[0]
+    record = Runner().run(_recording_candidate(**candidate_kwargs), _cases("a"))[0]
 
     assert _reason(record) == expected_reason
 
@@ -138,7 +144,7 @@ def test_run_classifies_the_exception_type_into_a_reason_code(exc, expected_reas
     def failing(text):
         raise exc
 
-    record = Runner().run(CallableCandidate(failing), ["a"])[0]
+    record = Runner().run(CallableCandidate(failing), _cases("a"))[0]
 
     assert _reason(record) == expected_reason
 
@@ -152,7 +158,7 @@ def test_run_trial_error_declares_its_own_reason_code():
     def failing(text):
         raise TrialError(ReasonCode.TIMEOUT, "billing API did not answer")
 
-    record = Runner().run(CallableCandidate(failing), ["a"])[0]
+    record = Runner().run(CallableCandidate(failing), _cases("a"))[0]
 
     assert (_reason(record), _error(record)) == (ReasonCode.TIMEOUT, "TrialError: billing API did not answer")
 
@@ -160,7 +166,7 @@ def test_run_trial_error_declares_its_own_reason_code():
 def test_run_teardown_failure_does_not_mask_earlier_error():
     from velari_harness.core.execution.runner import Runner
 
-    records = Runner().run(_recording_candidate(fail_run_on="bad", fail_teardown=True), ["bad"])
+    records = Runner().run(_recording_candidate(fail_run_on="bad", fail_teardown=True), _cases("bad"))
 
     assert _error(records[0]) == "ValueError: cannot route 'bad'"
 
@@ -171,6 +177,18 @@ def test_run_keyboard_interrupt_propagates_after_teardown_runs():
     candidate = _recording_candidate(fail_run_on="stop", run_exc=KeyboardInterrupt)
 
     with pytest.raises(KeyboardInterrupt):
-        Runner().run(candidate, ["a", "stop", "never reached"])
+        Runner().run(candidate, _cases("a", "stop", "never reached"))
 
     assert candidate.calls == ["setup", "run", "teardown", "setup", "run", "teardown"]
+
+
+def test_run_passes_only_the_case_input_to_the_candidate():
+    from velari_harness.core.execution.runner import Runner
+    from velari_harness.core.protocols.candidate import CallableCandidate
+    from velari_harness.core.schemas.request.case import Case
+
+    seen = []
+
+    Runner().run(CallableCandidate(lambda value: seen.append(value) or value), [Case("a", "SECRET")])
+
+    assert seen == ["a"]

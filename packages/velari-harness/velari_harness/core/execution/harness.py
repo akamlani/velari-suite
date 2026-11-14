@@ -20,18 +20,18 @@ class Harness(object):
 
     Args:
         config (HarnessConfig): The name.
-        task (Task): What is measured; its inputs are what the candidate runs on.
+        task (Task): What is measured; its cases are what the candidate runs on.
         candidate (Candidate): What is measured.
         scorers (Sequence[Callable[[Any, Any], float]]): Functions `fn(output, reference)` (a `bool` is 1.0 or 0.0),
-            keyed by `__name__`, which must be distinct; the task must have `references`.
+            keyed by `__name__`, which must be distinct; every case must have a `reference`.
 
     Raises:
-        ValueError: If `scorers` are given but the task has no `references`, or two scorers share a name.
+        ValueError: If `scorers` are given but a case has no `reference`, or two scorers share a name.
 
     Examples:
         One task and one candidate, scored against the expected churn-risk bands:
 
-        >>> task = Task("churn-risk", [3, 45], references=["low", "high"])
+        >>> task = Task("churn-risk", [Case(3, "low"), Case(45, "high")])
         >>> candidate = CallableCandidate(lambda days_inactive: "high" if days_inactive > 30 else "low")
         >>> def same_band(output, reference):
         ...     return output == reference
@@ -43,12 +43,12 @@ class Harness(object):
 
         Applied (illustrative): an agent candidate on an evaluation task:
 
-        >>> task = Task("support-agent-quality", ["What's the balance on ACC-10293?", "Summarize ticket ORG-4471."])
+        >>> task = Task("support-agent-quality", [Case("What's the balance on ACC-10293?"), Case("Summarize ticket ORG-4471.")])
         >>> result = Harness.for_task(task, BillingAgentCandidate()).run()
     """
     def __init__(self, config: HarnessConfig, task: Task, candidate: Candidate, scorers: Sequence[Callable[[Any, Any], float]] = ()) -> None:
-        if scorers and not task.references:
-            raise ValueError(f"scorers need references, but task {task.name!r} has none")
+        if scorers and any(case.reference is None for case in task.cases):
+            raise ValueError(f"scorers need a reference on every case of task {task.name!r}")
         self._scorers = {getattr(scorer, "__name__", repr(scorer)): scorer for scorer in scorers}
         if len(self._scorers) != len(scorers):
             raise ValueError(f"scorer names must be distinct, got {list(self._scorers)}")
@@ -65,7 +65,7 @@ class Harness(object):
             task (Task): What is measured.
             candidate (Candidate): What is measured on it.
             cfg (Optional[DictConfig]): `HarnessConfig` fields (just `name`); `None` keeps the defaults.
-            scorers (Sequence[Callable[[Any, Any], float]]): Functions `fn(output, reference)`; the task must have `references`.
+            scorers (Sequence[Callable[[Any, Any], float]]): Functions `fn(output, reference)`; every case must have a `reference`.
             **overrides (Any): Fields that take precedence over `cfg`.
 
         Returns:
@@ -90,29 +90,28 @@ class Harness(object):
         return self._candidate
 
     def run(self) -> Result:
-        """Run the candidate on every input, score the successful trials, and return the records with their timing.
+        """Run the candidate on every case, score the successful trials, and return the records with their timing.
 
         Returns:
-            Result: One record per task input, in order, with the time the whole run took.
+            Result: One record per task case, in order, with the time the whole run took.
         """
         start = time.perf_counter()
-        records = self.score(Runner().run(self._candidate, self._task.inputs))
+        records = self.score(Runner().run(self._candidate, self._task.cases))
         return Result(name=self.name, records=records, duration_sec=time.perf_counter() - start)
 
     def score(self, records: Sequence[TrialRecord]) -> List[TrialRecord]:
         """Return `records` with each successful trial scored by every scorer; a failed trial is returned as it is.
 
         Args:
-            records (Sequence[TrialRecord]): Records of this harness's task, one per input in order.
+            records (Sequence[TrialRecord]): Records from running this harness's task.
 
         Returns:
             List[TrialRecord]: Copies of the records; the originals are not changed.
         """
-        references = self._task.references or [None] * len(records)
         return [
             record if record.outcome.failure is not None
-            else record.model_copy(update={"scores": self._scores(record.outcome.output, reference)})
-            for record, reference in zip(records, references, strict=True)
+            else record.model_copy(update={"scores": self._scores(record.outcome.output, record.case.reference)})
+            for record in records
         ]
 
     def _scores(self, output: Any, reference: Any) -> Dict[str, Optional[float]]:

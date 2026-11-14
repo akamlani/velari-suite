@@ -7,9 +7,10 @@ from pydantic import ValidationError
 def test_trial_record_json_roundtrip_returns_equal_model():
     from velari_harness.core.execution.runner import Runner
     from velari_harness.core.protocols.candidate import CallableCandidate
+    from velari_harness.core.schemas.request.case import Case
     from velari_harness.core.schemas.response.record import TrialRecord
 
-    record = Runner().run(CallableCandidate(str.upper), ["card charged twice"])[0]
+    record = Runner().run(CallableCandidate(str.upper), [Case("card charged twice", "CARD CHARGED TWICE")])[0]
 
     assert TrialRecord.model_validate_json(record.model_dump_json()) == record
 

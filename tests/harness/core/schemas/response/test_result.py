@@ -5,10 +5,11 @@ from pydantic import ValidationError
 
 
 def _record(index, output=None, failure=None, scores=None):
+    from velari_harness.core.schemas.request.case import Case
     from velari_harness.core.schemas.response.record import Outcome, TrialRecord
 
     outcome = Outcome(output=output, failure=failure, duration_sec=0.0)
-    return TrialRecord(index=index, input="x", outcome=outcome, scores=scores or {})
+    return TrialRecord(index=index, case=Case("x"), outcome=outcome, scores=scores or {})
 
 
 def test_result_negative_duration_raises_validationerror():

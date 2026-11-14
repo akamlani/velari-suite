@@ -15,10 +15,11 @@ def _recording_candidate():
     return RecordingCandidate()
 
 
-def _task(name, inputs, references=()):
+def _task(name, inputs, references=None):
+    from velari_harness.core.schemas.request.case import Case
     from velari_harness.core.schemas.request.task import Task
 
-    return Task(name, inputs, references=references)
+    return Task(name, [Case(value, reference) for value, reference in zip(inputs, references or [None] * len(inputs))])
 
 
 def _exact_match(output, reference):
@@ -106,6 +107,16 @@ def test_for_task_invalid_scorers_raise_valueerror(scorers, references):
 
     with pytest.raises(ValueError):
         Harness.for_task(_task("ticket-routing", ["a"], references=references), CallableCandidate(str.upper), scorers=scorers)
+
+
+def test_for_task_scorers_with_a_case_missing_its_reference_raise_valueerror():
+    from velari_harness.core.execution.harness import Harness
+    from velari_harness.core.protocols.candidate import CallableCandidate
+
+    task = _task("ticket-routing", ["a", "b"], references=["A", None])
+
+    with pytest.raises(ValueError):
+        Harness.for_task(task, CallableCandidate(str.upper), scorers=[_exact_match])
 
 
 def test_result_round_trips_through_json_with_records_and_scores_intact():

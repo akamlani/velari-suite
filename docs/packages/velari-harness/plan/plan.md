@@ -1,6 +1,6 @@
 # Plan: `velari-harness` package
 
-Status: stage 1 implemented and merged; stage 2 in progress (increments 1 to 9 implemented: `Harness` and its config, `Candidate`, `Runner`, `Task`, `Environment`, scorers, and `Harness` as the container that chains run, score and package); stages 3-6 not yet detailed.
+Status: stage 1 implemented and merged; stage 2 in progress (increments 1 to 10 implemented: `Harness` and its config, `Candidate`, `Runner`, `Task`, `Environment`, scorers, `Harness` as the container that chains run, score and package, and `Case`); stages 3-6 not yet detailed.
 
 ## What a harness is
 
@@ -67,7 +67,7 @@ Each stage is verified before the next starts. Only stages 1 and 2 are detailed;
 | Stage | Category | Doc | Outcome |
 |---|---|---|---|
 | 1 | Package | [stage-1-scaffolding.md](stage-1-scaffolding.md) | Done: package created, wired into the workspace, shared version bootstrap from `velari-core`, no runtime extras yet |
-| 2 | Core (L0) | [stage-2-base-framework.md](stage-2-base-framework.md) | Core kernel under `core/`, built in increments. Increments 1 to 9 (done): `Harness` and `HarnessConfig`, `Candidate`, a minimal `Runner`, a minimal `Task`, a minimal `Environment`, scorers as plain functions, and `Harness` as the container that chains run, score and package. Then: case, metrics, environment wiring, record store, registry |
+| 2 | Core (L0) | [stage-2-base-framework.md](stage-2-base-framework.md) | Core kernel under `core/`, built in increments. Increments 1 to 10 (done): `Harness` and `HarnessConfig`, `Candidate`, a minimal `Runner`, a minimal `Task`, a minimal `Environment`, scorers as plain functions, and `Harness` as the container that chains run, score and package. Then: case, metrics, environment wiring, record store, registry |
 | 3 | Evaluation (L1) | not yet detailed | `evaluation/`: agent, gateway and callable candidate adapters, scorer wrappers over `ai/evals`, LLM judge; retire the stub `EvaluationHarness` |
 | 4 | Data science (L1) | not yet detailed | `experiment/`: `ModelDriver` candidate, partition cases, metric scorers |
 | 5 | Applied (L2) | not yet detailed | Applied harnesses, config groups under `config/harness/`, runnable examples |

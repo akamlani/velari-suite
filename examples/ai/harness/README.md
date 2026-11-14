@@ -9,7 +9,7 @@ rows of a customer CSV file, and the candidate is a small rule-based validator.
   runs one candidate on it through a `Harness`, and prints the run and the outcome per row.
 - **`examples/_conf/harness/app_harness.yaml`** — the `task:` section (name, version, and the path of the CSV
   file) and the `app.info` block that names the CLI.
-- **`data/customers.csv`** — the task's inputs, one customer per row (`id,name,email,age,country`) plus an
+- **`data/customers.csv`** — the task's cases, one customer per row (`id,name,email,age,country`) plus an
   `expected_email` column, the reference for the scorer: six clean rows and six messy ones. One clean row's
   expected address deliberately differs, to show a successful trial with a score of `0.0`. Edit it to change the run.
 
@@ -19,7 +19,7 @@ rows of a customer CSV file, and the candidate is a small rule-based validator.
 `cli.run().render()`.
 
 1. **Create** (in `__init__`): read the CSV with pandas (every column as text, empty cells kept as `""`, so the
-   validator sees the raw values), build the `Task` from the rows, the references and the config, and a `Harness` that pairs
+   validator sees the raw values), build the `Task` from the rows (each a `Case` with its expected email) and the config, and a `Harness` that pairs
    the candidate and the scorer with the task.
 2. **Run** (`run()`): run the harness and keep its `Result`; nothing is printed.
 3. **Render** (`render()`): print the run and the outcome per row. Call `run()` first.
@@ -31,7 +31,7 @@ not change the exit code.
 
 | Core piece | Where in the example |
 |---|---|
-| `Task(name, inputs, version, references)` | Built from the `task:` section; the inputs are the rows of `data/customers.csv`, read with pandas, each a dict keyed by the header, and the references are its `expected_email` column (dropped from the inputs, so the candidate never sees it) |
+| `Task(name, cases, version)` | Built from the `task:` section; each case is a row of `data/customers.csv`, read with pandas: the input is the row as a dict keyed by the header, and the reference is its `expected_email` column (not part of the input, so the candidate never sees it) |
 | `Candidate` subclass | `CustomerValidator`: `setup()` compiles the email pattern, `run(row)` returns a cleaned record or raises, `teardown()` releases the pattern. The Runner calls them once per row |
 | Scorer function | `email_match(output, reference)`: a plain function returning a `bool` (1.0 or 0.0), here reusing `exact_match` from `velari_ai.ai.evals.heuristics`; its name is the key in each record's `scores`. Score and status are separate: row 11 succeeds and scores `0.0`; a failed trial has no output, so it gets no score |
 | `Harness.for_task(task, candidate, scorers=[...])` | The container, named after the task. Its `run()` chains three steps: run the candidate on every input, score each successful trial, package the result |

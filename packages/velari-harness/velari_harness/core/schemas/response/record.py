@@ -2,8 +2,9 @@ from __future__ import annotations
 from    typing    import Any, ClassVar, Dict, Optional, Type
 from    pydantic  import BaseModel, Field, computed_field
 # package modules
-from    ...errors  import TrialError
-from    ..types    import ReasonCode, Status
+from    ...errors       import TrialError
+from    ..request.case  import Case
+from    ..types         import ReasonCode, Status
 
 
 class Failure(BaseModel):
@@ -55,11 +56,11 @@ class Outcome(BaseModel):
 
 
 class TrialRecord(BaseModel):
-    """One trial: the input and its position, how it ended (`outcome`), and its `scores`.
+    """One trial: the case and its position, how it ended (`outcome`), and its `scores`.
 
     `scores` is `None` for a scorer that raised, and empty when the trial failed.
     """
     index:    int
-    input:    Any
+    case:     Case
     outcome:  Outcome
     scores:   Dict[str, Optional[float]]  = Field(default_factory=dict)
