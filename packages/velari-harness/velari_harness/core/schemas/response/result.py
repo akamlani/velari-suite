@@ -19,12 +19,23 @@ class Result(BaseModel):
 
     @computed_field
     @property
+    def usage(self) -> Dict[str, float]:
+        """Total of each usage key over the trials that reported it, such as tokens for a whole run."""
+        totals: Dict[str, float] = {}
+        for record in self.records:
+            if (output := record.outcome.output) is not None:
+                for name, amount in output.usage.items():
+                    totals[name] = totals.get(name, 0.0) + amount
+        return totals
+
+    @computed_field
+    @property
     def scores(self) -> Dict[str, Optional[float]]:
         """Mean value per scorer over the trials it scored; `None` when all of its scores were `None`."""
         values: Dict[str, List[float]] = {}
         for record in self.records:
-            for name, value in record.scores.items():
+            for name, score in record.scores.items():
                 scored = values.setdefault(name, [])
-                if value is not None:
-                    scored.append(value)
+                if score.value is not None:
+                    scored.append(score.value)
         return {name: sum(scored) / len(scored) if scored else None for name, scored in sorted(values.items())}

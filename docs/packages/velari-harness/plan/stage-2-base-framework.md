@@ -7,8 +7,8 @@ Part of [plan.md](plan.md). Requires stage 1. Goal: the harness-agnostic layer (
 A [harness](../glossary.md#harness-vocabulary) executes a Task against a Candidate, under an Environment, for N trials; it records every trial and reduces the records to a Result, reproducibly. The terms are defined in the [glossary](../glossary.md); the sources are in the research references of [plan.md](plan.md#research-references).
 
 ```
-Task (cases + scorers) ─┐
-Candidate (system under test) ─┼─> Runner ─> TrialRecord x (cases x trials) ─> Result (table, summary, save/load)
+Task (examples + scorers) ─┐
+Candidate (system under test) ─┼─> Runner ─> TrialRecord x (examples x trials) ─> Result (table, summary, save/load)
 Environment (seed, limits) ─┘
 ```
 
@@ -28,7 +28,9 @@ Stage 2 is built in small increments, each with its own tests, instead of all at
 | 8 | Scorers as plain functions `fn(output, reference)`; optional `references` on `Task`; `TrialRecord.scores`; `TaskHarness` scores each successful trial; `TaskResult.scores` (mean per scorer) | Implemented |
 | 9 | Simplification: `Harness` becomes the container (`run()` chains run, score, package); the extension base, `TaskHarness`, harness hooks and the run-level status are removed; `Runner` only runs; one `Result` | Implemented |
 | 10 | `Case` (input and optional reference); `Task(name, cases)` replaces `inputs` and `references`; `TrialRecord` keeps its `case`; the Runner runs cases and `Harness.score` reads `record.case.reference` | Implemented |
-| 11 onward | Not yet planned. The remaining modules are added one increment at a time, each re-planned when the previous one is done | |
+| 11 | `Output` (value, usage, artifacts): a candidate may return one or a plain value; `Outcome.output` is an `Output`; the Harness scores the plain value; `Result.usage` totals usage | Implemented |
+| 12 | Structured `Score` (value, passed, label, explanation, failure, metadata); `Case` renamed `Example` and moved into `record.py` (`Task.examples`, `TrialRecord.example`); a scorer may return a number, a bool or a `Score` | Implemented |
+| 13 onward | Not yet planned. The remaining modules are added one increment at a time, each re-planned when the previous one is done | |
 
 ### Increment 1: Harness and its config
 
@@ -204,7 +206,43 @@ Tests: `test_harness.py` is one `TestHarness` class (the scoring cases moved her
 
 A breaking change worth knowing: a run has no `status` or `failure` of its own. Failed trials are data in their records, and anything else (a `KeyboardInterrupt`, a bad argument) raises.
 
+### Increment 12: Score and Example
+
+A score was a bare `float`, so a scorer had nowhere to say why or to attach more. A `Score` gives it a structure that can grow. In the same increment `Case` became `Example` (the word Inspect AI, HELM, Phoenix and LangSmith use for one record) and moved into `record.py`.
+
+| Change | Where |
+|---|---|
+| `Score(value, passed, label, explanation, failure, metadata)`: `value` is `None` when the scorer could not judge (not a zero); `explanation` is a placeholder for an LLM judge's reasoning; `failure` is a `Failure` set when the scorer raised; `metadata` is open | `schemas/response/record.py` |
+| `TrialRecord.scores: Dict[str, Score]`; a scorer may return a number, a bool or a `Score`, and `Harness._scores` wraps a plain return and gives a raising scorer `Score(failure=Failure.of(exc))` | `schemas/response/record.py`, `execution/harness.py` |
+| `Case` is now `Example`, defined in `record.py`; `schemas/request/case.py` is removed | `schemas/response/record.py` |
+| `Task(name, examples, version)`, `Runner.run(candidate, examples)`, `TrialRecord.example` | `schemas/request/task.py`, `execution/runner.py`, `schemas/response/record.py` |
+
+Tests: `test_harness.py` (a returned `Score` is kept with its explanation and metadata, a bool sets `passed`, a raising scorer gives a `Score` with its failure), `test_record.py` (a score with metadata round-trips through JSON), and the existing tests follow the new names. The example's `email_match` returns a `Score` with a label and metadata.
+
+Not in this increment: a result summary with standard error and counts of valid and invalid scores, and scorers that receive the whole `Output` or the example's input.
+
+A breaking change worth knowing: `record.scores[name]` is a `Score`, so the number is `.value`; `Case`, `cases` and `record.case` are `Example`, `examples` and `record.example`.
+
+### Increment 11: Output
+
+A candidate could only return a bare value, so there was nowhere to report how it was produced. An `Output` carries the value with its usage and files.
+
+| Change | Where |
+|---|---|
+| `Output(value, usage, artifacts)`: a pydantic model a candidate may return; plain returns still work | `schemas/response/record.py` |
+| `Outcome.output` is an `Optional[Output]` (`None` for a failed trial); the Runner keeps a returned `Output` and wraps a plain return | `schemas/response/record.py`, `execution/runner.py` |
+| `Harness.score` passes scorers the plain value (`output.value`), so scorer functions are unchanged | `execution/harness.py` |
+| `Result.usage`: a computed total of each usage key across the trials (to revisit: nothing reads it yet) | `schemas/response/result.py` |
+
+Tests: new runner tests (a returned `Output` is kept, a plain return is wrapped) and a `Result.usage` test.
+
+Not in this increment: validating the value against a schema, converting non-JSON outputs for saving, structured scores and a result summary; artifacts are recorded, not copied.
+
+A breaking change worth knowing: `record.outcome.output` is now an `Output`, so the value is `record.outcome.output.value`.
+
 ### Increment 10: Case
+
+> **Renamed in increment 12:** `Case` is now `Example`, defined in `record.py`; the file `schemas/request/case.py` is gone.
 
 A task kept `inputs` and `references` as two sequences that had to match by position, so a length check lived in `Task` and a strict `zip` in `Harness.score`. A case carries both.
 
@@ -233,7 +271,7 @@ velari_harness/core/
 │   ├── request/          # what you give a run
 │   │   ├── task.py           # Task: candidate-agnostic spec (increment 4)
 │   │   ├── environment.py    # Environment: seed, limits, failure policy, lazy Experiment (increment 5: seed)
-│   │   └── case.py           # Case, CaseView, Dataset (planned)
+│   │   └── dataset.py        # ExampleView, Dataset (planned; Example is in response/record.py)
 │   └── response/         # what a run produces
 │       ├── result.py         # Result: what one run returned (increment 1)
 │       ├── record.py         # TrialRecord (increment 3); Event (planned)
@@ -250,7 +288,7 @@ velari_harness/core/
 │   ├── config.py         # HarnessConfig (increment 1)
 │   ├── limits.py         # time limit, error budget, ErrorPolicy, RetryPolicy
 │   ├── sandbox.py        # LocalSandbox: per-trial working directory
-│   ├── runner.py         # Runner: cases x trials -> Result
+│   ├── runner.py         # Runner: examples x trials -> Result
 │   └── harness.py        # Harness: the container (Task + Candidate + scorers) that chains run, score and package
 └── registry/         # naming and construction
     ├── registry.py       # generic Registry[T]
@@ -260,7 +298,7 @@ velari_harness/core/
 
 ### Component definitions
 
-The definition, core example, applied example and status of each component (Case, Candidate, Scorer, Task, Environment, Runner, Harness and the rest) are in the [glossary](../glossary.md#component-glossary). This document covers how they are built: the folders, the build order, the design rules and the tests.
+The definition, core example, applied example and status of each component (Example, Candidate, Scorer, Task, Environment, Runner, Harness and the rest) are in the [glossary](../glossary.md#component-glossary). This document covers how they are built: the folders, the build order, the design rules and the tests.
 
 ### Sources
 
@@ -283,7 +321,7 @@ One way, left to right, so there are no import cycles:
 
 `schemas` <- `protocols` <- `results` <- `execution` <- `registry`
 
-A folder imports only from folders to its left. Imports across folders are relative (`from ..schemas.case import Case`).
+A folder imports only from folders to its left. Imports across folders are relative (`from ..schemas.response.record import Example`).
 
 - `Harness` lives in `execution/` with its `HarnessConfig`: `Harness.run()` calls the `Runner`, which produces results, so it comes after `schemas`, `protocols` and `results`.
 - There is no `definition/` folder. `Environment` sits beside `Task` in `schemas/request/` (both are things you give a run), and `HarnessConfig` sits beside `Harness` in `execution/` (a config belongs to what it configures).
@@ -297,15 +335,15 @@ A folder imports only from folders to its left. Imports across folders are relat
 - **Determinism is explicit.** The environment hands each trial a seed derived from `(env.seed, case id, trial)`. The core never seeds or reads global RNG state.
 - **Failures are data.** A trial that raises becomes a record with its status and the error text, classified by the error policy. `fail_fast` stops the run on the first error; `max_error_ratio` stops it when too many trials failed. The `Result.status` says which, so a partial run is never mistaken for a full one.
 - **Limits are checked by the runner**, not trusted to the candidate: a wall-clock limit per trial and a total error budget. Token limits arrive with the evaluation category, which knows what usage looks like.
-- **Steps prepare cases, they are not the harness.** `Task.steps` is the one place the pipeline idea (Kedro, ZenML) appears: ordered functions that turn raw data into cases. They run once, before any trial.
+- **Steps prepare examples, they are not the harness.** `Task.steps` is the one place the pipeline idea (Kedro, ZenML) appears: ordered functions that turn raw data into cases. They run once, before any trial.
 - **Tracking is lazy and opt-in.** `Experiment()` seeds Python's `random` and NumPy's global RNG with seed 42 and reads `.env`, and `Experiment.create(name, tags)` creates the output directory. The environment builds one only when tracking is enabled, so a default run touches neither.
 - **`from_config` mirrors `ModelDriver.from_config`** (`velari_ai/integrations/sklearn/driver.py`): `from_config(cls, cfg: Optional[DictConfig], **overrides) -> Self`, where `None` means defaults and explicit overrides win. It calls `ConfigOmegaConf().resolve()` first. A missing Hydra file yields `None` from `read_hydra`, which the build path turns into a `ValueError`, as `Experiment.create` does.
 - **Registry** is a small dict-backed `Registry[T]`. It raises `ValueError` for an unknown name (the same error type as `_AdapterRegistry.resolve` in `velari_ai`) and for a duplicate registration. Existing registries do not fit: `_AdapterRegistry` is private and built around provider/model resolution, and `velari_data.registry.Registry` is a static catalog.
-- **The candidate never sees the reference.** The runner passes a `CaseView`; `target` and `grader_files` reach only the scorer. This is what makes hidden-label tasks (MLE-bench, DSBench) possible.
+- **The candidate never sees the reference.** The runner passes a `ExampleView`; `target` and `grader_files` reach only the scorer. This is what makes hidden-label tasks (MLE-bench, DSBench) possible.
 - **Artifacts are collected, then scored.** After `run`, the runner copies the candidate's declared artifacts into the trial directory. Scorers read those copies and never touch the live sandbox, so scoring can happen later, elsewhere, or again.
 - **Invalid is not zero.** A score that could not be computed is marked invalid and excluded from metrics; the Task says whether a missing or invalid trial counts as `exclude` or `zero`. A pass threshold is kept apart from the continuous value.
 - **Errors are classified, not just caught.** The `ErrorPolicy` decides per exception type whether to retry, whether the trial is scored and whether its score is valid. `Status` distinguishes `OK`, `ERROR` and `TIMEOUT`.
-- **A result says what produced it.** The spec holds the resolved config, the task version, the dataset fingerprint, the candidate name and the limits actually applied. Case ids are content hashes unless given.
+- **A result says what produced it.** The spec holds the resolved config, the task version, the dataset fingerprint, the candidate name and the limits actually applied. Example ids are content hashes unless given.
 - **Teardown always runs.** `Candidate.teardown` and the sandbox `stop` run after a failed `run`, so a failed trial cannot leave state behind.
 - **Runtimes that need an extra are imported lazily** by the registry, with an error naming the extra (stage 1 convention). The kernel itself needs none.
 
@@ -350,13 +388,13 @@ High-signal only, per `test_guides.md`. Small local fakes, no `unittest.mock`. T
 - With tracking off, no `Experiment` is built and no directory is created.
 - Registry: a registered name resolves; an unknown name and a duplicate each raise `ValueError`.
 - Config build: an OmegaConf config produces the expected harness, and `None` uses defaults.
-- A candidate cannot read `target` or `grader_files`: the `CaseView` it receives has neither.
+- A candidate cannot read `target` or `grader_files`: the `ExampleView` it receives has neither.
 - A file the candidate declares as an artifact is present in the trial directory when the scorer runs.
 - An invalid score is left out of `summary()`; with the `zero` policy it counts as 0.
 - A `TimeoutError` is recorded as `TIMEOUT` and a retryable error is retried per policy, while a plain error is recorded once as `ERROR`.
 - `teardown` runs after a `run` that raises.
 - `score=False` yields records without scores; `rescore` fills them in and the candidate's call count does not change.
-- Changing one case input changes `Dataset.fingerprint`; the same cases in the same order give the same fingerprint.
+- Changing one example input changes `Dataset.fingerprint`; the same examples in the same order give the same fingerprint.
 
 ## Verification
 
