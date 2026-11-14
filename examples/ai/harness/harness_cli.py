@@ -143,7 +143,7 @@ class HarnessCli(object):
 
 if __name__ == "__main__":
     # the Runner logs every failed trial at ERROR level; the table below already shows them, so silence the package logger
-    logging.getLogger("velari_harness").setLevel(logging.INFO)
+    logging.getLogger("velari_harness").setLevel(logging.CRITICAL)
     # build the command-line app: one command, no options; its name and help text come from the config
     path = Path(read_root_dir()) / "examples" / "_conf" / "harness" / "app_harness.yaml"
     cli = HarnessCli.from_config(path)
