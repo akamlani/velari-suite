@@ -35,7 +35,7 @@ class Candidate(Protocol):
 
     @abstractmethod
     def run(self, input: Any) -> Any:
-        """Take one input and return the candidate's output; exceptions propagate to the caller."""
+        """Take one input and return a plain value or an `Output`; exceptions propagate to the caller."""
 
     def teardown(self) -> None:
         """Release what `setup()` and `run()` acquired; the default does nothing."""

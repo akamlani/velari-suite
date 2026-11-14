@@ -1,13 +1,13 @@
 import  logging
 import  time
 from    omegaconf  import DictConfig
-from    typing     import Any, Callable, Dict, List, Optional, Self, Sequence
+from    typing     import Any, Callable, Dict, List, Optional, Self, Sequence, Union
 # package modules
 from    .config                    import HarnessConfig
 from    .runner                    import Runner
 from    ..protocols.candidate      import Candidate
 from    ..schemas.request.task     import Task
-from    ..schemas.response.record  import TrialRecord
+from    ..schemas.response.record  import Failure, Score, TrialRecord
 from    ..schemas.response.result  import Result
 
 logger = logging.getLogger(__name__)
@@ -20,35 +20,35 @@ class Harness(object):
 
     Args:
         config (HarnessConfig): The name.
-        task (Task): What is measured; its cases are what the candidate runs on.
+        task (Task): What is measured; its examples are what the candidate runs on.
         candidate (Candidate): What is measured.
-        scorers (Sequence[Callable[[Any, Any], float]]): Functions `fn(output, reference)` (a `bool` is 1.0 or 0.0),
-            keyed by `__name__`, which must be distinct; every case must have a `reference`.
+        scorers (Sequence[Callable[[Any, Any], Union[float, Score]]]): `fn(output, reference)` returning a number, bool or `Score`; keyed by distinct `__name__`.
 
     Raises:
-        ValueError: If `scorers` are given but a case has no `reference`, or two scorers share a name.
+        ValueError: If `scorers` are given but an example has no `reference`, or two scorers share a name.
 
     Examples:
         One task and one candidate, scored against the expected churn-risk bands:
 
-        >>> task = Task("churn-risk", [Case(3, "low"), Case(45, "high")])
+        >>> task = Task("churn-risk", [Example(3, "low"), Example(45, "high")])
         >>> candidate = CallableCandidate(lambda days_inactive: "high" if days_inactive > 30 else "low")
         >>> def same_band(output, reference):
         ...     return output == reference
         >>> result = Harness.for_task(task, candidate, scorers=[same_band]).run()
-        >>> result.name, [(r.outcome.status.value, r.outcome.output) for r in result.records]
+        >>> result.name, [(r.outcome.status.value, r.outcome.output.value) for r in result.records]
         ('churn-risk', [('success', 'low'), ('success', 'high')])
         >>> result.scores
         {'same_band': 1.0}
 
         Applied (illustrative): an agent candidate on an evaluation task:
 
-        >>> task = Task("support-agent-quality", [Case("What's the balance on ACC-10293?"), Case("Summarize ticket ORG-4471.")])
+        >>> task = Task("support-agent-quality", [Example("What's the balance on ACC-10293?"), Example("Summarize ticket ORG-4471.")])
         >>> result = Harness.for_task(task, BillingAgentCandidate()).run()
     """
-    def __init__(self, config: HarnessConfig, task: Task, candidate: Candidate, scorers: Sequence[Callable[[Any, Any], float]] = ()) -> None:
-        if scorers and any(case.reference is None for case in task.cases):
-            raise ValueError(f"scorers need a reference on every case of task {task.name!r}")
+    def __init__(self, config: HarnessConfig, task: Task, candidate: Candidate,
+                 scorers: Sequence[Callable[[Any, Any], Union[float, Score]]] = ()) -> None:
+        if scorers and any(example.reference is None for example in task.examples):
+            raise ValueError(f"scorers need a reference on every example of task {task.name!r}")
         self._scorers = {getattr(scorer, "__name__", repr(scorer)): scorer for scorer in scorers}
         if len(self._scorers) != len(scorers):
             raise ValueError(f"scorer names must be distinct, got {list(self._scorers)}")
@@ -58,14 +58,14 @@ class Harness(object):
 
     @classmethod
     def for_task(cls, task: Task, candidate: Candidate, cfg: Optional[DictConfig] = None,
-                 scorers: Sequence[Callable[[Any, Any], float]] = (), **overrides: Any) -> Self:
+                 scorers: Sequence[Callable[[Any, Any], Union[float, Score]]] = (), **overrides: Any) -> Self:
         """Build a harness for a task and a candidate; it is named after the task unless `name` is given.
 
         Args:
             task (Task): What is measured.
             candidate (Candidate): What is measured on it.
             cfg (Optional[DictConfig]): `HarnessConfig` fields (just `name`); `None` keeps the defaults.
-            scorers (Sequence[Callable[[Any, Any], float]]): Functions `fn(output, reference)`; every case must have a `reference`.
+            scorers (Sequence[Callable[[Any, Any], Union[float, Score]]]): Functions `fn(output, reference)`; every example must have a `reference`.
             **overrides (Any): Fields that take precedence over `cfg`.
 
         Returns:
@@ -90,13 +90,13 @@ class Harness(object):
         return self._candidate
 
     def run(self) -> Result:
-        """Run the candidate on every case, score the successful trials, and return the records with their timing.
+        """Run the candidate on every example, score the successful trials, and return the records with their timing.
 
         Returns:
-            Result: One record per task case, in order, with the time the whole run took.
+            Result: One record per task example, in order, with the time the whole run took.
         """
         start = time.perf_counter()
-        records = self.score(Runner().run(self._candidate, self._task.cases))
+        records = self.score(Runner().run(self._candidate, self._task.examples))
         return Result(name=self.name, records=records, duration_sec=time.perf_counter() - start)
 
     def score(self, records: Sequence[TrialRecord]) -> List[TrialRecord]:
@@ -109,18 +109,19 @@ class Harness(object):
             List[TrialRecord]: Copies of the records; the originals are not changed.
         """
         return [
-            record if record.outcome.failure is not None
-            else record.model_copy(update={"scores": self._scores(record.outcome.output, record.case.reference)})
+            record if record.outcome.failure is not None or record.outcome.output is None
+            else record.model_copy(update={"scores": self._scores(record.outcome.output.value, record.example.reference)})
             for record in records
         ]
 
-    def _scores(self, output: Any, reference: Any) -> Dict[str, Optional[float]]:
-        # a scorer that raises is data too: None, never a zero
-        scores: Dict[str, Optional[float]] = {}
+    def _scores(self, output: Any, reference: Any) -> Dict[str, Score]:
+        # a scorer that raises is data too: a Score with its failure and no value, never a zero
+        scores: Dict[str, Score] = {}
         for name, scorer in self._scorers.items():
             try:
-                scores[name] = float(scorer(output, reference))
+                returned = scorer(output, reference)
+                scores[name] = returned if isinstance(returned, Score) else Score(value=float(returned), passed=returned if isinstance(returned, bool) else None)
             except Exception as exc:
                 logger.error(f"scorer {name} failed: {type(exc).__name__}: {exc}")
-                scores[name] = None
+                scores[name] = Score(failure=Failure.of(exc))
         return scores

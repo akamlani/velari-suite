@@ -17,16 +17,16 @@ from    velari_core.core import read_root_dir
 from    velari_core.core.io.partition.hydra import read_hydra
 from    velari_harness.core.execution.harness import Harness
 from    velari_harness.core.protocols.candidate import Candidate
-from    velari_harness.core.schemas.request.case import Case
 from    velari_harness.core.schemas.request.task import Task
+from    velari_harness.core.schemas.response.record import Example, Score
 from    velari_harness.core.schemas.response.result import Result
 from    velari_harness.core.schemas.types import Status
 
 # Objective: run a customer-row validator (the candidate) on every row of a CSV file (the task), record each trial, and show which rows pass or fail and why.
 
 # Terms used below, each with what it is in this example (full definitions: docs/packages/velari-harness/glossary.md)
-#   Task       what is measured: a name, a version and the cases
-#              here: "customer-validation", whose cases are the 12 rows of data/customers.csv
+#   Task       what is measured: a name, a version and the examples
+#              here: "customer-validation", whose examples are the 12 rows of data/customers.csv
 #   Candidate  the thing being measured: it takes one input and returns an output
 #              here: CustomerValidator, which takes one customer row and returns a cleaned record, or says what is wrong with it
 #   Trial      one run of the candidate on one input; its record is "success" with an output, or "error" with a message
@@ -70,10 +70,11 @@ class CustomerValidator(Candidate):
         del self.email
 
 
-def email_match(output: Any, reference: Any) -> bool:
-    # a scorer is a plain function of (output, reference); a bool counts as 1.0 or 0.0, and its name is the key in the record's scores
+def email_match(output: Any, reference: Any) -> Score:
+    # a scorer is a plain function of (output, reference); it may return a number, a bool or a Score, and its name is the key in the record's scores
     # score is separate from status: a trial can succeed and still score 0.0
-    return exact_match(output["email"], reference)
+    matched = exact_match(output["email"], reference)
+    return Score(value=float(matched), passed=matched, label="match" if matched else "mismatch", metadata={"expected": reference})
 
 
 class HarnessCli(object):
@@ -82,14 +83,14 @@ class HarnessCli(object):
 
     def __init__(self, cfg: DictConfig) -> None:
         self.cfg = cfg
-        # the Task is what is measured: a name, a version and the cases the candidate is run on.
-        # Each case is a CSV row: its input is the row as a dict keyed by the header (id, name, email, age, country), and its reference
+        # the Task is what is measured: a name, a version and the examples the candidate is run on.
+        # Each example is a CSV row: its input is the row as a dict keyed by the header (id, name, email, age, country), and its reference
         # is the expected_email column, which goes to the scorer and never reaches the candidate.
         # pandas reads every column as text (dtype=str) with empty cells kept as "", so the validator sees the raw values.
         df_customers = pd.read_csv(Path(read_root_dir()) / cfg.task.inputs_path, dtype=str, keep_default_na=False)
         df_inputs = df_customers.drop(columns="expected_email")
-        cases = [Case(row, reference) for row, reference in zip(df_inputs.to_dict("records"), df_customers["expected_email"])]
-        self.task = Task(cfg.task.name, cases, version=str(cfg.task.version))
+        examples = [Example(row, reference) for row, reference in zip(df_inputs.to_dict("records"), df_customers["expected_email"])]
+        self.task = Task(cfg.task.name, examples, version=str(cfg.task.version))
         # step 1, create: the harness pairs the candidate and the scorer with the task (it is named after the task)
         self.harness = Harness.for_task(self.task, self.CANDIDATE, scorers=[email_match])
         self.result: Optional[Result] = None   # set by run()
@@ -132,10 +133,11 @@ class HarnessCli(object):
             trials.add_column(column)
         for record in result.records:
             failure = record.outcome.failure   # None when the trial succeeded
+            output = record.outcome.output     # None when the trial failed
             color = "red" if failure else "green"
-            score = ",".join(f"{v:.1f}" for v in record.scores.values() if v is not None)
-            trials.add_row(",".join(str(v or "") for v in record.case.input.values()), f"[{color}]{record.outcome.status.value}[/{color}]",
-                           str(failure.reason_code) if failure else "", score, failure.error if failure else repr(record.outcome.output))
+            score = ",".join(f"{s.value:.1f} {s.label}" for s in record.scores.values() if s.value is not None)
+            trials.add_row(",".join(str(v or "") for v in record.example.input.values()), f"[{color}]{record.outcome.status.value}[/{color}]",
+                           str(failure.reason_code) if failure else "", score, failure.error if failure else repr(output.value if output else None))
 
         Console().print(run)
         Console().print(summary)

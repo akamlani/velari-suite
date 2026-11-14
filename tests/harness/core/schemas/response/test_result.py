@@ -4,12 +4,12 @@ import pytest
 from pydantic import ValidationError
 
 
-def _record(index, output=None, failure=None, scores=None):
-    from velari_harness.core.schemas.request.case import Case
-    from velari_harness.core.schemas.response.record import Outcome, TrialRecord
+def _record(index, output=None, failure=None, scores=None, usage=None):
+    from velari_harness.core.schemas.response.record import Example, Outcome, Output, Score, TrialRecord
 
-    outcome = Outcome(output=output, failure=failure, duration_sec=0.0)
-    return TrialRecord(index=index, case=Case("x"), outcome=outcome, scores=scores or {})
+    outcome = Outcome(output=Output(value=output, usage=usage or {}) if output is not None else None, failure=failure, duration_sec=0.0)
+    return TrialRecord(index=index, example=Example("x"), outcome=outcome,
+                       scores={name: Score(value=value) for name, value in (scores or {}).items()})
 
 
 def test_result_negative_duration_raises_validationerror():
@@ -32,6 +32,23 @@ def test_result_trials_count_each_status_and_are_in_the_json():
 
     assert result.trials == {"success": 1, "error": 1}
     assert json.loads(result.model_dump_json())["trials"]["error"] == 1
+
+
+def test_result_usage_totals_each_key_over_the_trials_that_reported_it_and_is_in_the_json():
+    import json
+
+    from velari_harness.core.schemas.response.record import Failure
+    from velari_harness.core.schemas.response.result import Result
+    from velari_harness.core.schemas.types import ReasonCode
+
+    failure = Failure(error="ValueError: bad", reason_code=ReasonCode.INVALID_INPUT)
+    records = [_record(0, output="A", usage={"input_tokens": 10, "output_tokens": 2}),
+               _record(1, output="B", usage={"input_tokens": 5}), _record(2, failure=failure)]
+
+    result = Result(name="t", records=records, duration_sec=0.0)
+
+    assert result.usage == {"input_tokens": 15.0, "output_tokens": 2.0}
+    assert json.loads(result.model_dump_json())["usage"] == {"input_tokens": 15.0, "output_tokens": 2.0}
 
 
 def test_result_without_records_counts_zero():

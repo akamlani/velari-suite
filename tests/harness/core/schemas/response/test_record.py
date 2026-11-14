@@ -7,10 +7,9 @@ from pydantic import ValidationError
 def test_trial_record_json_roundtrip_returns_equal_model():
     from velari_harness.core.execution.runner import Runner
     from velari_harness.core.protocols.candidate import CallableCandidate
-    from velari_harness.core.schemas.request.case import Case
-    from velari_harness.core.schemas.response.record import TrialRecord
+    from velari_harness.core.schemas.response.record import Example, TrialRecord
 
-    record = Runner().run(CallableCandidate(str.upper), [Case("card charged twice", "CARD CHARGED TWICE")])[0]
+    record = Runner().run(CallableCandidate(str.upper), [Example("card charged twice", "CARD CHARGED TWICE")])[0]
 
     assert TrialRecord.model_validate_json(record.model_dump_json()) == record
 
@@ -29,3 +28,12 @@ def test_outcome_status_is_derived_from_the_failure():
     failure = Failure(error="ValueError: bad", reason_code=ReasonCode.INVALID_INPUT)
 
     assert (Outcome(duration_sec=0.0).status, Outcome(failure=failure, duration_sec=0.0).status) == (Status.SUCCESS, Status.ERROR)
+
+
+def test_trial_record_score_with_explanation_and_metadata_roundtrips_through_json():
+    from velari_harness.core.schemas.response.record import Example, Outcome, Score, TrialRecord
+
+    score = Score(value=0.5, label="partial", explanation="cites 1 of 2 sources", metadata={"judge": "relevance-v2"})
+    record = TrialRecord(index=0, example=Example("a"), outcome=Outcome(duration_sec=0.0), scores={"relevance": score})
+
+    assert TrialRecord.model_validate_json(record.model_dump_json()) == record

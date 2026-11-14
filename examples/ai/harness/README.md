@@ -9,7 +9,7 @@ rows of a customer CSV file, and the candidate is a small rule-based validator.
   runs one candidate on it through a `Harness`, and prints the run and the outcome per row.
 - **`examples/_conf/harness/app_harness.yaml`** — the `task:` section (name, version, and the path of the CSV
   file) and the `app.info` block that names the CLI.
-- **`data/customers.csv`** — the task's cases, one customer per row (`id,name,email,age,country`) plus an
+- **`data/customers.csv`** — the task's examples, one customer per row (`id,name,email,age,country`) plus an
   `expected_email` column, the reference for the scorer: six clean rows and six messy ones. One clean row's
   expected address deliberately differs, to show a successful trial with a score of `0.0`. Edit it to change the run.
 
@@ -19,7 +19,7 @@ rows of a customer CSV file, and the candidate is a small rule-based validator.
 `cli.run().render()`.
 
 1. **Create** (in `__init__`): read the CSV with pandas (every column as text, empty cells kept as `""`, so the
-   validator sees the raw values), build the `Task` from the rows (each a `Case` with its expected email) and the config, and a `Harness` that pairs
+   validator sees the raw values), build the `Task` from the rows (each an `Example` with its expected email) and the config, and a `Harness` that pairs
    the candidate and the scorer with the task.
 2. **Run** (`run()`): run the harness and keep its `Result`; nothing is printed.
 3. **Render** (`render()`): print the run and the outcome per row. Call `run()` first.
@@ -31,9 +31,9 @@ not change the exit code.
 
 | Core piece | Where in the example |
 |---|---|
-| `Task(name, cases, version)` | Built from the `task:` section; each case is a row of `data/customers.csv`, read with pandas: the input is the row as a dict keyed by the header, and the reference is its `expected_email` column (not part of the input, so the candidate never sees it) |
+| `Task(name, examples, version)` | Built from the `task:` section; each example is a row of `data/customers.csv`, read with pandas: the input is the row as a dict keyed by the header, and the reference is its `expected_email` column (not part of the input, so the candidate never sees it) |
 | `Candidate` subclass | `CustomerValidator`: `setup()` compiles the email pattern, `run(row)` returns a cleaned record or raises, `teardown()` releases the pattern. The Runner calls them once per row |
-| Scorer function | `email_match(output, reference)`: a plain function returning a `bool` (1.0 or 0.0), here reusing `exact_match` from `velari_ai.ai.evals.heuristics`; its name is the key in each record's `scores`. Score and status are separate: row 11 succeeds and scores `0.0`; a failed trial has no output, so it gets no score |
+| Scorer function | `email_match(output, reference)`: a plain function returning a number, a `bool` or a `Score` (here a `Score` with a label and the expected value, built from `exact_match` in `velari_ai.ai.evals.heuristics`); its name is the key in each record's `scores`. Score and status are separate: row 11 succeeds and scores `0.0`; a failed trial has no output, so it gets no score |
 | `Harness.for_task(task, candidate, scorers=[...])` | The container, named after the task. Its `run()` chains three steps: run the candidate on every input, score each successful trial, package the result |
 | `Runner` and `TrialRecord` (through `Harness`) | The result's `records` hold one trial record per row, in order |
 | Failures are data | A bad row (an email with no domain, a negative or non-numeric age, an unknown country, a missing name or age) fails its own trial with the reasons; later rows still run, and the other rows are unaffected |
@@ -70,7 +70,7 @@ durations vary):
 ┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┓
 ┃ harness             ┃ inputs ┃ duration_sec ┃ trials success ┃ trials error ┃
 ┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━┩
-│ customer-validation │ 12     │ 0.0035       │ 6              │ 6            │
+│ customer-validation │ 12     │ 0.0002       │ 6              │ 6            │
 └─────────────────────┴────────┴──────────────┴────────────────┴──────────────┘
         scores        
 ┏━━━━━━━━━━━━━┳━━━━━━┓
@@ -79,57 +79,63 @@ durations vary):
 │ email_match │ 0.83 │
 └─────────────┴──────┘
                customer-validation (version 1): outcome per input               
-┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━┓
-┃ input               ┃ status  ┃ reason code   ┃ score ┃ output / error       ┃
-┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━┩
-│ 1,Ana               │ success │               │ 1.0   │ {'id': 1, 'name':    │
-│ Pérez,ana.perez@ex… │         │               │       │ 'Ana Pérez',         │
-│                     │         │               │       │ 'email':             │
-│                     │         │               │       │ 'ana.perez@example.… │
-│                     │         │               │       │ 'age': 34,           │
-│                     │         │               │       │ 'country': 'ES'}     │
-│ 2,Li                │ success │               │ 1.0   │ {'id': 2, 'name':    │
-│ Wei,li.wei@example… │         │               │       │ 'Li Wei', 'email':   │
-│                     │         │               │       │ 'li.wei@example.com… │
-│                     │         │               │       │ 'age': 29,           │
-│                     │         │               │       │ 'country': 'CN'}     │
-│ 3,Sam               │ success │               │ 1.0   │ {'id': 3, 'name':    │
-│ Carter,sam.carter@… │         │               │       │ 'Sam Carter',        │
-│                     │         │               │       │ 'email':             │
-│                     │         │               │       │ 'sam.carter@example… │
-│                     │         │               │       │ 'age': 41,           │
-│                     │         │               │       │ 'country': 'US'}     │
-│ 4,Maria             │ success │               │ 1.0   │ {'id': 4, 'name':    │
-│ Rossi,maria.rossi@… │         │               │       │ 'Maria Rossi',       │
-│                     │         │               │       │ 'email':             │
-│                     │         │               │       │ 'maria.rossi@exampl… │
-│                     │         │               │       │ 'age': 52,           │
-│                     │         │               │       │ 'country': 'IT'}     │
-│ 5,John              │ error   │ invalid_input │       │ ValueError: invalid  │
-│ Smith,john.smith@e… │         │               │       │ email:               │
-│                     │         │               │       │ 'john.smith@example' │
-│ 6,Aisha             │ error   │ invalid_input │       │ ValueError: invalid  │
-│ Khan,aisha.khan@ex… │         │               │       │ age: '-4'            │
-│ 7,Tom               │ error   │ invalid_input │       │ ValueError: invalid  │
-│ Brown,tom.brown@ex… │         │               │       │ age: 'abc'           │
-│ 8,Chloé             │ error   │ invalid_input │       │ ValueError: unknown  │
-│ Martin,chloe.marti… │         │               │       │ country: 'XX'        │
-│ 9,,empty.name@exam… │ error   │ invalid_input │       │ ValueError: missing  │
-│                     │         │               │       │ name                 │
-│ 10,Omar             │ error   │ invalid_input │       │ ValueError: invalid  │
-│ Ali,omar.ali@examp… │         │               │       │ age: ''              │
-│ 11,Eva              │ success │               │ 0.0   │ {'id': 11, 'name':   │
-│ Novak,eva.novak@ex… │         │               │       │ 'Eva Novak',         │
-│                     │         │               │       │ 'email':             │
-│                     │         │               │       │ 'eva.novak@example.… │
-│                     │         │               │       │ 'age': 67,           │
-│                     │         │               │       │ 'country': 'CZ'}     │
-│ 12,Noah             │ success │               │ 1.0   │ {'id': 12, 'name':   │
-│ Kim,noah.kim@examp… │         │               │       │ 'Noah Kim', 'email': │
-│                     │         │               │       │ 'noah.kim@example.c… │
-│                     │         │               │       │ 'age': 23,           │
-│                     │         │               │       │ 'country': 'KR'}     │
-└─────────────────────┴─────────┴───────────────┴───────┴──────────────────────┘
+┏━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┓
+┃ input            ┃ status  ┃ reason code   ┃ score        ┃ output / error   ┃
+┡━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━┩
+│ 1,Ana            │ success │               │ 1.0 match    │ {'id': 1,        │
+│ Pérez,ana.perez… │         │               │              │ 'name': 'Ana     │
+│                  │         │               │              │ Pérez', 'email': │
+│                  │         │               │              │ 'ana.perez@exam… │
+│                  │         │               │              │ 'age': 34,       │
+│                  │         │               │              │ 'country': 'ES'} │
+│ 2,Li             │ success │               │ 1.0 match    │ {'id': 2,        │
+│ Wei,li.wei@exam… │         │               │              │ 'name': 'Li      │
+│                  │         │               │              │ Wei', 'email':   │
+│                  │         │               │              │ 'li.wei@example… │
+│                  │         │               │              │ 'age': 29,       │
+│                  │         │               │              │ 'country': 'CN'} │
+│ 3,Sam            │ success │               │ 1.0 match    │ {'id': 3,        │
+│ Carter,sam.cart… │         │               │              │ 'name': 'Sam     │
+│                  │         │               │              │ Carter',         │
+│                  │         │               │              │ 'email':         │
+│                  │         │               │              │ 'sam.carter@exa… │
+│                  │         │               │              │ 'age': 41,       │
+│                  │         │               │              │ 'country': 'US'} │
+│ 4,Maria          │ success │               │ 1.0 match    │ {'id': 4,        │
+│ Rossi,maria.ros… │         │               │              │ 'name': 'Maria   │
+│                  │         │               │              │ Rossi', 'email': │
+│                  │         │               │              │ 'maria.rossi@ex… │
+│                  │         │               │              │ 'age': 52,       │
+│                  │         │               │              │ 'country': 'IT'} │
+│ 5,John           │ error   │ invalid_input │              │ ValueError:      │
+│ Smith,john.smit… │         │               │              │ invalid email:   │
+│                  │         │               │              │ 'john.smith@exa… │
+│ 6,Aisha          │ error   │ invalid_input │              │ ValueError:      │
+│ Khan,aisha.khan… │         │               │              │ invalid age:     │
+│                  │         │               │              │ '-4'             │
+│ 7,Tom            │ error   │ invalid_input │              │ ValueError:      │
+│ Brown,tom.brown… │         │               │              │ invalid age:     │
+│                  │         │               │              │ 'abc'            │
+│ 8,Chloé          │ error   │ invalid_input │              │ ValueError:      │
+│ Martin,chloe.ma… │         │               │              │ unknown country: │
+│                  │         │               │              │ 'XX'             │
+│ 9,,empty.name@e… │ error   │ invalid_input │              │ ValueError:      │
+│                  │         │               │              │ missing name     │
+│ 10,Omar          │ error   │ invalid_input │              │ ValueError:      │
+│ Ali,omar.ali@ex… │         │               │              │ invalid age: ''  │
+│ 11,Eva           │ success │               │ 0.0 mismatch │ {'id': 11,       │
+│ Novak,eva.novak… │         │               │              │ 'name': 'Eva     │
+│                  │         │               │              │ Novak', 'email': │
+│                  │         │               │              │ 'eva.novak@exam… │
+│                  │         │               │              │ 'age': 67,       │
+│                  │         │               │              │ 'country': 'CZ'} │
+│ 12,Noah          │ success │               │ 1.0 match    │ {'id': 12,       │
+│ Kim,noah.kim@ex… │         │               │              │ 'name': 'Noah    │
+│                  │         │               │              │ Kim', 'email':   │
+│                  │         │               │              │ 'noah.kim@examp… │
+│                  │         │               │              │ 'age': 23,       │
+│                  │         │               │              │ 'country': 'KR'} │
+└──────────────────┴─────────┴───────────────┴──────────────┴──────────────────┘
 ```
 
 Six trials failed, and the run still returned all twelve records: each trial record says whether its own row
@@ -155,7 +161,7 @@ own; it only chains run, score and package.
 - No metrics or reducers beyond the mean in the scores summary, no repeated trials, and no `Environment`
   (nothing reads one yet).
 - The candidate is defined in the script, not built from config.
-- The evaluation and data science categories and the planned core components (cases, datasets, metrics, a
+- The evaluation and data science categories and the planned core components (datasets, metrics, a
   registry) are not implemented.
 
 See `docs/packages/velari-harness/plan/` for the plan and `docs/packages/velari-harness/glossary.md` for

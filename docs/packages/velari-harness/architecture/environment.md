@@ -10,7 +10,7 @@ A harness run is an experiment. In an experiment you change one thing, hold ever
 |---|---|---|
 | What you change (independent variable) | **Candidate** | An agent, a model, a prompt, a pipeline |
 | What you hold constant (controlled variables) | **Environment** | The seed, the limits, how failures are treated, what is pinned |
-| What you measure, and on what | **Task** (inputs now; scorers later) | The cases and how they are judged |
+| What you measure, and on what | **Task** (inputs now; scorers later) | The examples and how they are judged |
 
 So an **Environment** answers one question: *under what fixed conditions did this run happen?* Two results are comparable only if they came from the same environment, and a run is repeatable only if its environment is known. That is the whole reason it exists.
 
