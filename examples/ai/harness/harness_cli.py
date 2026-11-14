@@ -80,7 +80,7 @@ class HarnessCli(object):
     CANDIDATE: ClassVar[Candidate] = CustomerValidator()
 
     def __init__(self, cfg: DictConfig) -> None:
-        self.cfg  = cfg
+        self.cfg = cfg
         # the Task is what is measured: a name, a version and the inputs the candidate is run on.
         # The inputs are the rows of a CSV file, each row a dict keyed by the header (id, name, email, age, country).
         # The expected_email column is the reference: it goes to the scorer, and is dropped from the inputs so the candidate never sees it.

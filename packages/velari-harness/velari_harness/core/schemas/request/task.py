@@ -6,15 +6,16 @@ from    typing       import Any, Sequence
 class Task(object):
     """What is measured: a named, versioned set of inputs. It says nothing about who is measured.
 
-    A task never names a candidate, so one task can be run against several candidates, such as a
-    baseline and a variant, and the results compared. It is immutable: `inputs` is stored as a tuple.
-    The inputs are plain values for now; they become a dataset of cases, with scorers, later.
+    Immutable: `inputs` and `references` are stored as tuples.
 
     Args:
         name (str): Identifies the task in logs and results; must not be empty.
         inputs (Sequence[Any]): Values a candidate is run on, one trial each.
         version (str): Bump it when the inputs or their meaning change, so old and new results are not mixed.
         references (Sequence[Any]): The expected value per input, for scorers; the candidate never sees them. Empty means none, else one per input.
+
+    Raises:
+        ValueError: If `name` is empty, or `references` is not empty and does not match `inputs` in length.
 
     Examples:
         One task, two candidates (a baseline rule and a variant), run through the same inputs:

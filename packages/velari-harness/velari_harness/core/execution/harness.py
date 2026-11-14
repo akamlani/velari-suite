@@ -16,11 +16,7 @@ logger = logging.getLogger(__name__)
 class Harness(object):
     """The container for one measurement: a candidate, the task it is measured on, and the scorers that judge it.
 
-    `run()` chains three steps and returns a `Result`: run the candidate on every input of the task (the `Runner`),
-    score each successful trial, and package the records. A failed trial is data, not an exception: it stays in
-    its record with the failure, and is not scored. `score()` is public, so records can be scored again.
-
-    Build it with `for_task`, which names the harness after the task.
+    `run()` chains the Runner, `score()` and the `Result`; a failed trial stays in its record and is not scored.
 
     Args:
         config (HarnessConfig): The name.
@@ -28,6 +24,9 @@ class Harness(object):
         candidate (Candidate): What is measured.
         scorers (Sequence[Callable[[Any, Any], float]]): Functions `fn(output, reference)` (a `bool` is 1.0 or 0.0),
             keyed by `__name__`, which must be distinct; the task must have `references`.
+
+    Raises:
+        ValueError: If `scorers` are given but the task has no `references`, or two scorers share a name.
 
     Examples:
         One task and one candidate, scored against the expected churn-risk bands:
