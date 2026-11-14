@@ -17,6 +17,7 @@ from    velari_core.core import read_root_dir
 from    velari_core.core.io.partition.hydra import read_hydra
 from    velari_harness.core.execution.harness import Harness
 from    velari_harness.core.protocols.candidate import Candidate
+from    velari_harness.core.schemas.request.case import Case
 from    velari_harness.core.schemas.request.task import Task
 from    velari_harness.core.schemas.response.result import Result
 from    velari_harness.core.schemas.types import Status
@@ -24,8 +25,8 @@ from    velari_harness.core.schemas.types import Status
 # Objective: run a customer-row validator (the candidate) on every row of a CSV file (the task), record each trial, and show which rows pass or fail and why.
 
 # Terms used below, each with what it is in this example (full definitions: docs/packages/velari-harness/glossary.md)
-#   Task       what is measured: a name, a version and the inputs
-#              here: "customer-validation", whose inputs are the 12 rows of data/customers.csv
+#   Task       what is measured: a name, a version and the cases
+#              here: "customer-validation", whose cases are the 12 rows of data/customers.csv
 #   Candidate  the thing being measured: it takes one input and returns an output
 #              here: CustomerValidator, which takes one customer row and returns a cleaned record, or says what is wrong with it
 #   Trial      one run of the candidate on one input; its record is "success" with an output, or "error" with a message
@@ -81,13 +82,14 @@ class HarnessCli(object):
 
     def __init__(self, cfg: DictConfig) -> None:
         self.cfg = cfg
-        # the Task is what is measured: a name, a version and the inputs the candidate is run on.
-        # The inputs are the rows of a CSV file, each row a dict keyed by the header (id, name, email, age, country).
-        # The expected_email column is the reference: it goes to the scorer, and is dropped from the inputs so the candidate never sees it.
+        # the Task is what is measured: a name, a version and the cases the candidate is run on.
+        # Each case is a CSV row: its input is the row as a dict keyed by the header (id, name, email, age, country), and its reference
+        # is the expected_email column, which goes to the scorer and never reaches the candidate.
         # pandas reads every column as text (dtype=str) with empty cells kept as "", so the validator sees the raw values.
         df_customers = pd.read_csv(Path(read_root_dir()) / cfg.task.inputs_path, dtype=str, keep_default_na=False)
-        self.task = Task(cfg.task.name, df_customers.drop(columns="expected_email").to_dict("records"),
-                         version=str(cfg.task.version), references=df_customers["expected_email"].tolist())
+        df_inputs = df_customers.drop(columns="expected_email")
+        cases = [Case(row, reference) for row, reference in zip(df_inputs.to_dict("records"), df_customers["expected_email"])]
+        self.task = Task(cfg.task.name, cases, version=str(cfg.task.version))
         # step 1, create: the harness pairs the candidate and the scorer with the task (it is named after the task)
         self.harness = Harness.for_task(self.task, self.CANDIDATE, scorers=[email_match])
         self.result: Optional[Result] = None   # set by run()
@@ -128,11 +130,11 @@ class HarnessCli(object):
         trials = Table(title=f"{self.task.name} (version {self.task.version}): outcome per input")
         for column in ("input", "status", "reason code", "score", "output / error"):
             trials.add_column(column)
-        for value, record in zip(self.task.inputs, result.records):
+        for record in result.records:
             failure = record.outcome.failure   # None when the trial succeeded
             color = "red" if failure else "green"
             score = ",".join(f"{v:.1f}" for v in record.scores.values() if v is not None)
-            trials.add_row(",".join(str(v or "") for v in value.values()), f"[{color}]{record.outcome.status.value}[/{color}]",
+            trials.add_row(",".join(str(v or "") for v in record.case.input.values()), f"[{color}]{record.outcome.status.value}[/{color}]",
                            str(failure.reason_code) if failure else "", score, failure.error if failure else repr(record.outcome.output))
 
         Console().print(run)

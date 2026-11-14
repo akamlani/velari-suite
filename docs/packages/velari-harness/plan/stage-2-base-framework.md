@@ -27,7 +27,8 @@ Stage 2 is built in small increments, each with its own tests, instead of all at
 | 7 | Hardening: validated frozen `HarnessConfig`, `teardown` in a `finally`, `TaskResult` with trial counts | Implemented |
 | 8 | Scorers as plain functions `fn(output, reference)`; optional `references` on `Task`; `TrialRecord.scores`; `TaskHarness` scores each successful trial; `TaskResult.scores` (mean per scorer) | Implemented |
 | 9 | Simplification: `Harness` becomes the container (`run()` chains run, score, package); the extension base, `TaskHarness`, harness hooks and the run-level status are removed; `Runner` only runs; one `Result` | Implemented |
-| 10 onward | Not yet planned. The remaining modules are added one increment at a time, each re-planned when the previous one is done | |
+| 10 | `Case` (input and optional reference); `Task(name, cases)` replaces `inputs` and `references`; `TrialRecord` keeps its `case`; the Runner runs cases and `Harness.score` reads `record.case.reference` | Implemented |
+| 11 onward | Not yet planned. The remaining modules are added one increment at a time, each re-planned when the previous one is done | |
 
 ### Increment 1: Harness and its config
 
@@ -202,6 +203,24 @@ The harness and the Runner each wrapped a setup, work, teardown lifecycle, `exec
 Tests: `test_harness.py` is one `TestHarness` class (the scoring cases moved here from `test_runner.py`); `test_result.py` and `test_record.py` follow the new shapes.
 
 A breaking change worth knowing: a run has no `status` or `failure` of its own. Failed trials are data in their records, and anything else (a `KeyboardInterrupt`, a bad argument) raises.
+
+### Increment 10: Case
+
+A task kept `inputs` and `references` as two sequences that had to match by position, so a length check lived in `Task` and a strict `zip` in `Harness.score`. A case carries both.
+
+| Change | Where |
+|---|---|
+| `Case(input, reference=None)`: a frozen dataclass; the candidate sees only `input` | `schemas/request/case.py` |
+| `Task(name, cases, version)`: `inputs` and `references` and their length check are gone | `schemas/request/task.py` |
+| `Runner.run(candidate, cases)` passes only `case.input` to the candidate and puts the case on the record | `execution/runner.py` |
+| `TrialRecord.case` replaces `TrialRecord.input`, so the reference travels with the record | `schemas/response/record.py` |
+| `Harness.score` reads `record.case.reference` (no zip, no task lookup); with scorers, every case must have a reference | `execution/harness.py` |
+
+Tests: `test_task.py`, `test_runner.py`, `test_harness.py`, `test_result.py` and `test_record.py` follow the new shapes; one new test checks the candidate never receives a reference, one that a case missing its reference is rejected when scorers are given.
+
+Not in this increment: case ids, files, metadata, a `Dataset`.
+
+A breaking change worth knowing: `Task(name, inputs, references)` is now `Task(name, [Case(input, reference), ...])`, and `record.input` is `record.case.input`.
 
 ## Modules
 

@@ -1,50 +1,44 @@
 from    dataclasses  import dataclass, field
-from    typing       import Any, Sequence
+from    typing       import Sequence
+# package modules
+from    .case import Case
 
 
 @dataclass(frozen=True)
 class Task(object):
-    """What is measured: a named, versioned set of inputs. It says nothing about who is measured.
+    """What is measured: a named, versioned set of cases. It says nothing about who is measured.
 
-    Immutable: `inputs` and `references` are stored as tuples.
+    Immutable: `cases` is stored as a tuple.
 
     Args:
         name (str): Identifies the task in logs and results; must not be empty.
-        inputs (Sequence[Any]): Values a candidate is run on, one trial each.
-        version (str): Bump it when the inputs or their meaning change, so old and new results are not mixed.
-        references (Sequence[Any]): The expected value per input, for scorers; the candidate never sees them. Empty means none, else one per input.
+        cases (Sequence[Case]): What the candidate is run on, one trial each, with the reference a scorer may use.
+        version (str): Bump it when the cases or their meaning change, so old and new results are not mixed.
 
     Raises:
-        ValueError: If `name` is empty, or `references` is not empty and does not match `inputs` in length.
+        ValueError: If `name` is empty.
 
     Examples:
-        One task, two candidates (a baseline rule and a variant), run through the same inputs:
+        One task, two candidates (a baseline rule and a variant), run through the same cases:
 
-        >>> task = Task("ticket-routing", ["Card was charged twice for invoice INV-2291", "Login fails with a 500 error"])
+        >>> task = Task("ticket-routing", [Case("Card was charged twice for invoice INV-2291", "billing"),
+        ...                                Case("Login fails with a 500 error", "general")])
         >>> baseline = CallableCandidate(lambda text: "general")
         >>> variant  = CallableCandidate(lambda text: "billing" if "invoice" in text.lower() else "general")
-        >>> [record.outcome.output for record in Runner().run(baseline, task.inputs)]
+        >>> [record.outcome.output for record in Runner().run(baseline, task.cases)]
         ['general', 'general']
-        >>> [record.outcome.output for record in Runner().run(variant, task.inputs)]
+        >>> [record.outcome.output for record in Runner().run(variant, task.cases)]
         ['billing', 'general']
-
-        With references, so a scorer can judge each output:
-
-        >>> task = Task("ticket-routing", ["Card was charged twice for invoice INV-2291", "Login fails with a 500 error"], references=["billing", "general"])
 
         Applied (illustrative): a task for an agent evaluation, run against a `velari_ai` agent candidate:
 
-        >>> task = Task("support-agent-quality", ["What's the balance on ACC-10293?", "Summarize ticket ORG-4471."], version="2")
+        >>> task = Task("support-agent-quality", [Case("What's the balance on ACC-10293?"), Case("Summarize ticket ORG-4471.")], version="2")
     """
-    name:       str
-    inputs:     Sequence[Any]
-    version:    str            = field(default="1")
-    references: Sequence[Any]  = field(default=())
+    name:    str
+    cases:   Sequence[Case]
+    version: str             = field(default="1")
 
     def __post_init__(self) -> None:
         if not self.name:
             raise ValueError("Task.name must not be empty")
-        if self.references and len(self.references) != len(self.inputs):
-            raise ValueError(f"Task.references has {len(self.references)} items for {len(self.inputs)} inputs")
-        for name in ("inputs", "references"):
-            object.__setattr__(self, name, tuple(getattr(self, name)))
+        object.__setattr__(self, "cases", tuple(self.cases))
