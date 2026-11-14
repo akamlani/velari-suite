@@ -1,6 +1,8 @@
 """Tests for velari_harness.core.execution.harness."""
 
 import pytest
+from    typing  import Dict, Optional
+from    velari_harness.core.schemas.response.record import Score, TrialRecord
 
 
 def _recording_candidate():
@@ -26,11 +28,11 @@ def _exact_match(output, reference):
     return output == reference
 
 
-def _values(record):
+def _values(record: TrialRecord) -> Dict[str, Optional[float]]:
     return {name: score.value for name, score in record.scores.items()}
 
 
-def _error(score):
+def _error(score: Score) -> Optional[str]:
     return failure.error if (failure := score.failure) else None
 
 

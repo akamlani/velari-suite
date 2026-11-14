@@ -1,9 +1,11 @@
 """Tests for velari_harness.core.execution.runner."""
 
 import pytest
+from    typing  import Any, Optional
+from    velari_harness.core.schemas.response.record import TrialRecord
 
 
-def _error(record):
+def _error(record: TrialRecord) -> Optional[str]:
     return failure.error if (failure := record.outcome.failure) else None
 
 
@@ -11,7 +13,7 @@ def _reason(record):
     return failure.reason_code if (failure := record.outcome.failure) else None
 
 
-def _value(record):
+def _value(record: TrialRecord) -> Any:
     return output.value if (output := record.outcome.output) else None
 
 
