@@ -12,6 +12,7 @@ dependencies    = [
     "velari-ai",
     "pandas>=2.0",
     "omegaconf>=2.3",
+    "pydantic>=2.9",
 ]
 
 # Runtime extras are added here once the harness runtimes are defined, one extra per execution

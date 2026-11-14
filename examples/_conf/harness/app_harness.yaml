@@ -1,0 +1,12 @@
+# @package _global_
+app:
+  info:
+    name: harness-cli
+    help: "Velari Harness — run one candidate on a task through a Harness and show its trial results."
+    version: 0.1.0
+
+# The task: what is measured. The inputs are the rows of a CSV file; edit that file to change the run.
+task:
+  name: customer-validation
+  version: "1"
+  inputs_path: examples/ai/harness/data/customers.csv   # relative to the repository root
