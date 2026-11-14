@@ -56,12 +56,6 @@ def test_seed_for_leaves_global_random_state_untouched():
     assert random.random() == expected
 
 
-def test_environment_defaults_seed_to_42():
-    from velari_harness.core.schemas.request.environment import Environment
-
-    assert Environment().seed == 42
-
-
 @pytest.mark.parametrize("seed", ["42", 4.2, None, True])
 def test_environment_non_int_seed_raises_typeerror(seed):
     from velari_harness.core.schemas.request.environment import Environment

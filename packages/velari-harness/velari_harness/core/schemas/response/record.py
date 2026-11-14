@@ -41,8 +41,7 @@ class Failure(BaseModel):
 class Outcome(BaseModel):
     """How one trial ended: its `output`, or the `failure` of its first failing step, and how long it took.
 
-    `output` is what the work returned (`None` when it did not complete; a failed teardown still keeps it).
-    `failure` is `None` on success. `duration_sec` covers setup, run and teardown together.
+    `output` is `None` when the work did not complete; a failed teardown still keeps it.
     """
     output:       Any                = None
     failure:      Optional[Failure]  = None
@@ -58,7 +57,7 @@ class Outcome(BaseModel):
 class TrialRecord(BaseModel):
     """One trial: the input and its position, how it ended (`outcome`), and its `scores`.
 
-    `scores` holds each scorer's value by name, `None` if that scorer raised; it is empty when the trial failed.
+    `scores` is `None` for a scorer that raised, and empty when the trial failed.
     """
     index:    int
     input:    Any

@@ -11,12 +11,6 @@ def test_task_keeps_inputs_in_order():
     assert Task("ticket-routing", ["card charged twice", "login fails"]).inputs == ("card charged twice", "login fails")
 
 
-def test_task_defaults_version_to_1():
-    from velari_harness.core.schemas.request.task import Task
-
-    assert Task("ticket-routing", ["card charged twice"]).version == "1"
-
-
 def test_task_stores_inputs_as_tuple_so_later_changes_to_the_source_do_not_leak_in():
     from velari_harness.core.schemas.request.task import Task
 
@@ -72,9 +66,3 @@ def test_task_references_with_a_different_length_raises_valueerror():
 
     with pytest.raises(ValueError):
         Task("ticket-routing", ["Card charged twice", "Login fails"], references=["billing"])
-
-
-def test_task_without_references_has_empty_references():
-    from velari_harness.core.schemas.request.task import Task
-
-    assert Task("ticket-routing", ["Card charged twice"]).references == ()

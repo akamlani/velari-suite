@@ -11,9 +11,7 @@ logger = logging.getLogger(__name__)
 class Runner(object):
     """Run a candidate over a sequence of inputs, one trial per input, and record how each trial went.
 
-    Trials run one after another. Each trial runs the candidate's full lifecycle (`setup`, `run`,
-    `teardown`), and `teardown` always runs. A trial that raises becomes an `ERROR` record and the run
-    carries on, so one bad input does not hide the rest; the first failure in a trial is the one reported.
+    A trial that raises becomes an `ERROR` record and the run carries on; the first failure in a trial is the one reported.
 
     Examples:
         A plain function as the candidate, run over two incoming support messages:

@@ -7,11 +7,13 @@ from    typing       import Any
 class Environment(object):
     """The conditions of a run that must not vary between runs: for now, the base seed.
 
-    The seed is not applied anywhere by the core. It only produces a separate, repeatable seed for each
-    trial (`seed_for`), which the candidate may use. The core never seeds or reads global random state.
+    The core never seeds or reads global random state.
 
     Args:
         seed (int): Base seed every trial seed is derived from.
+
+    Raises:
+        TypeError: If `seed` is not an int (a `bool` does not count).
 
     Examples:
         Each input gets its own seed, the same one on every run of the same environment:
@@ -35,8 +37,7 @@ class Environment(object):
     def seed_for(self, key: Any, trial: int = 0) -> int:
         """Derive the seed for one trial from the base seed, a key for the input, and the trial number.
 
-        The same arguments always give the same seed, in any process; different keys or trials give
-        different seeds. The result fits in 32 bits, so it works with NumPy and scikit-learn.
+        The result fits in 32 bits, so it works with NumPy and scikit-learn.
 
         Args:
             key (Any): Identifies the input: its position today, its case id once cases exist.

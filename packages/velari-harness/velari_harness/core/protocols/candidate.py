@@ -5,10 +5,7 @@ from    typing  import Any, Callable, Protocol
 class Candidate(Protocol):
     """The thing a harness runs and measures: anything that takes an input and returns an output.
 
-    A candidate has a per-trial lifecycle: `setup()`, then `run()`, then `teardown()`. The caller owns
-    that order and must call `teardown()` even when `run()` raised. Subclass it and implement `run()`;
-    `setup()` and `teardown()` do nothing unless overridden. Any object with all three methods also
-    satisfies the protocol without subclassing.
+    The caller owns the order `setup()`, `run()`, `teardown()` and must call `teardown()` even when `run()` raised.
 
     Examples:
         A plain function as a candidate (the core case), here a rule that finds an account's plan tier:

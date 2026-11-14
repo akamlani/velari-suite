@@ -13,11 +13,14 @@ logger = logging.getLogger(__name__)
 class HarnessConfig(object):
     """Settings every harness shares; category harnesses subclass it to add their own fields.
 
-    The seed is not a harness setting: it belongs to the `Environment`. The config is immutable, so a subclass
-    must also be a `@dataclass(frozen=True)`.
+    A subclass must also be a `@dataclass(frozen=True)`, since the config is immutable.
 
     Args:
         name (str): Identifies the harness in logs and results; must be a non-empty string.
+
+    Raises:
+        TypeError: If `name` is not a string.
+        ValueError: If `name` is empty.
     """
     name: str
 
