@@ -6,7 +6,7 @@ from    typing     import Any, Callable, Dict, List, Optional, Self, Sequence, U
 from    .config                    import HarnessConfig
 from    .runner                    import Runner
 from    ..protocols.candidate      import Candidate
-from    ..schemas.request.task     import Task
+from    ..schemas.dataset          import Task
 from    ..schemas.response.record  import Failure, Score, TrialRecord
 from    ..schemas.response.result  import Result
 
@@ -20,7 +20,7 @@ class Harness(object):
 
     Args:
         config (HarnessConfig): The name.
-        task (Task): What is measured; its examples are what the candidate runs on.
+        task (Task): What is measured; its dataset's examples are what the candidate runs on.
         candidate (Candidate): What is measured.
         scorers (Sequence[Callable[[Any, Any], Union[float, Score]]]): `fn(output, reference)` returning a number, bool or `Score`; keyed by distinct `__name__`.
 
@@ -30,7 +30,8 @@ class Harness(object):
     Examples:
         One task and one candidate, scored against the expected churn-risk bands:
 
-        >>> task = Task("churn-risk", [Example(3, "low"), Example(45, "high")])
+        >>> bands = Dataset("churn-bands", [Example(3, "low"), Example(45, "high")])
+        >>> task = Task("churn-risk", bands)
         >>> candidate = CallableCandidate(lambda days_inactive: "high" if days_inactive > 30 else "low")
         >>> def same_band(output, reference):
         ...     return output == reference
@@ -42,12 +43,13 @@ class Harness(object):
 
         Applied (illustrative): an agent candidate on an evaluation task:
 
-        >>> task = Task("support-agent-quality", [Example("What's the balance on ACC-10293?"), Example("Summarize ticket ORG-4471.")])
+        >>> questions = Dataset("support-questions", [Example("What's the balance on ACC-10293?"), Example("Summarize ticket ORG-4471.")])
+        >>> task = Task("support-agent-quality", questions)
         >>> result = Harness.for_task(task, BillingAgentCandidate()).run()
     """
     def __init__(self, config: HarnessConfig, task: Task, candidate: Candidate,
                  scorers: Sequence[Callable[[Any, Any], Union[float, Score]]] = ()) -> None:
-        if scorers and any(example.reference is None for example in task.examples):
+        if scorers and any(example.reference is None for example in task.dataset):
             raise ValueError(f"scorers need a reference on every example of task {task.name!r}")
         self._scorers = {getattr(scorer, "__name__", repr(scorer)): scorer for scorer in scorers}
         if len(self._scorers) != len(scorers):
@@ -96,7 +98,7 @@ class Harness(object):
             Result: One record per task example, in order, with the time the whole run took.
         """
         start = time.perf_counter()
-        records = self.score(Runner().run(self._candidate, self._task.examples))
+        records = self.score(Runner().run(self._candidate, self._task.dataset))
         return Result(name=self.name, records=records, duration_sec=time.perf_counter() - start)
 
     def score(self, records: Sequence[TrialRecord]) -> List[TrialRecord]:

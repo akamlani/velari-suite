@@ -18,7 +18,7 @@ def _value(record: TrialRecord) -> Any:
 
 
 def _examples(*inputs):
-    from velari_harness.core.schemas.response.record import Example
+    from velari_harness.core.schemas.dataset import Example
 
     return [Example(value) for value in inputs]
 
@@ -191,7 +191,7 @@ def test_run_keyboard_interrupt_propagates_after_teardown_runs():
 def test_run_passes_only_the_case_input_to_the_candidate():
     from velari_harness.core.execution.runner import Runner
     from velari_harness.core.protocols.candidate import CallableCandidate
-    from velari_harness.core.schemas.response.record import Example
+    from velari_harness.core.schemas.dataset import Example
 
     seen = []
 
@@ -203,7 +203,8 @@ def test_run_passes_only_the_case_input_to_the_candidate():
 def test_run_keeps_the_output_a_candidate_returns():
     from velari_harness.core.execution.runner import Runner
     from velari_harness.core.protocols.candidate import CallableCandidate
-    from velari_harness.core.schemas.response.record import Example, Output
+    from velari_harness.core.schemas.dataset import Example
+    from velari_harness.core.schemas.response.record import Output
 
     reported = Output(value="enterprise", usage={"input_tokens": 812.0})
 
@@ -215,7 +216,8 @@ def test_run_keeps_the_output_a_candidate_returns():
 def test_run_wraps_a_plain_return_in_an_output():
     from velari_harness.core.execution.runner import Runner
     from velari_harness.core.protocols.candidate import CallableCandidate
-    from velari_harness.core.schemas.response.record import Example, Output
+    from velari_harness.core.schemas.dataset import Example
+    from velari_harness.core.schemas.response.record import Output
 
     records = Runner().run(CallableCandidate(lambda text: "enterprise"), [Example("a")])
 

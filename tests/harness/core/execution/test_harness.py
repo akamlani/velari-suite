@@ -18,10 +18,10 @@ def _recording_candidate():
 
 
 def _task(name, inputs, references=None):
-    from velari_harness.core.schemas.response.record import Example
-    from velari_harness.core.schemas.request.task import Task
+    from velari_harness.core.schemas.dataset import Dataset, Example, Task
 
-    return Task(name, [Example(value, reference) for value, reference in zip(inputs, references or [None] * len(inputs))])
+    examples = [Example(value, reference, uid=str(i)) for i, (value, reference) in enumerate(zip(inputs, references or [None] * len(inputs)))]
+    return Task(name, Dataset(name, examples))
 
 
 def _exact_match(output, reference):
