@@ -77,10 +77,11 @@ class TestDataset:
     def test_mixed_key_types_in_input_can_be_hashed_and_fingerprinted(self):
         from velari_harness.core.schemas.dataset import Example
 
-        dataset = _dataset(Example({1: "a", "label": "b"}), Example({1: "a", "label": "b"}, uid="explicit"))
+        mixed = _dataset(Example({1: "a", "label": "b"}))
+        reordered = _dataset(Example({"label": "b", 1: "a"}))
 
-        assert len(dataset.examples[0].uid) == 12
-        assert len(dataset.fingerprint) == 12
+        assert mixed.examples[0].uid == reordered.examples[0].uid
+        assert mixed.fingerprint == reordered.fingerprint
 
     def test_int_and_str_keys_hash_differently(self):
         from velari_harness.core.schemas.dataset import Example
