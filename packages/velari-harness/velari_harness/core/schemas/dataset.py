@@ -5,9 +5,18 @@ from    dataclasses  import dataclass, field, replace
 from    typing       import Any, Iterator, Optional, Sequence
 
 
+def _canonical(payload: Any) -> Any:
+    # json's sort_keys compares raw keys, so mixed key types raise; non-str keys get a type prefix so 1 and "1" stay distinct.
+    if isinstance(payload, dict):
+        return {(k if isinstance(k, str) else f"{type(k).__name__}:{k}"): _canonical(v) for k, v in payload.items()}
+    if isinstance(payload, (list, tuple)):
+        return [_canonical(item) for item in payload]
+    return payload
+
+
 def _digest(payload: Any) -> str:
     # default=str keeps non-JSON values (dates, paths) hashable, but their str() must be stable across runs
-    return hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()[:12]
+    return hashlib.sha256(json.dumps(_canonical(payload), sort_keys=True, default=str).encode()).hexdigest()[:12]
 
 
 @dataclass(frozen=True)
