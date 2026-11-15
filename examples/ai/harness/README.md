@@ -180,8 +180,8 @@ own; it only chains run, score and package.
 
 - **Comparing candidates.** A harness is one candidate on one task. Lining several runs up (two candidates,
   or two environments) needs a run group and result set, which the core does not have yet.
-- No metrics or reducers beyond the mean in the scores summary, no repeated trials, and no `Environment`
-  (nothing reads one yet).
+- No metrics or reducers beyond the mean in the scores summary, no repeated trials, and the `Environment` holds only a seed
+  (no limits or policies yet; the candidate is not told its seed).
 - The candidate is defined in the script, not built from config.
 - The evaluation and data science categories and the planned core components (datasets, metrics, a
   registry) are not implemented.
