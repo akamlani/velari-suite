@@ -1,6 +1,6 @@
 # velari-harness architecture
 
-Matches `velari_harness` as of stage 2, increment 9 (uncommitted at the time of writing). Update it when an increment changes behavior. It describes the code that exists; planned components are in [../plan/](../plan/plan.md) and marked **Planned** in the [glossary](../glossary.md#component-glossary). Statements marked *verified* were checked by running the code; anything else is read from the source.
+Matches `velari_harness` as of stage 2, increment 13. Update it when an increment changes behavior. It describes the code that exists; planned components are in [../plan/](../plan/plan.md) and marked **Planned** in the [glossary](../glossary.md#component-glossary). Statements marked *verified* were checked by running the code; anything else is read from the source.
 
 Audience: contributors who extend or review the harness core. Definitions of terms live in the glossary and are not repeated here.
 
@@ -16,10 +16,10 @@ Not implemented: examples, datasets, metrics and reducers, repeated trials, a re
 |---|---|
 | `__init__.py` | `__version__` (from installed metadata via `velari-core`) and the package `logger` |
 | `core/schemas/types.py` | `Status` (`SUCCESS`, `ERROR`): how a run or one trial ended; `ReasonCode` (`INVALID_INPUT`, `NOT_FOUND`, `PERMISSION_DENIED`, `TIMEOUT`, `UNAVAILABLE`, `UNEXPECTED`): why a trial failed, by cause. `core/errors.py` has `TrialError`, which a candidate raises to declare its own code |
-| `core/schemas/response/record.py` | `Example` (`input`, `reference`): one thing to measure; `Output` (`value`, `usage`, `artifacts`): what a candidate may return; `Outcome` (`output`, an `Output`, `failure`, `duration_sec`, derived `status`) and `Failure(error, reason_code)` with the exception-to-reason-code rules; `Score` (`value`, `passed`, `label`, `explanation`, `failure`, `metadata`): a scorer's verdict; `TrialRecord(index, example, outcome, scores)`: what one trial produced |
+| `core/schemas/response/record.py` | `Output` (`value`, `usage`, `artifacts`): what a candidate may return; `Outcome` (`output`, an `Output`, `failure`, `duration_sec`, derived `status`) and `Failure(error, reason_code)` with the exception-to-reason-code rules; `Score` (`value`, `passed`, `label`, `explanation`, `failure`, `metadata`): a scorer's verdict; `TrialRecord(index, example, outcome, scores)`: what one trial produced |
 | `core/schemas/response/result.py` | `Result(name, records, duration_sec)`: one record per task input in order, with computed `trials` (a count per status) and `scores` (the mean per scorer) |
 | `core/execution/config.py` | `HarnessConfig` (`name`) and building it from OmegaConf (frozen dataclass, checked at construction) |
-| `core/schemas/request/task.py` | `Task`: name, examples and version of what is measured (frozen dataclass) |
+| `core/schemas/dataset.py` | `Example` (`input`, `reference`, `uid`): one thing to measure; `Dataset(name, examples)`: an ordered, immutable collection with uids and a `fingerprint`; `Task(name, dataset, version)`: what is measured (all frozen dataclasses) |
 | `core/schemas/request/environment.py` | `Environment`: the base seed and repeatable per-trial seeds (frozen dataclass) |
 | `core/protocols/candidate.py` | `Candidate` (protocol with a per-trial lifecycle) and `CallableCandidate` |
 | `core/execution/harness.py` | `Harness`: holds a task, a candidate and scorers; `run()` chains run, score and package; `score()` scores records; `for_task()` builds one |
@@ -38,20 +38,21 @@ graph LR
     harness --> omegaconf
     init["__init__.py"] --> core2["velari_core: package_version"]
     candidate["protocols/candidate.py"]
-    task["schemas/request/task.py"]
+    dataset["schemas/dataset.py"]
     environment["schemas/request/environment.py"]
     record["schemas/response/record.py"] --> types
+    record --> dataset
     record --> pydantic
     runner["execution/runner.py"] --> candidate
     runner --> record
     runner --> types
     harness --> runner
-    harness --> task
+    harness --> dataset
     harness --> candidate
     harness --> record
 ```
 
-`protocols/candidate.py` imports only the standard library; only `runner.py` imports it. `harness.py` imports `runner.py`, `Task`, `Candidate`, `TrialRecord` and `Result`; the Runner does not import `harness.py`. `schemas/request/task.py` and `schemas/request/environment.py` import only the standard library and nothing imports them yet.
+`protocols/candidate.py` imports only the standard library; only `runner.py` imports it. `harness.py` imports `runner.py`, `Task` (from `dataset.py`), `Candidate`, `TrialRecord` and `Result`; the Runner does not import `harness.py`. `schemas/dataset.py` imports only the standard library; `record.py`, `runner.py` and `harness.py` import it. `schemas/request/environment.py` imports only the standard library and nothing imports it yet.
 
 `velari-ai` and `pandas` are declared in `pyproject.toml` but not imported (*verified* by grep).
 
@@ -85,7 +86,7 @@ A task run has no run-level status or failure. A trial that raises (in `setup`, 
 
 ### Task
 
-`Task(name, examples, version="1")` is a frozen dataclass. An empty `name` raises `ValueError`; `examples` (any sequence of `Example`) is stored as a tuple, so later changes to the list that was passed in do not reach the task; assigning to a field raises `FrozenInstanceError`. All covered by tests in `test_task.py`, together with the central property: one task, run through the Runner against two different candidates, gives each its own outputs. The task knows nothing about either.
+`Task(name, dataset, version="1")` is a frozen dataclass; an empty `name` raises `ValueError` and assigning to a field raises `FrozenInstanceError`. The `Dataset(name, examples)` it holds stores the examples as a tuple (later changes to the list that was passed in do not reach it), gives an example with no `uid` a hash of its content, raises on an empty name, no examples or duplicate uids, and has a `fingerprint` that changes with any uid, input, reference or the order. All covered by tests in `test_dataset.py`, together with the central property: one task, run through the Runner against two different candidates, gives each its own outputs. The task knows nothing about either.
 
 ### Scorer
 
@@ -149,14 +150,14 @@ The extension points are the things a harness holds, not subclasses of it: write
 | A scorer that raises, or a failed trial, never becomes a zero: the first is `None`, the second has no scores. A scorer is a plain function, not a class or protocol | A score of 0 would be indistinguishable from a real mismatch; a plain function is the smallest thing a scorer can be | A `Scorer` class or protocol | A stateful scorer or one that needs the input has no home until a `Scorer` protocol is added |
 | `Outcome.output` is an `Output`, which a candidate may return | One structure for what a candidate produced, so usage and files have a home on the record | Unwrapping it into fields on `Outcome` | `outcome.output` is no longer the plain value; scorers still get the value because the Harness unwraps it |
 | `Score` is a structure with `metadata`, not a bare float | A float had nowhere to say why a score was given or to attach more; one shape can grow without another breaking change | A float plus parallel dictionaries for labels and notes | `record.scores[name]` is a `Score`, so the number is `.value` |
-| `Example` is defined in `record.py`, not its own file | One file for the data a run consumes and produces | A separate `request/case.py`, the file it started in (as `Case`) | `Task` (the request side) imports from the response-side file |
+| `Example`, `Dataset` and `Task` live together in `schemas/dataset.py` | They are the data a run is given and are used together; one file, no import from `record.py` | `Example` in `record.py` (increment 12) and `Task` in `request/task.py` | `record.py` imports `dataset.py`, so the response side depends on the data it was given |
 | An example carries its own reference, and a record keeps its example | A positional pairing of inputs and references could drift apart and needed a length check; with the example on the record, `Harness.score` needs no task and records can be scored again on their own | A parallel `references` sequence on `Task` (increment 8) | A task built from plain inputs needs `Example(...)` wrappers; `None` means no reference |
-| `Task` is a frozen dataclass holding `Example`s | The task is a definition that must not change between runs; its examples are what a `Dataset` will later hold | Pydantic; waiting for `Dataset` | When `Dataset` arrives `examples` may change shape; immutability is shallow, since the input values themselves are not copied |
+| `Task` holds a `Dataset`, not a sequence of examples | The task is a definition that must not change between runs, and the dataset gives it uids and a fingerprint | Accepting a plain list and wrapping it (more code) | Callers build a `Dataset` first; immutability is shallow, since the input values themselves are not copied |
 | `HarnessConfig` is a frozen dataclass that checks its name at construction | A bad or changed config must not surface after the work is done; a dataclass keeps the OmegaConf and subclassing pattern | Pydantic config; only copying `name` before the hooks | A config subclass must also be a frozen dataclass; fields a subclass adds are not type-checked |
 | `Runner` is a stateless class with `run(candidate, examples)` returning `List[TrialRecord]` | A class leaves room for limits and an error policy without changing callers; it only runs, so scoring can be applied or re-applied by the harness | A plain function; returning a `Result` | An empty class for now; no aggregate, so callers read raw records |
 | The candidate lifecycle runs once per input | Isolation: each trial starts from a clean `setup` and always ends with `teardown` | Run `setup` once per run | A costly `setup` (building an agent, loading a model) repeats for every input |
-| `schemas/` is grouped into `request/` (what you give a run: `Task`) and `response/` (what a run produces: `Result`, `TrialRecord`) | The planned `Example` and `Dataset` belong with `Task`, and `Score` with the results; `definition/` is left for settings and conditions (`HarnessConfig`, later `Environment`) | `Task` in `definition/`; a flat `schemas/` | A subfolder per direction before most of its contents exist |
-| Folders `schemas`, `protocols`, `execution`; no `definition/` | Each file sits beside what it relates to: `Environment` with `Task` in `schemas/request/`, `HarnessConfig` with `Harness` in `execution/`. A `definition/` folder that held the two was removed because its name did not say what it held | A folder for settings (`settings/`) | Folders exist before most of their contents |
+| `schemas/` holds `dataset.py` (what a run is given), `request/` (`Environment`) and `response/` (what a run produces: `Result`, `TrialRecord`, `Score`) | `Example`, `Dataset` and `Task` are used together, so they share a file; `request/` keeps the one settings-like type until it has more | `Task` in `request/` (it moved out in increment 13); a flat `schemas/` | `request/` holds a single file |
+| Folders `schemas`, `protocols`, `execution`; no `definition/` | Each file sits beside what it relates to: `Environment` in `schemas/request/` (what a run is run under), `HarnessConfig` with `Harness` in `execution/`. A `definition/` folder that held the two was removed because its name did not say what it held | A folder for settings (`settings/`) | Folders exist before most of their contents |
 | `name` defaults to the task name; the harness has no seed | A name is needed for logs and results; the single seed belongs to the `Environment`, which is what must not vary between runs (it was once duplicated in `HarnessConfig` and `Result`, and removed) | A seed on both the config and the environment | Two harnesses of one class share a name unless overridden; a run's `Result` does not report its seed until a harness uses an `Environment` |
 
 ## 7. Quality attributes
@@ -187,7 +188,9 @@ None open. Three were found while reading the code and fixed in increment 7:
 - `velari-ai` and `pandas` are declared dependencies with no import.
 - `Candidate.run(input)` names its parameter `input`, which shadows the builtin (the lint rule for it is not enabled), and an output's `value` is untyped (`Any`) until a schema check exists.
 - A `BaseException` in a trial discards the records of the trials that already finished.
-- A example has no id, so a trial is identified by its `index` and its example; a stable id comes with `Dataset`.
+- Two examples with the same content and no `uid` raise (they hash to the same uid); repeated inputs need explicit uids.
+- A uid or fingerprint is a hash of `json.dumps(..., default=str)`, so a non-JSON input hashes through its `str()`, which must be stable across runs (a DataFrame or an object with a default repr is not).
+- The fingerprint is not yet recorded in the `Result`; it comes with the run spec.
 - `outcome.output.value` and `example.input` are `Any`; the JSON round trip needs JSON-serialisable values.
 - `Output.artifacts` are recorded, not copied; collecting files needs a trial working directory (`TrialContext`).
 - `Environment` is not read by the Runner or the Harness, so no trial gets a derived seed yet, and it has no limits, error or retry policies, fail-fast settings, artifacts directory or lazy `Experiment`.
@@ -220,7 +223,7 @@ Run with `uv run pytest tests/harness`.
 | `tests/harness/core/execution/test_harness.py` | Named after the task with a `name` override; trials counted per status, including every trial failing; scoring through the harness, no scores for a failed trial, a raising scorer gives `None`; `score()` on records already run; invalid scorers `ValueError`, including a example missing its reference; JSON round trip. Records in order, the per-input lifecycle and one task against two candidates are covered in `test_runner.py` and `test_task.py` |
 | `tests/harness/core/schemas/response/test_result.py` | Negative duration; `trials` counts, including in the JSON, and zero counts without records; `usage` totals per key in the JSON; `scores` mean per scorer in the JSON and a round trip |
 | `tests/harness/core/schemas/request/test_environment.py` | Pinned derived seeds; same arguments give the same seed; a changed seed, key or trial changes it; 32-bit range; global random state untouched; non-int seed `TypeError`; immutability |
-| `tests/harness/core/schemas/request/test_task.py` | Examples kept in order; examples copied into a tuple; empty name `ValueError`; immutability; one task run against two candidates |
+| `tests/harness/core/schemas/test_dataset.py` | Examples kept in order and copied into a tuple; a given uid kept, a missing one hashed from the content; empty name, no examples or duplicate uids `ValueError`; the fingerprint changes with an input, a reference or the order and is stable for identical data; `Task` name check and immutability; one task run against two candidates |
 | `tests/harness/core/execution/test_runner.py` | One record per input in order; lifecycle once per input; empty inputs; a failing input recorded while later inputs run; failing `setup` skips `run` and still tears down; `teardown` failure after success keeps the output; `teardown` failure not masking an earlier error; `KeyboardInterrupt` propagates after `teardown` ran; the candidate receives only the example's input, never its reference; a returned `Output` is kept and a plain return is wrapped in one |
 | `tests/harness/core/schemas/response/test_record.py` | `TrialRecord` JSON round trip; negative duration; `status` derived from the failure |
 | `tests/harness/core/protocols/test_candidate.py` | `CallableCandidate` returns the function's result and propagates exceptions; a subclass with only `run` inherits no-op hooks; overridden hooks run in order; a subclass without `run` cannot be instantiated |

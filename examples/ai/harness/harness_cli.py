@@ -17,15 +17,15 @@ from    velari_core.core import read_root_dir
 from    velari_core.core.io.partition.hydra import read_hydra
 from    velari_harness.core.execution.harness import Harness
 from    velari_harness.core.protocols.candidate import Candidate
-from    velari_harness.core.schemas.request.task import Task
-from    velari_harness.core.schemas.response.record import Example, Score
+from    velari_harness.core.schemas.dataset import Dataset, Example, Task
+from    velari_harness.core.schemas.response.record import Score
 from    velari_harness.core.schemas.response.result import Result
 from    velari_harness.core.schemas.types import Status
 
 # Objective: run a customer-row validator (the candidate) on every row of a CSV file (the task), record each trial, and show which rows pass or fail and why.
 
 # Terms used below, each with what it is in this example (full definitions: docs/packages/velari-harness/glossary.md)
-#   Task       what is measured: a name, a version and the examples
+#   Task       what is measured: a name, a version and a dataset of examples
 #              here: "customer-validation", whose examples are the 12 rows of data/customers.csv
 #   Candidate  the thing being measured: it takes one input and returns an output
 #              here: CustomerValidator, which takes one customer row and returns a cleaned record, or says what is wrong with it
@@ -83,14 +83,14 @@ class HarnessCli(object):
 
     def __init__(self, cfg: DictConfig) -> None:
         self.cfg = cfg
-        # the Task is what is measured: a name, a version and the examples the candidate is run on.
+        # the Task is what is measured: a name, a version and the dataset of examples the candidate is run on.
         # Each example is a CSV row: its input is the row as a dict keyed by the header (id, name, email, age, country), and its reference
         # is the expected_email column, which goes to the scorer and never reaches the candidate.
         # pandas reads every column as text (dtype=str) with empty cells kept as "", so the validator sees the raw values.
         df_customers = pd.read_csv(Path(read_root_dir()) / cfg.task.inputs_path, dtype=str, keep_default_na=False)
         df_inputs = df_customers.drop(columns="expected_email")
-        examples = [Example(row, reference) for row, reference in zip(df_inputs.to_dict("records"), df_customers["expected_email"])]
-        self.task = Task(cfg.task.name, examples, version=str(cfg.task.version))
+        examples = [Example(row, reference, uid=row["id"]) for row, reference in zip(df_inputs.to_dict("records"), df_customers["expected_email"])]
+        self.task = Task(cfg.task.name, Dataset(Path(cfg.task.inputs_path).stem, examples), version=str(cfg.task.version))
         # step 1, create: the harness pairs the candidate and the scorer with the task (it is named after the task)
         self.harness = Harness.for_task(self.task, self.CANDIDATE, scorers=[email_match])
         self.result: Optional[Result] = None   # set by run()
@@ -128,7 +128,7 @@ class HarnessCli(object):
             summary.add_row(name, f"{mean:.2f}" if mean is not None else "")
 
         # table 3: one row per input, with the trial's status, reason code (empty on success), its score (empty on failure) and its output or error message
-        trials = Table(title=f"{self.task.name} (version {self.task.version}): outcome per input")
+        trials = Table(title=f"{self.task.name} (version {self.task.version}, data {self.task.dataset.fingerprint}): outcome per input")
         for column in ("input", "status", "reason code", "score", "output / error"):
             trials.add_column(column)
         for record in result.records:

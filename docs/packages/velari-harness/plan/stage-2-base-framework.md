@@ -30,7 +30,8 @@ Stage 2 is built in small increments, each with its own tests, instead of all at
 | 10 | `Case` (input and optional reference); `Task(name, cases)` replaces `inputs` and `references`; `TrialRecord` keeps its `case`; the Runner runs cases and `Harness.score` reads `record.case.reference` | Implemented |
 | 11 | `Output` (value, usage, artifacts): a candidate may return one or a plain value; `Outcome.output` is an `Output`; the Harness scores the plain value; `Result.usage` totals usage | Implemented |
 | 12 | Structured `Score` (value, passed, label, explanation, failure, metadata); `Case` renamed `Example` and moved into `record.py` (`Task.examples`, `TrialRecord.example`); a scorer may return a number, a bool or a `Score` | Implemented |
-| 13 onward | Not yet planned. The remaining modules are added one increment at a time, each re-planned when the previous one is done | |
+| 13 | `Dataset`: ordered, immutable examples with uids (a content hash when none is given) and a `fingerprint`; `Example` (now with `uid`), `Dataset` and `Task` live in `schemas/dataset.py`, and `request/task.py` is removed; `Task(name, dataset, version)` | Implemented |
+| 14 onward | Not yet planned. The remaining modules are added one increment at a time, each re-planned when the previous one is done | |
 
 ### Increment 1: Harness and its config
 
@@ -206,6 +207,23 @@ Tests: `test_harness.py` is one `TestHarness` class (the scoring cases moved her
 
 A breaking change worth knowing: a run has no `status` or `failure` of its own. Failed trials are data in their records, and anything else (a `KeyboardInterrupt`, a bad argument) raises.
 
+### Increment 13: Dataset
+
+A run could not say which data it used, and an example had no uid, so a trial was known only by its index. A `Dataset` gives the examples stable uids and the collection a `fingerprint`.
+
+| Change | Where |
+|---|---|
+| `Dataset(name, examples)`: an immutable ordered collection; an example with no `uid` gets a hash of its input and reference; an empty name, no examples or duplicate uids raise `ValueError`; `fingerprint` hashes every uid, input and reference in order | `schemas/dataset.py` |
+| `Example` gains an optional `uid` (last, so `Example(input, reference)` still works) | `schemas/dataset.py` |
+| `Example` and `Task` move into `schemas/dataset.py`; `schemas/request/task.py` is removed; `Task(name, dataset, version)` takes a `Dataset` | `schemas/dataset.py` |
+| `record.py`, `runner.py` and `harness.py` import them from there; `Harness` runs `task.dataset` | `execution/`, `schemas/response/record.py` |
+
+Tests: `test_dataset.py` (uids, validation, fingerprint, `Task`; the old `test_task.py` moved into it). The harness test helper gives its examples explicit uids, since two identical inputs without uids now raise. The example builds a `Dataset` from the CSV with the `id` column as each uid and prints the fingerprint in its third table.
+
+Not in this increment: filtering and slicing, loaders such as `from_frame`, storing the fingerprint in the `Result` (it needs the run spec), and `ExampleView`.
+
+A breaking change worth knowing: `Task(name, examples)` is `Task(name, Dataset(name, examples))`, and `Example` and `Task` are imported from `velari_harness.core.schemas.dataset`.
+
 ### Increment 12: Score and Example
 
 A score was a bare `float`, so a scorer had nowhere to say why or to attach more. A `Score` gives it a structure that can grow. In the same increment `Case` became `Example` (the word Inspect AI, HELM, Phoenix and LangSmith use for one record) and moved into `record.py`.
@@ -242,7 +260,7 @@ A breaking change worth knowing: `record.outcome.output` is now an `Output`, so 
 
 ### Increment 10: Case
 
-> **Renamed in increment 12:** `Case` is now `Example`, defined in `record.py`; the file `schemas/request/case.py` is gone.
+> **Renamed in increment 12, moved in 13:** `Case` is now `Example`, and `Example` and `Task` live in `schemas/dataset.py`; the files `schemas/request/case.py` and `schemas/request/task.py` are gone.
 
 A task kept `inputs` and `references` as two sequences that had to match by position, so a length check lived in `Task` and a strict `zip` in `Harness.score`. A case carries both.
 
@@ -268,10 +286,9 @@ One folder per concern, matching how the rest of the repo is organised (`velari_
 velari_harness/core/
 ├── schemas/          # plain data, no behavior
 │   ├── types.py          # StrEnums: Status (SUCCESS, ERROR; TIMEOUT planned)
-│   ├── request/          # what you give a run
-│   │   ├── task.py           # Task: candidate-agnostic spec (increment 4)
-│   │   ├── environment.py    # Environment: seed, limits, failure policy, lazy Experiment (increment 5: seed)
-│   │   └── dataset.py        # ExampleView, Dataset (planned; Example is in response/record.py)
+│   ├── dataset.py        # Example, Dataset, Task (increments 4, 10, 13); ExampleView planned
+│   ├── request/          # what a run is run under
+│   │   └── environment.py    # Environment: seed, limits, failure policy, lazy Experiment (increment 5: seed)
 │   └── response/         # what a run produces
 │       ├── result.py         # Result: what one run returned (increment 1)
 │       ├── record.py         # TrialRecord (increment 3); Event (planned)
@@ -321,10 +338,10 @@ One way, left to right, so there are no import cycles:
 
 `schemas` <- `protocols` <- `results` <- `execution` <- `registry`
 
-A folder imports only from folders to its left. Imports across folders are relative (`from ..schemas.response.record import Example`).
+A folder imports only from folders to its left. Imports across folders are relative (`from ..schemas.dataset import Example`).
 
 - `Harness` lives in `execution/` with its `HarnessConfig`: `Harness.run()` calls the `Runner`, which produces results, so it comes after `schemas`, `protocols` and `results`.
-- There is no `definition/` folder. `Environment` sits beside `Task` in `schemas/request/` (both are things you give a run), and `HarnessConfig` sits beside `Harness` in `execution/` (a config belongs to what it configures).
+- There is no `definition/` folder. `Environment` sits alone in `schemas/request/` (the conditions a run is run under, next to `dataset.py`, which holds what it is given), and `HarnessConfig` sits beside `Harness` in `execution/` (a config belongs to what it configures).
 - `Output` and `Score` are data, so they sit in `schemas/`; `protocols/` only describes behavior.
 - `protocols/` is its own folder because it is the public contract for stages 3 and 4 and for third parties. Later layers implement `protocols/` and import `schemas/`; they do not reach into `execution/` internals.
 
@@ -377,7 +394,7 @@ Read `velari_core/core/experiment.py` (`Experiment`, `ConfigOmegaConf`), `velari
 
 ## Tests (`tests/harness/core/`)
 
-High-signal only, per `test_guides.md`. Small local fakes, no `unittest.mock`. Test files mirror the source folders: `tests/harness/core/{schemas,protocols,results,execution,registry}/test_<module>.py` (`schemas/request/` and `schemas/response/` have their own subfolders). Pytest runs with `--import-mode=importlib`, so repeated basenames such as `test_registry.py` do not collide.
+High-signal only, per `test_guides.md`. Small local fakes, no `unittest.mock`. Test files mirror the source folders: `tests/harness/core/{schemas,protocols,results,execution,registry}/test_<module>.py` (`schemas/request/` and `schemas/response/` have their own subfolders; `test_dataset.py` sits directly in `schemas/`). Pytest runs with `--import-mode=importlib`, so repeated basenames such as `test_registry.py` do not collide.
 
 - The runner scores every case x trial, in order, and each trial gets its own derived seed.
 - A candidate that raises produces an error record, not an exception; `fail_fast` stops on the first error and `max_error_ratio` stops the run, with the status saying so.

@@ -3,7 +3,8 @@ import  time
 from    typing import Iterable, List, Optional
 # package modules
 from    ..protocols.candidate      import Candidate
-from    ..schemas.response.record  import Example, Failure, Outcome, Output, TrialRecord
+from    ..schemas.dataset          import Example
+from    ..schemas.response.record  import Failure, Outcome, Output, TrialRecord
 
 logger = logging.getLogger(__name__)
 

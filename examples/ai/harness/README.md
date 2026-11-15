@@ -31,7 +31,8 @@ not change the exit code.
 
 | Core piece | Where in the example |
 |---|---|
-| `Task(name, examples, version)` | Built from the `task:` section; each example is a row of `data/customers.csv`, read with pandas: the input is the row as a dict keyed by the header, and the reference is its `expected_email` column (not part of the input, so the candidate never sees it) |
+| `Task(name, dataset, version)` | Built from the `task:` section; the dataset is `data/customers.csv`, read with pandas, one example per row: the input is the row as a dict keyed by the header, and the reference is its `expected_email` column (not part of the input, so the candidate never sees it) |
+| `Dataset(name, examples)` | The rows as an ordered, immutable collection; each example's `uid` is the CSV `id` column (without one, it would get a hash of its content). Its `fingerprint` hash is shown in the third table's title, so a run says which data it used |
 | `Candidate` subclass | `CustomerValidator`: `setup()` compiles the email pattern, `run(row)` returns a cleaned record or raises, `teardown()` releases the pattern. The Runner calls them once per row |
 | Scorer function | `email_match(output, reference)`: a plain function returning a number, a `bool` or a `Score` (here a `Score` with a label and the expected value, built from `exact_match` in `velari_ai.ai.evals.heuristics`); its name is the key in each record's `scores`. Score and status are separate: row 11 succeeds and scores `0.0`; a failed trial has no output, so it gets no score |
 | `Harness.for_task(task, candidate, scorers=[...])` | The container, named after the task. Its `run()` chains three steps: run the candidate on every input, score each successful trial, package the result |
@@ -70,7 +71,7 @@ durations vary):
 ┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┓
 ┃ harness             ┃ inputs ┃ duration_sec ┃ trials success ┃ trials error ┃
 ┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━┩
-│ customer-validation │ 12     │ 0.0002       │ 6              │ 6            │
+│ customer-validation │ 12     │ 0.0001       │ 6              │ 6            │
 └─────────────────────┴────────┴──────────────┴────────────────┴──────────────┘
         scores        
 ┏━━━━━━━━━━━━━┳━━━━━━┓
@@ -78,7 +79,7 @@ durations vary):
 ┡━━━━━━━━━━━━━╇━━━━━━┩
 │ email_match │ 0.83 │
 └─────────────┴──────┘
-               customer-validation (version 1): outcome per input               
+     customer-validation (version 1, data a1c998fe3b61): outcome per input      
 ┏━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┓
 ┃ input            ┃ status  ┃ reason code   ┃ score        ┃ output / error   ┃
 ┡━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━┩
