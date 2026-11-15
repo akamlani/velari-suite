@@ -3,6 +3,7 @@
 # See examples/ai/harness/README.md for details.
 
 import  logging
+import  numpy as np
 import  pandas as pd
 import  re
 import  typer
@@ -19,6 +20,7 @@ from    velari_harness.core.execution.harness import Harness
 from    velari_harness.core.protocols.candidate import Candidate
 from    velari_harness.core.schemas.dataset import Dataset, Example, Task
 from    velari_harness.core.schemas.response.record import Score
+from    velari_harness.core.schemas.request.environment import Environment
 from    velari_harness.core.schemas.response.result import Result
 from    velari_harness.core.schemas.types import Status
 
@@ -27,6 +29,8 @@ from    velari_harness.core.schemas.types import Status
 # Terms used below, each with what it is in this example (full definitions: docs/packages/velari-harness/glossary.md)
 #   Task       what is measured: a name, a version and a dataset of examples
 #              here: "customer-validation", whose examples are the 12 rows of data/customers.csv
+#   Environment  what is held fixed for every candidate: the base seed each trial's seed is derived from
+#              here: Environment with base seed 42 (also set as NumPy's seed); each trial record shows its derived seed
 #   Candidate  the thing being measured: it takes one input and returns an output
 #              here: CustomerValidator, which takes one customer row and returns a cleaned record, or says what is wrong with it
 #   Trial      one run of the candidate on one input; its record is "success" with an output, or "error" with a message
@@ -83,6 +87,8 @@ class HarnessCli(object):
 
     def __init__(self, cfg: DictConfig) -> None:
         self.cfg = cfg
+        # the Environment's base seed: set NumPy's global seed, as Experiment.seed_init does; each trial's seed is derived from it
+        np.random.seed(42)
         # the Task is what is measured: a name, a version and the dataset of examples the candidate is run on.
         # Each example is a CSV row: its input is the row as a dict keyed by the header (id, name, email, age, country), and its reference
         # is the expected_email column, which goes to the scorer and never reaches the candidate.
@@ -92,7 +98,7 @@ class HarnessCli(object):
         examples = [Example(row, reference, uid=row["id"]) for row, reference in zip(df_inputs.to_dict("records"), df_customers["expected_email"])]
         self.task = Task(cfg.task.name, Dataset(Path(cfg.task.inputs_path).stem, examples), version=str(cfg.task.version))
         # step 1, create: the harness pairs the candidate and the scorer with the task (it is named after the task)
-        self.harness = Harness.for_task(self.task, self.CANDIDATE, scorers=[email_match])
+        self.harness = Harness.for_task(self.task, self.CANDIDATE, scorers=[email_match], environment=Environment(seed=42))
         self.result: Optional[Result] = None   # set by run()
 
     @classmethod
@@ -127,16 +133,16 @@ class HarnessCli(object):
         for name, mean in result.scores.items():
             summary.add_row(name, f"{mean:.2f}" if mean is not None else "")
 
-        # table 3: one row per input, with the trial's status, reason code (empty on success), its score (empty on failure) and its output or error message
+        # table 3: one row per input, with the trial's seed, status, reason code (empty on success), its score (empty on failure) and its output or error message
         trials = Table(title=f"{self.task.name} (version {self.task.version}, data {self.task.dataset.fingerprint}): outcome per input")
-        for column in ("input", "status", "reason code", "score", "output / error"):
+        for column in ("input", "seed", "status", "reason code", "score", "output / error"):
             trials.add_column(column)
         for record in result.records:
             failure = record.outcome.failure   # None when the trial succeeded
             output = record.outcome.output     # None when the trial failed
             color = "red" if failure else "green"
             score = ",".join(f"{s.value:.1f} {s.label}" for s in record.scores.values() if s.value is not None)
-            trials.add_row(",".join(str(v or "") for v in record.example.input.values()), f"[{color}]{record.outcome.status.value}[/{color}]",
+            trials.add_row(",".join(str(v or "") for v in record.example.input.values()), str(record.seed), f"[{color}]{record.outcome.status.value}[/{color}]",
                            str(failure.reason_code) if failure else "", score, failure.error if failure else repr(output.value if output else None))
 
         Console().print(run)

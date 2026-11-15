@@ -2,9 +2,10 @@ import  logging
 import  time
 from    typing import Iterable, List, Optional
 # package modules
-from    ..protocols.candidate      import Candidate
-from    ..schemas.dataset          import Example
-from    ..schemas.response.record  import Failure, Outcome, Output, TrialRecord
+from    ..protocols.candidate          import Candidate
+from    ..schemas.dataset              import Example
+from    ..schemas.request.environment  import Environment
+from    ..schemas.response.record      import Failure, Outcome, Output, TrialRecord
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +15,10 @@ class Runner(object):
 
     A trial that raises becomes an `ERROR` record and the run carries on; the first failure in a trial is the one reported.
     A candidate may return an `Output` to report usage and files; a plain return is wrapped in one.
+    Each record carries the seed the environment derives for its example; the candidate is not told it.
+
+    Args:
+        environment (Optional[Environment]): Where each trial's seed comes from; defaults to `Environment()`.
 
     Examples:
         A plain function as the candidate, run over two incoming support messages:
@@ -24,6 +29,12 @@ class Runner(object):
         >>> [(record.outcome.status.value, record.outcome.output.value) for record in records]
         [('success', 'high'), ('success', 'normal')]
 
+        Under another environment, each trial gets a different, repeatable seed:
+
+        >>> runner = Runner(Environment(seed=7))
+        >>> [record.seed for record in runner.run(CallableCandidate(priority), [Example("Checkout outage"), Example("Invoice date")])]
+        [4121104260, 1669436063]
+
         Applied (illustrative): an agent candidate over support questions. A question that makes the
         agent raise comes back as an `ERROR` record and the others still run:
 
@@ -31,6 +42,9 @@ class Runner(object):
         >>> [record.outcome.failure for record in records]
         [None, None]
     """
+    def __init__(self, environment: Optional[Environment] = None) -> None:
+        self._environment = environment or Environment()
+
     def run(self, candidate: Candidate, examples: Iterable[Example]) -> List[TrialRecord]:
         """Run `candidate` once per example, in order, and return one record per example.
 
@@ -62,4 +76,6 @@ class Runner(object):
         if failure is not None:
             logger.error(f"trial {index} failed: {failure.error}")
         outcome = Outcome(output=output, failure=failure, duration_sec=time.perf_counter() - start)
-        return TrialRecord(index=index, example=example, outcome=outcome)
+        # an example outside a Dataset has no uid, so its position keys the seed
+        seed = self._environment.seed_for(example.uid if example.uid is not None else index)
+        return TrialRecord(index=index, example=example, outcome=outcome, seed=seed)

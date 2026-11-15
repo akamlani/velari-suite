@@ -31,7 +31,8 @@ Stage 2 is built in small increments, each with its own tests, instead of all at
 | 11 | `Output` (value, usage, artifacts): a candidate may return one or a plain value; `Outcome.output` is an `Output`; the Harness scores the plain value; `Result.usage` totals usage | Implemented |
 | 12 | Structured `Score` (value, passed, label, explanation, failure, metadata); `Case` renamed `Example` and moved into `record.py` (`Task.examples`, `TrialRecord.example`); a scorer may return a number, a bool or a `Score` | Implemented |
 | 13 | `Dataset`: ordered, immutable examples with uids (a content hash when none is given) and a `fingerprint`; `Example` (now with `uid`), `Dataset` and `Task` live in `schemas/dataset.py`, and `request/task.py` is removed; `Task(name, dataset, version)` | Implemented |
-| 14 onward | Not yet planned. The remaining modules are added one increment at a time, each re-planned when the previous one is done | |
+| 14 | `Environment` wired in: the `Harness` takes one (default `Environment()`), the `Runner` derives each trial's seed from it and `TrialRecord.seed` records it; the candidate is not told the seed | Implemented |
+| 15 onward | Not yet planned. The remaining modules are added one increment at a time, each re-planned when the previous one is done | |
 
 ### Increment 1: Harness and its config
 
@@ -126,7 +127,7 @@ Behavior:
 - **The core applies no seed.** Nothing seeds or reads global random state; `seed_for` only returns a number for a candidate to use.
 - **`key` is the input's position today** and becomes the case id once `Case` exists. It is converted with `str`, so `1` and `"1"` give the same seed.
 - **Immutable**, like `Task`.
-- **Not connected.** Neither the Runner nor the `Harness` reads an `Environment` yet. It is the only place a seed lives: `HarnessConfig` and `Result` no longer carry one.
+- **Connected in increment 14:** the `Harness` holds an `Environment` and the Runner records each trial's seed. It is the only place a seed lives: `HarnessConfig` and `Result` no longer carry one.
 
 Not in this increment: the artifacts directory, limits, `ErrorPolicy` and `RetryPolicy`, fail-fast and error-ratio settings, a lazy `Experiment`, `from_config`.
 
@@ -206,6 +207,25 @@ The harness and the Runner each wrapped a setup, work, teardown lifecycle, `exec
 Tests: `test_harness.py` is one `TestHarness` class (the scoring cases moved here from `test_runner.py`); `test_result.py` and `test_record.py` follow the new shapes.
 
 A breaking change worth knowing: a run has no `status` or `failure` of its own. Failed trials are data in their records, and anything else (a `KeyboardInterrupt`, a bad argument) raises.
+
+### Increment 14: Environment wired in
+
+`Environment` existed but nothing read it, so no trial had a derived seed and a record could not say which one it ran under. Now the harness holds an environment and the runner records each trial's seed.
+
+| Change | Where |
+|---|---|
+| `Runner(environment=None)` keeps `environment or Environment()` and, per trial, records `seed_for(example.uid)` (the example's index when it has no uid) | `execution/runner.py` |
+| `TrialRecord.seed: int`: the derived seed of the trial | `schemas/response/record.py` |
+| `Harness(..., environment=None)` and `for_task(..., environment=None)`; read-only `environment` property; `run()` passes it to the `Runner` | `execution/harness.py` |
+| The example sets seed 42 (also as NumPy's seed), passes an `Environment` to the harness and shows each trial's seed | `examples/ai/harness/` |
+
+Tests: `test_runner.py` (seed equals `seed_for(uid)`; same environment, same seeds; a different base seed changes them; the index fallback; the default is seed 42), `test_harness.py` (the harness's environment reaches every record), and the two hand-built `TrialRecord`s gain a `seed`.
+
+Decisions: the `Harness` holds the environment (not the `Task`, which says what is measured, and not `HarnessConfig`, which must not carry a second seed); the seed is recorded but not handed to the candidate, which waits for `TrialContext`; the `Result` reports no base seed until the run spec exists.
+
+Not in this increment: handing the seed to a candidate, limits, `ErrorPolicy` and `RetryPolicy`, repeated trials (the trial number stays 0), and a base seed on the `Result`.
+
+A breaking change worth knowing: `TrialRecord` requires `seed`, so a record built by hand needs one.
 
 ### Increment 13: Dataset
 

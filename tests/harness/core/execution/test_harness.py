@@ -168,3 +168,13 @@ def test_result_round_trips_through_json_with_records_and_scores_intact():
     result = Harness.for_task(task, CallableCandidate(str.upper), scorers=[_exact_match]).run()
 
     assert Result.model_validate_json(result.model_dump_json()) == result
+
+
+def test_run_passes_the_harness_environment_to_every_record():
+    from velari_harness.core.execution.harness import Harness
+    from velari_harness.core.schemas.request.environment import Environment
+
+    environment = Environment(seed=7)
+    harness = Harness.for_task(_task("ticket-routing", ["card charged twice", "login fails"]), _recording_candidate(), environment=environment)
+
+    assert (harness.environment, [r.seed for r in harness.run().records]) == (environment, [environment.seed_for("0"), environment.seed_for("1")])

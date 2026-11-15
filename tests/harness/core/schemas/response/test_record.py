@@ -36,6 +36,6 @@ def test_trial_record_score_with_explanation_and_metadata_roundtrips_through_jso
     from velari_harness.core.schemas.response.record import Outcome, Score, TrialRecord
 
     score = Score(value=0.5, label="partial", explanation="cites 1 of 2 sources", metadata={"judge": "relevance-v2"})
-    record = TrialRecord(index=0, example=Example("a"), outcome=Outcome(duration_sec=0.0), scores={"relevance": score})
+    record = TrialRecord(index=0, example=Example("a"), outcome=Outcome(duration_sec=0.0), seed=123, scores={"relevance": score})
 
     assert TrialRecord.model_validate_json(record.model_dump_json()) == record

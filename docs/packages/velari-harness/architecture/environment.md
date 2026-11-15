@@ -1,6 +1,6 @@
 # Environment: what it is and how it grows
 
-Concept note. Today `Environment` holds one setting, the base seed, with `seed_for` to derive a seed per trial (see the [architecture spec](architecture.md)). Everything else in this note is **planned or open**, and says so. Terms are defined in the [glossary](../glossary.md#component-glossary).
+Concept note. Today `Environment` holds one setting, the base seed, with `seed_for` to derive a seed per trial; the Harness holds one and the Runner records each trial's seed (see the [architecture spec](architecture.md)). Everything else in this note is **planned or open**, and says so. Terms are defined in the [glossary](../glossary.md#component-glossary).
 
 ## 1. The idea
 
@@ -86,9 +86,9 @@ Only the first row exists today.
 
 | Component | Reads from the environment | Status |
 |---|---|---|
-| Per-trial seeds | `seed`, through `seed_for(key, trial)` | Implemented; nothing calls it yet |
-| **Runner** | Seed for each trial (handed to the candidate through `TrialContext`); time limit per trial; error and retry policy; fail-fast and error ratio; where artifacts go | Planned |
-| **Harness** | Holds the environment together with a task and a candidate, and passes it to the Runner | Planned (open question Q7) |
+| Per-trial seeds | `seed`, through `seed_for(key, trial)` | Implemented; the Runner records each trial's seed |
+| **Runner** | Seed for each trial (recorded since increment 14; handing it to the candidate through `TrialContext` is planned); time limit per trial; error and retry policy; fail-fast and error ratio; where artifacts go | Planned |
+| **Harness** | Holds the environment together with a task and a candidate, and passes it to the Runner | Implemented (increment 14) |
 | **Result / store** | Records the environment (or a hash of it) in the result's spec, so comparisons can check that two runs match | Planned |
 | **Comparison** (later) | Refuses or warns when two results have different environments | Planned |
 | **Evaluation category** | Adds token, message and cost limits; pins judge model and generation parameters | Planned (subclass) |
@@ -112,7 +112,7 @@ Each step is a candidate increment, not a commitment.
 
 | Step | Adds | Used by |
 |---|---|---|
-| Today | `seed`, `seed_for` | Nothing yet |
+| Today | `seed`, `seed_for` | The Harness (holds it) and the Runner (records each trial's seed) |
 | Next | A per-trial time limit; error and retry policy; fail-fast and error ratio | The Runner (it would start taking an `Environment`) |
 | Then | An artifacts directory; recording the environment in a `Result` | Runner, store |
 | Applied | Subclasses with domain settings: token and cost limits, pinned model parameters; dataset snapshot, library versions | Evaluation and data science categories |
@@ -138,6 +138,6 @@ Growth by **subclassing**, the way a category adds settings with a `HarnessConfi
 4. **Relation to `Experiment`.** Should an environment take its seed or artifacts directory from an `Experiment` when one exists, and should it ever seed the global generators for legacy candidates?
 5. **Shape of limits.** Flat fields on the environment, or a nested `Limits` object that categories extend?
 6. **What gets recorded.** The full environment in each result, or a hash plus a copy in the run's metadata.
-7. **When to connect.** Whether the next increment is the Runner reading an `Environment`, or the Harness holding one first (Q7).
+7. **When to connect.** Resolved in increment 14: the Harness holds an `Environment` and passes it to the Runner.
 8. **Scope and name of `Environment`.** In agentic harnesses (DSGym, DA-Code, Spider2-V, OpenHands, OSWorld) the environment is the stateful world the agent acts in: a sandbox, tools, a starting state set by the task, budgets, and a seed passed at reset. Ours is the run conditions. Either rename ours (for example `RunConditions`) and let "Environment" mean the world, or widen ours to be the world together with its conditions, with the Sandbox as the mechanism.
 9. **Who drives the loop.** In some harnesses the framework runs the step loop: DSGym provides the loop and a default agent and lets others plug in, and OpenHands separates the agent from a runtime that executes its actions. In others the agent owns the loop. Our `Candidate` is a black box, `run(input) -> output`, which suits an agent with its own loop but hides its steps. Whether the harness should expose step-level interaction (actions and observations) is open.
