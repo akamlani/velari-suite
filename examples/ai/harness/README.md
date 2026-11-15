@@ -35,7 +35,8 @@ not change the exit code.
 | `Dataset(name, examples)` | The rows as an ordered, immutable collection; each example's `uid` is the CSV `id` column (without one, it would get a hash of its content). Its `fingerprint` hash is shown in the third table's title, so a run says which data it used |
 | `Candidate` subclass | `CustomerValidator`: `setup()` compiles the email pattern, `run(row)` returns a cleaned record or raises, `teardown()` releases the pattern. The Runner calls them once per row |
 | Scorer function | `email_match(output, reference)`: a plain function returning a number, a `bool` or a `Score` (here a `Score` with a label and the expected value, built from `exact_match` in `velari_ai.ai.evals.heuristics`); its name is the key in each record's `scores`. Score and status are separate: row 11 succeeds and scores `0.0`; a failed trial has no output, so it gets no score |
-| `Harness.for_task(task, candidate, scorers=[...])` | The container, named after the task. Its `run()` chains three steps: run the candidate on every input, score each successful trial, package the result |
+| `Environment(seed)` | Passed to the harness: the fixed conditions, here base seed 42, which the script also sets as NumPy's seed (as `Experiment.seed_init` does); every trial's seed is derived from it, so the seeds are the same on every run. Each record carries its seed (a column in the third table); the candidate is not told it yet |
+| `Harness.for_task(task, candidate, scorers=[...], environment=...)` | The container, named after the task. Its `run()` chains three steps: run the candidate on every input, score each successful trial, package the result |
 | `Runner` and `TrialRecord` (through `Harness`) | The result's `records` hold one trial record per row, in order |
 | Failures are data | A bad row (an email with no domain, a negative or non-numeric age, an unknown country, a missing name or age) fails its own trial with the reasons; later rows still run, and the other rows are unaffected |
 | `Result` and `Status` | The run table: harness, inputs, duration, trials success, trials error; and the scores table (`Result.scores`: the mean per scorer) |
@@ -71,7 +72,7 @@ durations vary):
 ┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┓
 ┃ harness             ┃ inputs ┃ duration_sec ┃ trials success ┃ trials error ┃
 ┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━┩
-│ customer-validation │ 12     │ 0.0001       │ 6              │ 6            │
+│ customer-validation │ 12     │ 0.0002       │ 6              │ 6            │
 └─────────────────────┴────────┴──────────────┴────────────────┴──────────────┘
         scores        
 ┏━━━━━━━━━━━━━┳━━━━━━┓
@@ -80,63 +81,83 @@ durations vary):
 │ email_match │ 0.83 │
 └─────────────┴──────┘
      customer-validation (version 1, data a1c998fe3b61): outcome per input      
-┏━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┓
-┃ input            ┃ status  ┃ reason code   ┃ score        ┃ output / error   ┃
-┡━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━┩
-│ 1,Ana            │ success │               │ 1.0 match    │ {'id': 1,        │
-│ Pérez,ana.perez… │         │               │              │ 'name': 'Ana     │
-│                  │         │               │              │ Pérez', 'email': │
-│                  │         │               │              │ 'ana.perez@exam… │
-│                  │         │               │              │ 'age': 34,       │
-│                  │         │               │              │ 'country': 'ES'} │
-│ 2,Li             │ success │               │ 1.0 match    │ {'id': 2,        │
-│ Wei,li.wei@exam… │         │               │              │ 'name': 'Li      │
-│                  │         │               │              │ Wei', 'email':   │
-│                  │         │               │              │ 'li.wei@example… │
-│                  │         │               │              │ 'age': 29,       │
-│                  │         │               │              │ 'country': 'CN'} │
-│ 3,Sam            │ success │               │ 1.0 match    │ {'id': 3,        │
-│ Carter,sam.cart… │         │               │              │ 'name': 'Sam     │
-│                  │         │               │              │ Carter',         │
-│                  │         │               │              │ 'email':         │
-│                  │         │               │              │ 'sam.carter@exa… │
-│                  │         │               │              │ 'age': 41,       │
-│                  │         │               │              │ 'country': 'US'} │
-│ 4,Maria          │ success │               │ 1.0 match    │ {'id': 4,        │
-│ Rossi,maria.ros… │         │               │              │ 'name': 'Maria   │
-│                  │         │               │              │ Rossi', 'email': │
-│                  │         │               │              │ 'maria.rossi@ex… │
-│                  │         │               │              │ 'age': 52,       │
-│                  │         │               │              │ 'country': 'IT'} │
-│ 5,John           │ error   │ invalid_input │              │ ValueError:      │
-│ Smith,john.smit… │         │               │              │ invalid email:   │
-│                  │         │               │              │ 'john.smith@exa… │
-│ 6,Aisha          │ error   │ invalid_input │              │ ValueError:      │
-│ Khan,aisha.khan… │         │               │              │ invalid age:     │
-│                  │         │               │              │ '-4'             │
-│ 7,Tom            │ error   │ invalid_input │              │ ValueError:      │
-│ Brown,tom.brown… │         │               │              │ invalid age:     │
-│                  │         │               │              │ 'abc'            │
-│ 8,Chloé          │ error   │ invalid_input │              │ ValueError:      │
-│ Martin,chloe.ma… │         │               │              │ unknown country: │
-│                  │         │               │              │ 'XX'             │
-│ 9,,empty.name@e… │ error   │ invalid_input │              │ ValueError:      │
-│                  │         │               │              │ missing name     │
-│ 10,Omar          │ error   │ invalid_input │              │ ValueError:      │
-│ Ali,omar.ali@ex… │         │               │              │ invalid age: ''  │
-│ 11,Eva           │ success │               │ 0.0 mismatch │ {'id': 11,       │
-│ Novak,eva.novak… │         │               │              │ 'name': 'Eva     │
-│                  │         │               │              │ Novak', 'email': │
-│                  │         │               │              │ 'eva.novak@exam… │
-│                  │         │               │              │ 'age': 67,       │
-│                  │         │               │              │ 'country': 'CZ'} │
-│ 12,Noah          │ success │               │ 1.0 match    │ {'id': 12,       │
-│ Kim,noah.kim@ex… │         │               │              │ 'name': 'Noah    │
-│                  │         │               │              │ Kim', 'email':   │
-│                  │         │               │              │ 'noah.kim@examp… │
-│                  │         │               │              │ 'age': 23,       │
-│                  │         │               │              │ 'country': 'KR'} │
-└──────────────────┴─────────┴───────────────┴──────────────┴──────────────────┘
+┏━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━━┓
+┃             ┃            ┃         ┃             ┃             ┃ output /    ┃
+┃ input       ┃ seed       ┃ status  ┃ reason code ┃ score       ┃ error       ┃
+┡━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━━━━━━┩
+│ 1,Ana       │ 2345647074 │ success │             │ 1.0 match   │ {'id': 1,   │
+│ Pérez,ana.… │            │         │             │             │ 'name':     │
+│             │            │         │             │             │ 'Ana        │
+│             │            │         │             │             │ Pérez',     │
+│             │            │         │             │             │ 'email':    │
+│             │            │         │             │             │ 'ana.perez… │
+│             │            │         │             │             │ 'age': 34,  │
+│             │            │         │             │             │ 'country':  │
+│             │            │         │             │             │ 'ES'}       │
+│ 2,Li        │ 368107479  │ success │             │ 1.0 match   │ {'id': 2,   │
+│ Wei,li.wei… │            │         │             │             │ 'name': 'Li │
+│             │            │         │             │             │ Wei',       │
+│             │            │         │             │             │ 'email':    │
+│             │            │         │             │             │ 'li.wei@ex… │
+│             │            │         │             │             │ 'age': 29,  │
+│             │            │         │             │             │ 'country':  │
+│             │            │         │             │             │ 'CN'}       │
+│ 3,Sam       │ 3488601959 │ success │             │ 1.0 match   │ {'id': 3,   │
+│ Carter,sam… │            │         │             │             │ 'name':     │
+│             │            │         │             │             │ 'Sam        │
+│             │            │         │             │             │ Carter',    │
+│             │            │         │             │             │ 'email':    │
+│             │            │         │             │             │ 'sam.carte… │
+│             │            │         │             │             │ 'age': 41,  │
+│             │            │         │             │             │ 'country':  │
+│             │            │         │             │             │ 'US'}       │
+│ 4,Maria     │ 1234156470 │ success │             │ 1.0 match   │ {'id': 4,   │
+│ Rossi,mari… │            │         │             │             │ 'name':     │
+│             │            │         │             │             │ 'Maria      │
+│             │            │         │             │             │ Rossi',     │
+│             │            │         │             │             │ 'email':    │
+│             │            │         │             │             │ 'maria.ros… │
+│             │            │         │             │             │ 'age': 52,  │
+│             │            │         │             │             │ 'country':  │
+│             │            │         │             │             │ 'IT'}       │
+│ 5,John      │ 1959262124 │ error   │ invalid_in… │             │ ValueError: │
+│ Smith,john… │            │         │             │             │ invalid     │
+│             │            │         │             │             │ email:      │
+│             │            │         │             │             │ 'john.smit… │
+│ 6,Aisha     │ 3073831670 │ error   │ invalid_in… │             │ ValueError: │
+│ Khan,aisha… │            │         │             │             │ invalid     │
+│             │            │         │             │             │ age: '-4'   │
+│ 7,Tom       │ 1321358242 │ error   │ invalid_in… │             │ ValueError: │
+│ Brown,tom.… │            │         │             │             │ invalid     │
+│             │            │         │             │             │ age: 'abc'  │
+│ 8,Chloé     │ 3861517837 │ error   │ invalid_in… │             │ ValueError: │
+│ Martin,chl… │            │         │             │             │ unknown     │
+│             │            │         │             │             │ country:    │
+│             │            │         │             │             │ 'XX'        │
+│ 9,,empty.n… │ 3800146536 │ error   │ invalid_in… │             │ ValueError: │
+│             │            │         │             │             │ missing     │
+│             │            │         │             │             │ name        │
+│ 10,Omar     │ 623315006  │ error   │ invalid_in… │             │ ValueError: │
+│ Ali,omar.a… │            │         │             │             │ invalid     │
+│             │            │         │             │             │ age: ''     │
+│ 11,Eva      │ 919057277  │ success │             │ 0.0         │ {'id': 11,  │
+│ Novak,eva.… │            │         │             │ mismatch    │ 'name':     │
+│             │            │         │             │             │ 'Eva        │
+│             │            │         │             │             │ Novak',     │
+│             │            │         │             │             │ 'email':    │
+│             │            │         │             │             │ 'eva.novak… │
+│             │            │         │             │             │ 'age': 67,  │
+│             │            │         │             │             │ 'country':  │
+│             │            │         │             │             │ 'CZ'}       │
+│ 12,Noah     │ 2901014636 │ success │             │ 1.0 match   │ {'id': 12,  │
+│ Kim,noah.k… │            │         │             │             │ 'name':     │
+│             │            │         │             │             │ 'Noah Kim', │
+│             │            │         │             │             │ 'email':    │
+│             │            │         │             │             │ 'noah.kim@… │
+│             │            │         │             │             │ 'age': 23,  │
+│             │            │         │             │             │ 'country':  │
+│             │            │         │             │             │ 'KR'}       │
+└─────────────┴────────────┴─────────┴─────────────┴─────────────┴─────────────┘
 ```
 
 Six trials failed, and the run still returned all twelve records: each trial record says whether its own row

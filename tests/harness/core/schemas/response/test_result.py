@@ -9,7 +9,7 @@ def _record(index, output=None, failure=None, scores=None, usage=None):
     from velari_harness.core.schemas.response.record import Outcome, Output, Score, TrialRecord
 
     outcome = Outcome(output=Output(value=output, usage=usage or {}) if output is not None else None, failure=failure, duration_sec=0.0)
-    return TrialRecord(index=index, example=Example("x"), outcome=outcome,
+    return TrialRecord(index=index, example=Example("x"), outcome=outcome, seed=index,
                        scores={name: Score(value=value) for name, value in (scores or {}).items()})
 
 

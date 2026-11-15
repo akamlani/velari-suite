@@ -98,11 +98,12 @@ class Score(BaseModel):
 
 
 class TrialRecord(BaseModel):
-    """One trial: the example and its position, how it ended (`outcome`), and its `scores`.
+    """One trial: the example and its position, how it ended (`outcome`), the `seed` derived for it, and its `scores`.
 
     `scores` holds each scorer's `Score` by name (its `failure` is set when it raised), and is empty when the trial failed.
     """
     index:    int
     example:  Example
     outcome:  Outcome
+    seed:     int
     scores:   Dict[str, Score]            = Field(default_factory=dict)

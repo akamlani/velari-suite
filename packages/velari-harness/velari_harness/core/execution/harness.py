@@ -3,12 +3,13 @@ import  time
 from    omegaconf  import DictConfig
 from    typing     import Any, Callable, Dict, List, Optional, Self, Sequence, Union
 # package modules
-from    .config                    import HarnessConfig
-from    .runner                    import Runner
-from    ..protocols.candidate      import Candidate
-from    ..schemas.dataset          import Task
-from    ..schemas.response.record  import Failure, Score, TrialRecord
-from    ..schemas.response.result  import Result
+from    .config                        import HarnessConfig
+from    .runner                        import Runner
+from    ..protocols.candidate          import Candidate
+from    ..schemas.dataset              import Task
+from    ..schemas.request.environment  import Environment
+from    ..schemas.response.record      import Failure, Score, TrialRecord
+from    ..schemas.response.result      import Result
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,7 @@ class Harness(object):
         task (Task): What is measured; its dataset's examples are what the candidate runs on.
         candidate (Candidate): What is measured.
         scorers (Sequence[Callable[[Any, Any], Union[float, Score]]]): `fn(output, reference)` returning a number, bool or `Score`; keyed by distinct `__name__`.
+        environment (Optional[Environment]): The conditions every trial runs under; defaults to `Environment()`.
 
     Raises:
         ValueError: If `scorers` are given but an example has no `reference`, or two scorers share a name.
@@ -48,7 +50,7 @@ class Harness(object):
         >>> result = Harness.for_task(task, BillingAgentCandidate()).run()
     """
     def __init__(self, config: HarnessConfig, task: Task, candidate: Candidate,
-                 scorers: Sequence[Callable[[Any, Any], Union[float, Score]]] = ()) -> None:
+                 scorers: Sequence[Callable[[Any, Any], Union[float, Score]]] = (), environment: Optional[Environment] = None) -> None:
         if scorers and any(example.reference is None for example in task.dataset):
             raise ValueError(f"scorers need a reference on every example of task {task.name!r}")
         self._scorers = {getattr(scorer, "__name__", repr(scorer)): scorer for scorer in scorers}
@@ -57,10 +59,12 @@ class Harness(object):
         self._config = config
         self._task = task
         self._candidate = candidate
+        self._environment = environment or Environment()
 
     @classmethod
     def for_task(cls, task: Task, candidate: Candidate, cfg: Optional[DictConfig] = None,
-                 scorers: Sequence[Callable[[Any, Any], Union[float, Score]]] = (), **overrides: Any) -> Self:
+                 scorers: Sequence[Callable[[Any, Any], Union[float, Score]]] = (),
+                 environment: Optional[Environment] = None, **overrides: Any) -> Self:
         """Build a harness for a task and a candidate; it is named after the task unless `name` is given.
 
         Args:
@@ -68,12 +72,13 @@ class Harness(object):
             candidate (Candidate): What is measured on it.
             cfg (Optional[DictConfig]): `HarnessConfig` fields (just `name`); `None` keeps the defaults.
             scorers (Sequence[Callable[[Any, Any], Union[float, Score]]]): Functions `fn(output, reference)`; every example must have a `reference`.
+            environment (Optional[Environment]): The conditions every trial runs under; defaults to `Environment()`.
             **overrides (Any): Fields that take precedence over `cfg`.
 
         Returns:
             Self: A new harness, not yet run.
         """
-        return cls(HarnessConfig.from_config(cfg, defaults={"name": task.name}, **overrides), task, candidate, scorers)
+        return cls(HarnessConfig.from_config(cfg, defaults={"name": task.name}, **overrides), task, candidate, scorers, environment)
 
     @property
     def config(self) -> HarnessConfig:
@@ -91,6 +96,10 @@ class Harness(object):
     def candidate(self) -> Candidate:
         return self._candidate
 
+    @property
+    def environment(self) -> Environment:
+        return self._environment
+
     def run(self) -> Result:
         """Run the candidate on every example, score the successful trials, and return the records with their timing.
 
@@ -98,7 +107,7 @@ class Harness(object):
             Result: One record per task example, in order, with the time the whole run took.
         """
         start = time.perf_counter()
-        records = self.score(Runner().run(self._candidate, self._task.dataset))
+        records = self.score(Runner(self._environment).run(self._candidate, self._task.dataset))
         return Result(name=self.name, records=records, duration_sec=time.perf_counter() - start)
 
     def score(self, records: Sequence[TrialRecord]) -> List[TrialRecord]:

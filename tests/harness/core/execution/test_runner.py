@@ -222,3 +222,51 @@ def test_run_wraps_a_plain_return_in_an_output():
     records = Runner().run(CallableCandidate(lambda text: "enterprise"), [Example("a")])
 
     assert records[0].outcome.output == Output(value="enterprise")
+
+
+def _seeds(environment, examples):
+    from velari_harness.core.execution.runner import Runner
+    from velari_harness.core.protocols.candidate import CallableCandidate
+
+    return [record.seed for record in Runner(environment).run(CallableCandidate(str.upper), examples)]
+
+
+def test_run_records_the_seed_the_environment_derives_for_each_example_uid():
+    from velari_harness.core.schemas.dataset import Example
+    from velari_harness.core.schemas.request.environment import Environment
+
+    environment = Environment(seed=7)
+
+    seeds = _seeds(environment, [Example("card charged twice", uid="t-1"), Example("login fails", uid="t-2")])
+
+    assert seeds == [environment.seed_for("t-1"), environment.seed_for("t-2")]
+
+
+def test_run_gives_the_same_seeds_on_every_run_of_the_same_environment():
+    from velari_harness.core.schemas.request.environment import Environment
+
+    assert _seeds(Environment(seed=7), _examples("a", "b")) == _seeds(Environment(seed=7), _examples("a", "b"))
+
+
+def test_run_seeds_change_with_the_environment_seed():
+    from velari_harness.core.schemas.request.environment import Environment
+
+    assert _seeds(Environment(seed=7), _examples("a", "b")) != _seeds(Environment(seed=8), _examples("a", "b"))
+
+
+def test_run_seed_falls_back_to_the_index_for_an_example_without_a_uid():
+    from velari_harness.core.schemas.request.environment import Environment
+
+    environment = Environment(seed=7)
+
+    assert _seeds(environment, _examples("a", "b")) == [environment.seed_for(0), environment.seed_for(1)]
+
+
+def test_run_default_environment_is_seed_42():
+    from velari_harness.core.execution.runner import Runner
+    from velari_harness.core.protocols.candidate import CallableCandidate
+    from velari_harness.core.schemas.request.environment import Environment
+
+    records = Runner().run(CallableCandidate(str.upper), _examples("a"))
+
+    assert records[0].seed == Environment(seed=42).seed_for(0)
