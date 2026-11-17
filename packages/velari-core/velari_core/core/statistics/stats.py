@@ -1,6 +1,7 @@
 import  numpy as np
+import  pandas as pd
 import  scipy.stats as scs # beta, norm, lognorm, multivariate_normal
-from    typing import List, Optional, Tuple, Union
+from    typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 calc_cosine_similarity = (
     lambda a, b: np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
@@ -164,3 +165,80 @@ def calc_confidence_interval(values: Union[List[float], np.ndarray], confidence:
     ci_lower = float(arr.mean() - margin)
     ci_upper = float(arr.mean() + margin)
     return ci_lower, ci_upper
+
+
+Z_CRIT_95 = scs.norm.ppf(0.975)
+
+# Statistics for calc_column_stats: each takes one group's values (a pandas Series, NaN allowed) and returns a number,
+# and its column is named after it. pandas' own count, mean, std, sem, skew and kurt skip NaN and give NaN below their minimum size.
+def n_na(values: pd.Series) -> int:
+    return int(values.isna().sum())
+
+def spread(values: pd.Series) -> float:
+    return values.max() - values.min()
+
+def iqr(values: pd.Series) -> float:
+    return values.quantile(0.75) - values.quantile(0.25)
+
+def mad(values: pd.Series) -> float:
+    return (values - values.median()).abs().median() / scs.norm.ppf(0.75)   # scaled to match the standard deviation
+
+def ci_low(values: pd.Series) -> float:
+    return values.mean() - Z_CRIT_95 * values.sem()
+
+def ci_high(values: pd.Series) -> float:
+    return values.mean() + Z_CRIT_95 * values.sem()
+
+def percentile(q: float) -> Callable[[pd.Series], float]:
+    def fn(values: pd.Series) -> float:
+        return values.quantile(q / 100)
+    fn.__name__ = f"p{q:g}"
+    return fn
+
+def pct_at(value: float) -> Callable[[pd.Series], float]:
+    def fn(values: pd.Series) -> float:
+        return 100 * (values == value).sum() / values.count()
+    fn.__name__ = f"pct_at_{value:g}"
+    return fn
+
+def calc_column_stats(
+    df_values: pd.DataFrame,
+    column: str,
+    by: Optional[str] = None,
+    stats: Sequence[Callable[[pd.Series], Any]] = (),
+) -> pd.DataFrame:
+    """Summarise one numeric column, overall or per group, with one column per statistic function named after it.
+
+    The defaults `count`, `mean`, `std`, `sem`, `min`, `median`, `max`, `ci_low` and `ci_high` are always computed.
+    NaN values are ignored by pandas' own statistics; a group with no valid value stays in the result with NaN statistics.
+
+    Args:
+        df_values (pd.DataFrame): Rows of observations, such as one judge score per row.
+        column (str): The numeric column to summarise.
+        by (Optional[str]): Column to group by (rows come out in sorted group order); `None` summarises the whole column in one row.
+        stats (Sequence[Callable[[pd.Series], Any]]): Additional statistics, functions of one group's values: pandas' `Series.var`, `skew`,
+            `kurt` and so on, this module's `n_na`, `spread`, `iqr` and `mad`, or `percentile(q)` and `pct_at(value)`; one the defaults
+            already have is kept once.
+
+    Returns:
+        pd.DataFrame: One row per group (indexed by `by`, or by `column` when `by` is `None`), one column per default and additional function.
+
+    Raises:
+        ValueError: If `column` or `by` is not in `df_values`.
+
+    Examples:
+        Judge scores for two prompt variants, with the spread of each added to the defaults:
+
+        >>> df_scores = pd.DataFrame({"variant": ["baseline"] * 3 + ["cot"] * 3, "score": [70, 80, 90, 85, 95, 90]})
+        >>> calc_column_stats(df_scores, "score", by="variant", stats=(spread,))[["count", "mean", "sem", "spread"]]
+                  count  mean       sem  spread
+        variant
+        baseline      3  80.0  5.773503    20.0
+        cot           3  90.0  2.886751    10.0
+    """
+    if column not in df_values or (by is not None and by not in df_values):
+        raise ValueError(f"column {column!r} and by {by!r} must be columns of the frame")
+    defaults = (pd.Series.count, pd.Series.mean, pd.Series.std, pd.Series.sem, pd.Series.min, pd.Series.median, pd.Series.max, ci_low, ci_high)
+    funcs = {getattr(fn, "__name__", repr(fn)): fn for fn in (*defaults, *stats)}   # a repeated name keeps one, which pandas would otherwise reject
+    groups = df_values[by] if by is not None else pd.Series(column, index=df_values.index)
+    return pd.DataFrame(df_values[column].astype("float64").groupby(groups).agg(list(funcs.values()))).rename_axis(by)

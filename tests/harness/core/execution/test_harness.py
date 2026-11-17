@@ -68,7 +68,7 @@ def test_for_task_with_scorers_scores_each_successful_trial():
     result = Harness.for_task(task, CallableCandidate(str.upper), scorers=[_exact_match]).run()
 
     assert [_values(r) for r in result.records] == [{"_exact_match": 1.0}, {"_exact_match": 0.0}]
-    assert result.scores == {"_exact_match": 0.5}
+    assert result.summary["_exact_match"].mean == 0.5
 
 
 def test_run_failed_trial_has_no_scores():
@@ -94,7 +94,8 @@ def test_run_raising_scorer_gives_a_score_with_its_failure_and_later_trials_stil
 
     assert [_values(r) for r in result.records] == [{"judge": None}, {"judge": None}]
     assert [_error(r.scores["judge"]) for r in result.records] == ["RuntimeError: judge unavailable"] * 2
-    assert result.scores == {"judge": None}
+    summary = result.summary["judge"]
+    assert (summary.mean, summary.n, summary.invalid) == (None, 0, 2)
 
 
 def test_run_keeps_a_score_a_scorer_returns_with_its_explanation_and_metadata():

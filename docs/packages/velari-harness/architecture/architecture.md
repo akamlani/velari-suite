@@ -17,7 +17,7 @@ Not implemented: examples, datasets, metrics and reducers, repeated trials, a re
 | `__init__.py` | `__version__` (from installed metadata via `velari-core`) and the package `logger` |
 | `core/schemas/types.py` | `Status` (`SUCCESS`, `ERROR`): how a run or one trial ended; `ReasonCode` (`INVALID_INPUT`, `NOT_FOUND`, `PERMISSION_DENIED`, `TIMEOUT`, `UNAVAILABLE`, `UNEXPECTED`): why a trial failed, by cause. `core/errors.py` has `TrialError`, which a candidate raises to declare its own code |
 | `core/schemas/response/record.py` | `Output` (`value`, `usage`, `artifacts`): what a candidate may return; `Outcome` (`output`, an `Output`, `failure`, `duration_sec`, derived `status`) and `Failure(error, reason_code)` with the exception-to-reason-code rules; `Score` (`value`, `passed`, `label`, `explanation`, `failure`, `metadata`): a scorer's verdict; `TrialRecord(index, example, outcome, seed, scores)`: what one trial produced, with the seed derived for it |
-| `core/schemas/response/result.py` | `Result(name, records, duration_sec)`: one record per task input in order, with computed `trials` (a count per status) and `scores` (the mean per scorer) |
+| `core/schemas/response/result.py` | `Result(name, records, duration_sec)`: one record per task input in order, with computed `trials` (a count per status), `usage` and `summary` (per scorer a `ScoreSummary`: mean, standard error, valid count `n` and `invalid` count, computed with `velari_core`'s `calc_column_stats`) |
 | `core/execution/config.py` | `HarnessConfig` (`name`) and building it from OmegaConf (frozen dataclass, checked at construction) |
 | `core/schemas/dataset.py` | `Example` (`input`, `reference`, `uid`): one thing to measure; `Dataset(name, examples)`: an ordered, immutable collection with uids and a `fingerprint`; `Task(name, dataset, version)`: what is measured (all frozen dataclasses) |
 | `core/schemas/request/environment.py` | `Environment`: the base seed and repeatable per-trial seeds (frozen dataclass) |
@@ -32,6 +32,7 @@ graph LR
     harness["execution/harness.py"] --> config["execution/config.py"]
     harness --> result["schemas/response/result.py"]
     result --> types
+    result --> corestats["velari_core: calc_column_stats"]
     result --> pydantic["pydantic"]
     config --> omegaconf["omegaconf"]
     config --> core["velari_core: ConfigOmegaConf"]
@@ -52,7 +53,7 @@ graph LR
     harness --> record
 ```
 
-`protocols/candidate.py` imports only the standard library; only `runner.py` imports it. `harness.py` imports `runner.py`, `Task` (from `dataset.py`), `Candidate`, `TrialRecord` and `Result`; the Runner does not import `harness.py`. `schemas/dataset.py` imports only the standard library; `record.py`, `runner.py` and `harness.py` import it. `schemas/request/environment.py` imports only the standard library and nothing imports it yet.
+`protocols/candidate.py` imports only the standard library; only `runner.py` imports it. `harness.py` imports `runner.py`, `Task` (from `dataset.py`), `Candidate`, `TrialRecord` and `Result`; the Runner does not import `harness.py`. `schemas/dataset.py` imports only the standard library; `record.py`, `runner.py` and `harness.py` import it. `schemas/request/environment.py` imports only the standard library and nothing imports it yet. `schemas/response/result.py` imports `calc_column_stats` from `velari_core` for the summary statistics, as `config.py` imports `ConfigOmegaConf`.
 
 `velari-ai` and `pandas` are declared in `pyproject.toml` but not imported (*verified* by grep).
 
@@ -91,7 +92,7 @@ A task run has no run-level status or failure. A trial that raises (in `setup`, 
 
 ### Scorer
 
-A scorer is a plain function `fn(output, reference)` returning a number (a `bool` counts as 1.0 or 0.0) or a `Score`, named by its `__name__`; the functions in `velari_ai.ai.evals` (`exact_match`, `edit_distance`) work as they are. `Harness.score(records)` applies every scorer to each `SUCCESS` record, comparing the output's value with `record.example.reference`, wraps a plain return in a `Score`, and returns copies with `scores` filled in (a `Dict[str, Score]` by scorer name). A failed trial has no scores, because it has no output to judge. A scorer that raises gets a `Score` with a `failure` (a `Failure`, so it has a reason code like a failed trial) and no value, never a zero, and later trials still run. Scorers when an example has no reference, and duplicate scorer names, raise `ValueError` when the harness is built. The candidate never receives a reference. `Result.scores` is the mean per scorer over each `Score.value` that is not `None`. Covered by the scoring examples in `test_harness.py` and `test_result.py`.
+A scorer is a plain function `fn(output, reference)` returning a number (a `bool` counts as 1.0 or 0.0) or a `Score`, named by its `__name__`; the functions in `velari_ai.ai.evals` (`exact_match`, `edit_distance`) work as they are. `Harness.score(records)` applies every scorer to each `SUCCESS` record, comparing the output's value with `record.example.reference`, wraps a plain return in a `Score`, and returns copies with `scores` filled in (a `Dict[str, Score]` by scorer name). A failed trial has no scores, because it has no output to judge. A scorer that raises gets a `Score` with a `failure` (a `Failure`, so it has a reason code like a failed trial) and no value, never a zero, and later trials still run. Scorers when an example has no reference, and duplicate scorer names, raise `ValueError` when the harness is built. The candidate never receives a reference. `Result.summary` has, per scorer, the mean of each `Score.value` that is not `None`, its standard error, and the counts `n` (valid) and `invalid`. Covered by the scoring examples in `test_harness.py` and `test_result.py`.
 
 ### Environment
 
@@ -191,12 +192,12 @@ None open. Three were found while reading the code and fixed in increment 7:
 - A `BaseException` in a trial discards the records of the trials that already finished.
 - Two examples with the same content and no `uid` raise (they hash to the same uid); repeated inputs need explicit uids.
 - A uid or fingerprint is a hash of `json.dumps(..., default=str)`, so a non-JSON input hashes through its `str()`, which must be stable across runs (a DataFrame or an object with a default repr is not).
-- The fingerprint is not yet recorded in the `Result`; it comes with the run spec.
+- The `Result` has no run spec, so the dataset fingerprint, task version and base seed are not saved with it; it comes with the record store, when something reads it.
 - `outcome.output.value` and `example.input` are `Any`; the JSON round trip needs JSON-serialisable values.
 - `Output.artifacts` are recorded, not copied; collecting files needs a trial working directory (`TrialContext`).
 - A candidate cannot use its trial's seed yet (that needs `TrialContext`), the `Result` reports no base seed, and the `Environment` has no limits, error or retry policies, fail-fast settings, artifacts directory or lazy `Experiment`.
 - `Task` has no dataset, preparation steps, trials or missing-score policy and the Runner does not accept a `Task`; callers pass `task.examples`.
-- A score has no `Scorer` protocol, and there are no metrics or reducers beyond the mean in `Result.scores`. `Harness.score()` can score records again, but there is no `score=False` and no stored records to re-score; scorers receive only the output's value, not the whole `Output` or the example's input.
+- A score has no `Scorer` protocol, and there are no metrics or reducers beyond the mean, standard error and counts in `Result.summary` (`invalid` counts scores without a value, not failed trials). `Harness.score()` can score records again, but there is no `score=False` and no stored records to re-score; scorers receive only the output's value, not the whole `Output` or the example's input.
 - The Runner does not limit, retry, time out, seed or run trials concurrently.
 - Not verified: whether importing `velari_core` configures logging as a side effect.
 
@@ -222,7 +223,7 @@ Run with `uv run pytest tests/harness`.
 | `tests/harness/test_velari_harness.py` | Package imports; `__version__`; `logger` |
 | `tests/harness/core/execution/test_config.py` | Defaults; precedence of overrides, `cfg` and defaults; resolver registration; unknown field and non-mapping `TypeError`; empty name `ValueError`; non-`str` name `TypeError`; the config is immutable |
 | `tests/harness/core/execution/test_harness.py` | Named after the task with a `name` override; trials counted per status, including every trial failing; scoring through the harness, no scores for a failed trial, a raising scorer gives `None`; `score()` on records already run; invalid scorers `ValueError`, including a example missing its reference; JSON round trip; the harness's environment reaches every record. Records in order, the per-input lifecycle and one task against two candidates are covered in `test_runner.py` and `test_task.py` |
-| `tests/harness/core/schemas/response/test_result.py` | Negative duration; `trials` counts, including in the JSON, and zero counts without records; `usage` totals per key in the JSON; `scores` mean per scorer in the JSON and a round trip |
+| `tests/harness/core/schemas/response/test_result.py` | Negative duration; `trials` counts, including in the JSON, and zero counts without records; `usage` totals per key in the JSON; `summary`: mean and counts in the JSON and a round trip, the standard error, no standard error below two valid scores, no mean when every score is invalid |
 | `tests/harness/core/schemas/request/test_environment.py` | Pinned derived seeds; same arguments give the same seed; a changed seed, key or trial changes it; 32-bit range; global random state untouched; non-int seed `TypeError`; immutability |
 | `tests/harness/core/schemas/test_dataset.py` | Examples kept in order and copied into a tuple; a given uid kept, a missing one hashed from the content; empty name, no examples or duplicate uids `ValueError`; the fingerprint changes with an input, a reference or the order and is stable for identical data; `Task` name check and immutability; one task run against two candidates |
 | `tests/harness/core/execution/test_runner.py` | One record per input in order; lifecycle once per input; empty inputs; a failing input recorded while later inputs run; failing `setup` skips `run` and still tears down; `teardown` failure after success keeps the output; `teardown` failure not masking an earlier error; `KeyboardInterrupt` propagates after `teardown` ran; the candidate receives only the example's input, never its reference; a returned `Output` is kept and a plain return is wrapped in one; each record's seed is the environment's derived seed (for the example's uid, or its index), is repeatable, changes with the base seed, and defaults to seed 42 |

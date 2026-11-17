@@ -58,7 +58,7 @@ def test_result_without_records_counts_zero():
     assert Result(name="t", records=[], duration_sec=0.0).trials == {"success": 0, "error": 0}
 
 
-def test_result_scores_are_the_mean_per_scorer_over_scored_trials_and_in_the_json():
+def test_result_summary_has_mean_and_counts_per_scorer_and_is_in_the_json():
     import json
 
     from velari_harness.core.schemas.response.result import Result
@@ -67,6 +67,30 @@ def test_result_scores_are_the_mean_per_scorer_over_scored_trials_and_in_the_jso
 
     result = Result(name="t", records=records, duration_sec=0.0)
 
-    assert result.scores == {"exact_match": 0.5}
-    assert json.loads(result.model_dump_json())["scores"] == {"exact_match": 0.5}
+    summary = result.summary["exact_match"]
+    assert (summary.mean, summary.n, summary.invalid) == (0.5, 2, 1)
+    assert json.loads(result.model_dump_json())["summary"]["exact_match"]["mean"] == 0.5
     assert Result.model_validate_json(result.model_dump_json()) == result
+
+
+def test_result_summary_stderr_is_the_standard_error_of_the_mean():
+    from velari_harness.core.schemas.response.result import Result
+
+    records = [_record(0, scores={"exact_match": 0.0}), _record(1, scores={"exact_match": 1.0})]
+
+    assert Result(name="t", records=records, duration_sec=0.0).summary["exact_match"].stderr == pytest.approx(0.5)
+
+
+@pytest.mark.parametrize("values, expected", [
+    ([0.8],        (0.8,  None, 1, 0)),
+    ([0.8, None],  (0.8,  None, 1, 1)),
+    ([None],       (None, None, 0, 1)),
+])
+def test_result_summary_counts_without_two_valid_scores(values, expected):
+    from velari_harness.core.schemas.response.result import Result
+
+    records = [_record(index, scores={"judge": value}) for index, value in enumerate(values)]
+
+    summary = Result(name="t", records=records, duration_sec=0.0).summary["judge"]
+
+    assert (summary.mean, summary.stderr, summary.n, summary.invalid) == expected

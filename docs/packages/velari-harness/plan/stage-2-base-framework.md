@@ -32,7 +32,8 @@ Stage 2 is built in small increments, each with its own tests, instead of all at
 | 12 | Structured `Score` (value, passed, label, explanation, failure, metadata); `Case` renamed `Example` and moved into `record.py` (`Task.examples`, `TrialRecord.example`); a scorer may return a number, a bool or a `Score` | Implemented |
 | 13 | `Dataset`: ordered, immutable examples with uids (a content hash when none is given) and a `fingerprint`; `Example` (now with `uid`), `Dataset` and `Task` live in `schemas/dataset.py`, and `request/task.py` is removed; `Task(name, dataset, version)` | Implemented |
 | 14 | `Environment` wired in: the `Harness` takes one (default `Environment()`), the `Runner` derives each trial's seed from it and `TrialRecord.seed` records it; the candidate is not told the seed | Implemented |
-| 15 onward | Not yet planned. The remaining modules are added one increment at a time, each re-planned when the previous one is done | |
+| 15 | `Result.summary` replaces `Result.scores`: per scorer a `ScoreSummary(mean, stderr, n, invalid)`; the run spec is deferred until the record store needs it | Implemented |
+| 16 onward | Not yet planned. The remaining modules are added one increment at a time, each re-planned when the previous one is done | |
 
 ### Increment 1: Harness and its config
 
@@ -167,7 +168,7 @@ A trial record said whether the candidate ran, not whether its output was good. 
 | `TrialRecord.scores: Dict[str, Optional[float]]`, keyed by scorer name; a scorer that raises gives `None`, not a zero | `schemas/response/record.py` |
 | `Runner.run(candidate, inputs, scorers=(), references=())` scores each `SUCCESS` trial after its teardown; a failed trial gets no scores; duplicate scorer names, scorers without references and a length mismatch raise `ValueError` | `execution/runner.py` |
 | `TaskHarness.for_task(task, candidate, cfg=None, scorers=())`; scorers on a task without references raise `ValueError` at construction | `execution/harness.py` |
-| `TaskResult.scores`: the mean per scorer over its non-`None` values (also in the JSON) | `schemas/response/result.py` |
+| `TaskResult.scores`: the mean per scorer over its non-`None` values (also in the JSON); became `Result.summary` in increment 15 | `schemas/response/result.py` |
 
 Tests: new cases in `test_task.py`, `test_runner.py`, `test_harness.py` and `test_result.py`. The example scores a CSV of customers against an `expected_email` column.
 
@@ -207,6 +208,27 @@ The harness and the Runner each wrapped a setup, work, teardown lifecycle, `exec
 Tests: `test_harness.py` is one `TestHarness` class (the scoring cases moved here from `test_runner.py`); `test_result.py` and `test_record.py` follow the new shapes.
 
 A breaking change worth knowing: a run has no `status` or `failure` of its own. Failed trials are data in their records, and anything else (a `KeyboardInterrupt`, a bad argument) raises.
+
+### Increment 15: Result summary
+
+`Result.scores` gave only the mean per scorer, which hid how many scores it rested on, how uncertain it was and how many scorers could not judge. `Result.summary` replaces it.
+
+| Change | Where |
+|---|---|
+| `ScoreSummary(mean, stderr, n, invalid)`: `n` counts the scores that have a value, `invalid` those that have none (the scorer raised); a failed trial is never scored, so it is in neither count | `schemas/response/result.py` |
+| `Result.summary: Dict[str, ScoreSummary]`, sorted by scorer name, replaces `Result.scores`; `mean` is `None` with no valid score, and `stderr` (the sample standard deviation over `sqrt(n)`) is `None` below two; computed by the shared `calc_column_stats` | `schemas/response/result.py` |
+| `calc_column_stats(df_values, column, by=None, stats=())`: a DataFrame with one row per group and one column per statistic function, named after it. Always computed: count, mean, std, sem, min, median, max, ci_low (95%) and ci_high; `stats` adds more (pandas' var, skew and kurt, and this module's n_na, spread, iqr, mad, `percentile(q)` and `pct_at(value)`). Callers pick the columns they need; `Result.summary` uses it | `velari_core/core/statistics/stats.py` |
+| The example's scores table shows mean, stderr, n and invalid | `examples/ai/harness/` |
+
+Tests: `test_result.py` (mean and counts in the JSON and a round trip, the standard error, no standard error below two valid scores, no mean when every score is invalid) and `test_harness.py` read `result.summary`; `tests/core/test_stats.py` has 10 new tests for `calc_column_stats` (16 cases), checked against the standard library, pandas and the notebook's old code. The example's 0.17 standard error was checked by hand.
+
+Decisions: `summary` replaces `scores` instead of sitting beside it, so there is one place for scorer results; the statistics are one shared function in `velari_core`, because the notebook and the harness computed the same ones separately; the run spec (task, dataset fingerprint, candidate, base seed) is deferred, since nothing reads it until results are saved or compared.
+
+Not in this increment: the run spec, metrics and reducers (pass@k, grouped summaries), and a standard error for repeated trials of one example (the formula assumes independent trials, which holds with one trial per example).
+
+A breaking change worth knowing: `result.scores[name]` is `result.summary[name].mean`.
+
+Notebook note: `examples/ai/evals/evals.ipynb` computes the same statistics by hand; moving its cells 3, 4 and 6 onto `calc_column_stats` is a later step (the `examples/ai/evals/` folder is untracked and its cells are not part of this change). The interval there is computed from rounded values, so it differs by 0.01 in two places from the unrounded one here (B_cot `ci_high` 79.87, C_fewshot `ci_low` 77.24).
 
 ### Increment 14: Environment wired in
 

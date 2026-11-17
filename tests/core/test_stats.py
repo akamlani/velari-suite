@@ -1,5 +1,7 @@
 """Tests for velari_core.core.statistics.stats."""
+import warnings
 import numpy as np
+import pandas as pd
 import pytest
 
 
@@ -100,3 +102,67 @@ class TestCalcWeightedAvg:
         from velari_core.core.statistics.stats import calc_weighted_avg
         with pytest.raises(ValueError):
             calc_weighted_avg(values, weights)
+
+
+def _scores(values, group=None):
+    return pd.DataFrame({"score": values} if group is None else {"score": values, "variant": group})
+
+
+class TestCalcColumnStats:
+    def test_whole_column_returns_one_row_named_after_the_column_with_the_default_statistics(self):
+        from velari_core.core.statistics.stats import calc_column_stats
+        df_stats = calc_column_stats(_scores([1.0, 2.0, 3.0, 4.0]), "score")
+        assert (df_stats.index.tolist(), df_stats.columns.tolist()) == (["score"], ["count", "mean", "std", "sem", "min", "median", "max", "ci_low", "ci_high"])
+        assert (df_stats.loc["score", "count"], df_stats.loc["score", "mean"]) == (4, 2.5)
+
+    def test_groups_come_out_in_sorted_order(self):
+        from velari_core.core.statistics.stats import calc_column_stats
+        df_stats = calc_column_stats(_scores([1.0, 2.0, 3.0], ["b", "a", "b"]), "score", by="variant").reindex(columns=["count", "mean"])
+        assert df_stats.to_dict("index") == {"a": {"count": 1, "mean": 2.0}, "b": {"count": 2, "mean": 2.0}}
+
+    def test_mean_std_and_sem_match_the_standard_library(self):
+        import statistics
+        from velari_core.core.statistics.stats import calc_column_stats
+        values = [2.0, 4.0, 4.0, 4.0, 5.0, 5.0, 7.0, 9.0]
+        row = calc_column_stats(_scores(values), "score").loc["score", ["mean", "std", "sem"]]
+        assert row.tolist() == pytest.approx([statistics.mean(values), statistics.stdev(values), statistics.stdev(values) / len(values) ** 0.5])
+
+    def test_ci_bounds_match_calc_confidence_interval(self):
+        from velari_core.core.statistics.stats import calc_column_stats, calc_confidence_interval
+        values = [0.5, -0.2, 1.1, 0.3, 0.9]
+        row = calc_column_stats(_scores(values), "score").loc["score", ["ci_low", "ci_high"]]
+        assert row.tolist() == pytest.approx(calc_confidence_interval(values))
+
+    def test_iqr_mad_and_spread_match_hand_computed_values(self):
+        from velari_core.core.statistics.stats import calc_column_stats, iqr, mad, spread
+        row = calc_column_stats(_scores([1.0, 2.0, 2.0, 3.0, 9.0]), "score", stats=(iqr, mad, spread)).loc["score", ["iqr", "mad", "spread"]]
+        assert row.tolist() == pytest.approx([1.0, 1 / 0.6744897501960817, 8.0])
+
+    @pytest.mark.parametrize("stat, size", [(pd.Series.std, 1), (pd.Series.sem, 1), (pd.Series.skew, 2), (pd.Series.kurt, 3)])
+    def test_statistic_is_nan_below_its_minimum_size_without_warning(self, stat, size):
+        from velari_core.core.statistics.stats import calc_column_stats
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            df_stats = calc_column_stats(_scores([1.0, 2.0, 4.0][:size]), "score", stats=(stat,))
+        assert np.isnan(df_stats.loc["score", stat.__name__])
+
+    def test_nan_values_are_ignored_and_counted_in_n_na(self):
+        from velari_core.core.statistics.stats import calc_column_stats, n_na
+        row = calc_column_stats(_scores([1.0, None, 3.0]), "score", stats=(n_na,)).loc["score", ["count", "n_na", "mean"]]
+        assert row.tolist() == [2, 1, 2.0]
+
+    def test_group_with_only_nan_stays_with_zero_count(self):
+        from velari_core.core.statistics.stats import calc_column_stats, n_na
+        df_stats = calc_column_stats(_scores([1.0, None], ["a", "b"]), "score", by="variant", stats=(n_na,))
+        assert (df_stats.loc["b", "count"], df_stats.loc["b", "n_na"], np.isnan(df_stats.loc["b", "mean"])) == (0, 1, True)
+
+    def test_percentile_and_pct_at_name_their_columns_and_compute_their_values(self):
+        from velari_core.core.statistics.stats import calc_column_stats, pct_at, percentile
+        df_stats = calc_column_stats(_scores([0.0, 50.0, 100.0, 100.0]), "score", stats=(percentile(50), pct_at(0), pct_at(100)))
+        assert df_stats.loc["score", ["p50", "pct_at_0", "pct_at_100"]].to_dict() == {"p50": 75.0, "pct_at_0": 25.0, "pct_at_100": 50.0}
+
+    @pytest.mark.parametrize("column, by", [("missing", None), ("score", "missing")])
+    def test_missing_column_or_group_column_raises_valueerror(self, column, by):
+        from velari_core.core.statistics.stats import calc_column_stats
+        with pytest.raises(ValueError):
+            calc_column_stats(_scores([1.0, 2.0]), column, by=by)
