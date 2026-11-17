@@ -33,7 +33,10 @@ Stage 2 is built in small increments, each with its own tests, instead of all at
 | 13 | `Dataset`: ordered, immutable examples with uids (a content hash when none is given) and a `fingerprint`; `Example` (now with `uid`), `Dataset` and `Task` live in `schemas/dataset.py`, and `request/task.py` is removed; `Task(name, dataset, version)` | Implemented |
 | 14 | `Environment` wired in: the `Harness` takes one (default `Environment()`), the `Runner` derives each trial's seed from it and `TrialRecord.seed` records it; the candidate is not told the seed | Implemented |
 | 15 | `Result.summary` replaces `Result.scores`: per scorer a `ScoreSummary(mean, stderr, n, invalid)`; the run spec is deferred until the record store needs it | Implemented |
-| 16 onward | Not yet planned. The remaining modules are added one increment at a time, each re-planned when the previous one is done | |
+| 16 | `Registry[T]`: `register`, `get` and `names`; an unknown or duplicate name raises `ValueError`; the first user is the skill catalog (17) | Planned |
+| 17 | `Skill` and `load_skills`: parse and validate a skill's frontmatter, discover skills under given directories into a `Registry`, read the body and bundled files on demand; the core never runs a skill's scripts | Planned |
+| 18 | `TrialContext` with `emit(name, data)`: the derived seed reaches the candidate, a trial working directory exists, events land on the `TrialRecord`; a `skill_triggered` event records which skill a candidate used | Planned |
+| 19 onward | Not yet planned: metrics and reducers, store and `rescore`, limits and error policies, repeated trials, `ExampleView`, `Sandbox`. Added one increment at a time, each re-planned when the previous one is done | |
 
 ### Increment 1: Harness and its config
 
@@ -406,6 +409,17 @@ A folder imports only from folders to its left. Imports across folders are relat
 - **Teardown always runs.** `Candidate.teardown` and the sandbox `stop` run after a failed `run`, so a failed trial cannot leave state behind.
 - **Runtimes that need an extra are imported lazily** by the registry, with an error naming the extra (stage 1 convention). The kernel itself needs none.
 
+### Skills (planned)
+
+A skill (see **Skill** in the [glossary](../glossary.md#component-glossary)) is a directory with a `SKILL.md`, loaded in three levels: name and description always, the body when the skill is triggered, bundled files as needed. The description is the only trigger signal.
+
+- **The core loads, the candidate triggers.** The core gets a `Skill` type that parses and validates the frontmatter and a catalog on the `Registry` (16, 17), plus name-and-description text a candidate's prompt can include. Which skill is used, and when, is decided inside the candidate; the harness only observes it, through a `skill_triggered` event from `TrialContext` (18).
+- **Skills belong to the candidate.** Whether an agent has a skill is what you vary ("with and without", or one skill against another), so it is part of how a candidate is built, not of the `Environment` (held fixed) or the `Task` (what is measured).
+- **Testable before the loader exists.** Skill-trigger evaluation fits the current core: an `Example` whose `input` is a request and whose `reference` is the expected skill name (or `None`), a candidate that returns the skill it would trigger from the descriptions, and `exact_match` as the scorer.
+- **Security.** The core parses a skill and never runs its scripts. Scripts run only inside a `Sandbox`, and skills from outside the repository are untrusted.
+- **Stage 3, not core:** an agent adapter that exposes the catalog to an agent, trigger scorers (did the expected skill fire; precision and recall), and an LLM judge that uses a skill as its rubric.
+- **Sources:** Anthropic's [Agent Skills overview](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview) (read 2026-11-17) and this repository's skill template, `_build/agent-skills/templates/skill-name/SKILL.md`.
+
 ## Deliberately not in stage 2
 
 The detailed read of the references turned up more than stage 2 should carry. These are deferred, not rejected:
@@ -421,6 +435,8 @@ The detailed read of the references turned up more than stage 2 should carry. Th
 | LLM-judge pinning and validation against human labels | AIDE, DSAgentBench, openai/evals, MLflow | stage 3 |
 | Container and cloud sandboxes, GPU and network policy, secret stripping | MLE-bench, Harbor | stage 6 (L3) |
 | Observation modality for computer-use agents | DSAgentBench | after stage 3 |
+| Agent adapter that exposes a skill catalog, and trigger scorers (did the expected skill fire) | Anthropic Agent Skills | stage 3 |
+| Running a skill's bundled scripts | Anthropic Agent Skills (security notes) | with the `Sandbox`; container isolation in stage 6 (L3) |
 
 ## Style
 
