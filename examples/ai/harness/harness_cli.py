@@ -40,7 +40,7 @@ from    velari_harness.core.schemas.types import Status
 #   Scorer     judges one output against the reference (the expected value), without the candidate ever seeing the reference
 #              here: the function email_match, which compares the cleaned email with the expected_email column (a scorer can be a plain function);
 #              a failed trial has no output, so it gets no score
-#   Result     what one harness run returns: its duration, one trial record per input, and counts and a mean score summary
+#   Result     what one harness run returns: its duration, one trial record per input, and counts and a summary per scorer (mean, stderr, counts)
 #              here: status "success" (the run completed), with 6 trials success and 6 trials error
 
 
@@ -126,12 +126,13 @@ class HarnessCli(object):
         run.add_row(result.name, str(len(result.records)), f"{result.duration_sec:.4f}",
                     str(result.trials[Status.SUCCESS]), str(result.trials[Status.ERROR]))
 
-        # table 2: the scorer's summary over the run (mean of the valid scores)
+        # table 2: the scorer's summary over the run (mean, standard error and counts of the scores)
         summary = Table(title="scores")
-        for column in ("scorer", "mean"):
+        for column in ("scorer", "mean", "stderr", "n", "invalid"):
             summary.add_column(column)
-        for name, mean in result.scores.items():
-            summary.add_row(name, f"{mean:.2f}" if mean is not None else "")
+        for name, stats in result.summary.items():
+            summary.add_row(name, f"{stats.mean:.2f}" if stats.mean is not None else "",
+                            f"{stats.stderr:.2f}" if stats.stderr is not None else "", str(stats.n), str(stats.invalid))
 
         # table 3: one row per input, with the trial's seed, status, reason code (empty on success), its score (empty on failure) and its output or error message
         trials = Table(title=f"{self.task.name} (version {self.task.version}, data {self.task.dataset.fingerprint}): outcome per input")

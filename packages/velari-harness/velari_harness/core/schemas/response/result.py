@@ -1,12 +1,39 @@
-from    typing    import Dict, List, Optional
-from    pydantic  import BaseModel, Field, computed_field
+import  pandas as pd
+from    typing      import Dict, List, Optional
+from    pydantic    import BaseModel, Field, computed_field
+# velari-core
+from    velari_core.core.statistics.stats import calc_column_stats, n_na
 # package modules
-from    .record   import TrialRecord
-from    ..types   import Status
+from    .record     import TrialRecord
+from    ..types     import Status
+
+
+class ScoreSummary(BaseModel):
+    """One scorer's scores over a run: their mean and its standard error, and how many were valid or not.
+
+    Args:
+        mean (Optional[float]): Mean value over the scores that have one; `None` when there are none.
+        stderr (Optional[float]): Standard error of the mean, the sample standard deviation over `sqrt(n)`; `None` below two values.
+        n (int): How many scores have a value.
+        invalid (int): How many have none because the scorer could not judge; a failed trial is never scored, so it is in neither count.
+
+    Examples:
+        A relevance judge that scored two answers and failed on a third:
+
+        >>> result.summary["relevance"]
+        ScoreSummary(mean=0.75, stderr=0.25, n=2, invalid=1)
+    """
+    mean:     Optional[float]
+    stderr:   Optional[float]
+    n:        int
+    invalid:  int
 
 
 class Result(BaseModel):
-    """What one harness run produced: the harness name, one record per task input in order, and how long it took."""
+    """What one harness run produced: the harness name, one record per task input in order, and how long it took.
+
+    `summary` has each scorer's mean, standard error and counts.
+    """
     name:          str
     records:       List[TrialRecord]
     duration_sec:  float              = Field(ge=0)
@@ -30,12 +57,21 @@ class Result(BaseModel):
 
     @computed_field
     @property
-    def scores(self) -> Dict[str, Optional[float]]:
-        """Mean value per scorer over the trials it scored; `None` when all of its scores were `None`."""
-        values: Dict[str, List[float]] = {}
-        for record in self.records:
-            for name, score in record.scores.items():
-                scored = values.setdefault(name, [])
-                if score.value is not None:
-                    scored.append(score.value)
-        return {name: sum(scored) / len(scored) if scored else None for name, scored in sorted(values.items())}
+    def summary(self) -> Dict[str, ScoreSummary]:
+        """Each scorer's mean, standard error and counts over the trials it scored, sorted by scorer name."""
+        df_stats = (
+            pd.DataFrame(
+                [(name, score.value) for record in self.records for name, score in record.scores.items()],
+                columns=["scorer", "value"],
+            )
+            .pipe(calc_column_stats, "value", by="scorer", stats=(n_na,))
+        )
+        return {
+            str(name): ScoreSummary(
+                mean=None if pd.isna(stats["mean"]) else stats["mean"],
+                stderr=None if pd.isna(stats["sem"]) else stats["sem"],
+                n=int(stats["count"]),
+                invalid=int(stats["n_na"]),
+            )
+            for name, stats in df_stats.to_dict("index").items()
+        }

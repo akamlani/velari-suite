@@ -40,8 +40,8 @@ class Harness(object):
         >>> result = Harness.for_task(task, candidate, scorers=[same_band]).run()
         >>> result.name, [(r.outcome.status.value, r.outcome.output.value) for r in result.records]
         ('churn-risk', [('success', 'low'), ('success', 'high')])
-        >>> result.scores
-        {'same_band': 1.0}
+        >>> result.summary["same_band"].mean
+        1.0
 
         Applied (illustrative): an agent candidate on an evaluation task:
 

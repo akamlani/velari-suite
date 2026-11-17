@@ -39,7 +39,7 @@ not change the exit code.
 | `Harness.for_task(task, candidate, scorers=[...], environment=...)` | The container, named after the task. Its `run()` chains three steps: run the candidate on every input, score each successful trial, package the result |
 | `Runner` and `TrialRecord` (through `Harness`) | The result's `records` hold one trial record per row, in order |
 | Failures are data | A bad row (an email with no domain, a negative or non-numeric age, an unknown country, a missing name or age) fails its own trial with the reasons; later rows still run, and the other rows are unaffected |
-| `Result` and `Status` | The run table: harness, inputs, duration, trials success, trials error; and the scores table (`Result.scores`: the mean per scorer) |
+| `Result` and `Status` | The run table: harness, inputs, duration, trials success, trials error; and the scores table (`Result.summary`: per scorer the mean, standard error, valid count `n` and `invalid` count) |
 
 ## Prerequisites
 
@@ -74,12 +74,12 @@ durations vary):
 ┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━┩
 │ customer-validation │ 12     │ 0.0002       │ 6              │ 6            │
 └─────────────────────┴────────┴──────────────┴────────────────┴──────────────┘
-        scores        
-┏━━━━━━━━━━━━━┳━━━━━━┓
-┃ scorer      ┃ mean ┃
-┡━━━━━━━━━━━━━╇━━━━━━┩
-│ email_match │ 0.83 │
-└─────────────┴──────┘
+                   scores                    
+┏━━━━━━━━━━━━━┳━━━━━━┳━━━━━━━━┳━━━┳━━━━━━━━━┓
+┃ scorer      ┃ mean ┃ stderr ┃ n ┃ invalid ┃
+┡━━━━━━━━━━━━━╇━━━━━━╇━━━━━━━━╇━━━╇━━━━━━━━━┩
+│ email_match │ 0.83 │ 0.17   │ 6 │ 0       │
+└─────────────┴──────┴────────┴───┴─────────┘
      customer-validation (version 1, data a1c998fe3b61): outcome per input      
 ┏━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━━┓
 ┃             ┃            ┃         ┃             ┃             ┃ output /    ┃
@@ -180,7 +180,7 @@ own; it only chains run, score and package.
 
 - **Comparing candidates.** A harness is one candidate on one task. Lining several runs up (two candidates,
   or two environments) needs a run group and result set, which the core does not have yet.
-- No metrics or reducers beyond the mean in the scores summary, no repeated trials, and the `Environment` holds only a seed
+- No metrics or reducers beyond the summary (mean, standard error, counts), no repeated trials, and the `Environment` holds only a seed
   (no limits or policies yet; the candidate is not told its seed).
 - The candidate is defined in the script, not built from config.
 - The evaluation and data science categories and the planned core components (datasets, metrics, a
