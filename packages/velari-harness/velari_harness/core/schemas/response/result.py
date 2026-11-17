@@ -18,8 +18,13 @@ class ScoreSummary(BaseModel):
         invalid (int): How many have none because the scorer could not judge; a failed trial is never scored, so it is in neither count.
 
     Examples:
-        A relevance judge that scored two answers and failed on a third:
+        A relevance judge that scored two answers and could not judge a third:
 
+        >>> answers = Dataset("support-answers", [Example("a1", "ref1"), Example("a2", "ref2"), Example("a3", "ref3")])
+        >>> grades = {"a1": 0.5, "a2": 1.0, "a3": None}
+        >>> def relevance(output, reference):
+        ...     return Score(value=grades[output])
+        >>> result = Harness.for_task(Task("answer-quality", answers), CallableCandidate(str), scorers=[relevance]).run()
         >>> result.summary["relevance"]
         ScoreSummary(mean=0.75, stderr=0.25, n=2, invalid=1)
     """
