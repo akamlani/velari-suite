@@ -1,0 +1,18 @@
+# @package _global_
+app:
+  info:
+    name: skills-cli
+    help: "Velari Harness — measure how well a skill's description triggers it, with a baseline keyword matcher."
+    version: 0.1.0
+
+# The task: what is measured. Each row of the CSV is a request and the skill that should trigger ("none" when no skill should).
+task:
+  name: skill-trigger
+  version: "1"
+  requests_path: examples/ai/harness/skills/data/skill_requests.csv   # relative to the repository root
+
+# The skills the candidate chooses from: every SKILL.md under this folder (relative to the repository root).
+# min_score is how strong a keyword match must be before the candidate triggers a skill instead of answering "none".
+skills:
+  root: _build/agent-skills/packages
+  min_score: 2.0

@@ -1,6 +1,6 @@
 # Plan: `velari-harness` package
 
-Status: stage 1 implemented and merged; stage 2 in progress (increments 1 to 15 implemented: `Harness` and its config, `Candidate`, `Runner`, `Task`, `Environment`, scorers, `Harness` as the container that chains run, score and package, `Example`, `Output`, a structured `Score`, a `Dataset`, a wired `Environment` and a `Result` summary); stages 3-6 not yet detailed.
+Status: stage 1 implemented and merged; stage 2 in progress (increments 1 to 16 implemented: `Harness` and its config, `Candidate`, `Runner`, `Task`, `Environment`, scorers, `Harness` as the container that chains run, score and package, `Example`, `Output`, a structured `Score`, a `Dataset`, a wired `Environment`, a `Result` summary and a skills layer); stages 3-6 not yet detailed.
 
 ## What a harness is
 
@@ -28,6 +28,8 @@ The sources behind the design, with the harness category each one informs and th
 | [Harbor](https://github.com/laude-institute/harbor) ([docs](https://docs.harborframework.com)) | Evaluation (agent), Runtime (L3) | Agent evaluation framework from the Terminal-Bench authors; official harness for Terminal-Bench 2.0 (license not confirmed: sources disagree) | Agent, environment, verifier and dataset are separate; each trial starts a sandbox, runs the agent, collects artifacts, verifies, and always stops the sandbox; a per-exception error policy says whether to retry, score and treat the reward as valid; `regrade` re-runs only the verifier on recorded artifacts; datasets are versioned and pinned; runs scale out to Daytona and Modal (the runtime layer) |
 | [Anthropic: effective harnesses for long-running agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents) | Agent runtime | Scaffold for multi-session agents | Recoverable state, clean end state, end-to-end verification; deferred to a later `agent-runtime` category |
 | [Anthropic: Agent Skills](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview) | Agent runtime | Filesystem skills for agents, loaded in three levels | A skill is a `SKILL.md` directory; name and description are always loaded and are the only trigger signal, the body loads when triggered and bundled files on demand; scripts run in a sandbox and skills from outside are untrusted |
+| [Agent Skills specification and skills-ref](https://agentskills.io/specification) | Agent runtime | The open format (Anthropic originated it) and its reference library, for demonstration only | The frontmatter and name rules, the folder named after the skill, `compatibility` at most 500 characters; rules copied, not code |
+| [Integrating skills into an agent](https://agentskills.io/integrate-skills) | Agent runtime | The official guide to discovering, disclosing and activating skills | The `<available_skills>` catalog (name, description, location), progressive disclosure, hide filtered skills; its lenient loading, precedence and trust advice are open choices for us |
 | [Kedro](https://kedro.org), [ZenML](https://www.zenml.io), [Metaflow](https://metaflow.org), [Dagster](https://dagster.io) | Pipeline (inside a task) | Pipeline and orchestration tools | Steps, artifacts, lineage, used only to prepare examples inside a task |
 
 Enterprise platforms (Vertex AI, Bedrock, Azure AI Foundry) were reachable only through secondary sources. They show the same shape (dataset, judge or metrics, run), so no specifics are taken from them.
@@ -47,7 +49,7 @@ A detailed read of the references above confirmed the core design (candidate sep
 | 5 | `Candidate` has `setup/run/teardown`, a `TrialContext` and a `Sandbox` seam with a `LocalSandbox`; container sandboxes are L3 | Harbor, Inspect, openai/evals |
 | 6 | `Runner.run(score=False)` and `rescore`: running and scoring are separate | lm-eval, Harbor, HELM |
 | 7 | Content-hash case ids, `Dataset.fingerprint`, `Task.version`, and a spec recording the applied limits | openai/evals, MLflow, Harbor, DSAgentBench |
-| 8 | Skills: the core loads and validates a `Skill` into a catalog on the `Registry`; the candidate triggers it and `TrialContext` events record it; scripts run only in a `Sandbox` | Anthropic Agent Skills |
+| 8 | Skills: the core loads and validates a `Skill` into a `SkillRegistry` (a table on `velari_data`'s `Registry`, built); the candidate triggers it and `TrialContext` events record it; scripts run only in a `Sandbox` | Anthropic Agent Skills |
 
 Deferred to a possible stage 2b or later stages: run groups and result sets, resume, grouped statistics, paired comparison, concurrency, trajectory interchange, LLM-judge validation, container sandboxes. See "Deliberately not in stage 2" in the stage 2 doc.
 
@@ -69,7 +71,7 @@ Each stage is verified before the next starts. Only stages 1 and 2 are detailed;
 | Stage | Category | Doc | Outcome |
 |---|---|---|---|
 | 1 | Package | [stage-1-scaffolding.md](stage-1-scaffolding.md) | Done: package created, wired into the workspace, shared version bootstrap from `velari-core`, no runtime extras yet |
-| 2 | Core (L0) | [stage-2-base-framework.md](stage-2-base-framework.md) | Core kernel under `core/`, built in increments. Increments 1 to 15 (done): `Harness` and `HarnessConfig`, `Candidate`, a minimal `Runner`, a minimal `Task`, a minimal `Environment`, scorers as plain functions, `Harness` as the container that chains run, score and package, `Example`, `Output`, a structured `Score`, a `Dataset`, a wired `Environment` and a `Result` summary. Then: registry, skills (`Skill`, `load_skills`), `TrialContext`, metrics, record store |
+| 2 | Core (L0) | [stage-2-base-framework.md](stage-2-base-framework.md) | Core kernel under `core/`, built in increments. Increments 1 to 16 (done): `Harness` and `HarnessConfig`, `Candidate`, a minimal `Runner`, a minimal `Task`, a minimal `Environment`, scorers as plain functions, `Harness` as the container that chains run, score and package, `Example`, `Output`, a structured `Score`, a `Dataset`, a wired `Environment`, a `Result` summary and a skills layer (`Skill`, `SkillRegistry`, built on a new `RecordRegistry` in `velari-data`). Then: `TrialContext`, metrics, record store |
 | 3 | Evaluation (L1) | not yet detailed | `evaluation/`: agent, gateway and callable candidate adapters, scorer wrappers over `ai/evals`, LLM judge, a skill adapter (exposes a catalog to an agent) and trigger scorers (did the expected skill fire); retire the stub `EvaluationHarness` |
 | 4 | Data science (L1) | not yet detailed | `experiment/`: `ModelDriver` candidate, partition examples, metric scorers |
 | 5 | Applied (L2) | not yet detailed | Applied harnesses, config groups under `config/harness/`, runnable examples |
@@ -86,8 +88,8 @@ Each stage is verified before the next starts. Only stages 1 and 2 are detailed;
 | `DataPartition`, `cross_val_scores`, `scorer_clustering` | `velari_ai/integrations/sklearn/{partition,scoring}.py` | Experiment examples and scorers (stage 4) |
 | Eval functions | `velari_ai/ai/evals/{scoring,heuristics,distribution}.py` | Scorer wrappers (stage 3) |
 | Phoenix evaluators and judge | `velari_ai/integrations/arize/evaluation.py` | Optional judge scorer (stage 3) |
-| Datasets and registry | `velari_data/{datasets,registry}.py` | Example sources |
-| Skill format and sample skills | `_build/agent-skills/templates/skill-name/SKILL.md`, `config/prompts/skills/` | `Skill` tests (increment 17) |
+| Datasets and registry | `velari_data/{datasets,registry}.py` | Example sources; `Registry` is the base of `RecordRegistry` and `SkillRegistry` (increment 16) |
+| Skill format and sample skills | `_build/agent-skills/templates/skill-name/SKILL.md`, `config/prompts/skills/` | `Skill` and `SkillRegistry` tests and the skill-trigger example (increment 16) |
 
 Gaps found (the core must supply them): a candidate abstraction, a case/dataset type, a scorer protocol, run records, aggregation, repeated trials, an isolated environment, and LLM seeding. Existing scorer signatures are inconsistent (`wordiness(expected, output)` vs `exact_match(output, expected)`; Phoenix evaluators return dicts), so stage 3 wraps them rather than changing them. `examples/ai/evals/data/01-scores.csv` (`experiment_id, variant_id, example_id, score, judge_model, seed`) is the target shape for `Result.to_frame()`.
 

@@ -1,14 +1,14 @@
 # velari-harness architecture
 
-Matches `velari_harness` as of stage 2, increment 13. Update it when an increment changes behavior. It describes the code that exists; planned components are in [../plan/](../plan/plan.md) and marked **Planned** in the [glossary](../glossary.md#component-glossary). Statements marked *verified* were checked by running the code; anything else is read from the source.
+Matches `velari_harness` as of stage 2, increment 16. Update it when an increment changes behavior. It describes the code that exists; planned components are in [../plan/](../plan/plan.md) and marked **Planned** in the [glossary](../glossary.md#component-glossary). Statements marked *verified* were checked by running the code; anything else is read from the source.
 
 Audience: contributors who extend or review the harness core. Definitions of terms live in the glossary and are not repeated here.
 
 ## 1. Scope
 
-Today the package provides these things. A `Harness`: the container for one measurement, which holds a task, a candidate and optional scorers and whose `run()` chains three steps (run the candidate on every example, score each successful trial, package a serialisable `Result`). The `Candidate` contract: the thing being measured, with a function wrapper. A `Runner` that runs a candidate over a sequence of examples and returns one `TrialRecord` per example. A `Example`: one input for the candidate and, optionally, the reference a scorer compares with. A `Task`: a named, versioned, immutable set of examples that says nothing about who is measured. Scorers as plain functions. An `Environment`: the base seed, with a repeatable seed derived for each trial; the Runner derives each trial's seed from it and records the seed on the trial.
+Today the package provides these things. A `Harness`: the container for one measurement, which holds a task, a candidate and optional scorers and whose `run()` chains three steps (run the candidate on every example, score each successful trial, package a serialisable `Result`). The `Candidate` contract: the thing being measured, with a function wrapper. A `Runner` that runs a candidate over a sequence of examples and returns one `TrialRecord` per example. A `Example`: one input for the candidate and, optionally, the reference a scorer compares with. A `Task`: a named, versioned, immutable set of examples that says nothing about who is measured. Scorers as plain functions. An `Environment`: the base seed, with a repeatable seed derived for each trial; the Runner derives each trial's seed from it and records the seed on the trial. A skills layer: `Skill` and `SkillValidator` read and check a skill folder against the Agent Skills rules, and `SkillRegistry` holds the skills under folders as a table (built on `RecordRegistry` in `velari-data`) and renders a catalog for a prompt. The core never runs a skill's scripts, and the harness itself does not use skills: a candidate does.
 
-Not implemented: examples, datasets, metrics and reducers, repeated trials, a registry, a result store, tracking, an output directory, retries, limits. The core does not seed global random state.
+Not implemented: metrics and reducers, repeated trials, `TrialContext`, a registry of named harness components, a result store, tracking, an output directory, retries, limits. The core does not seed global random state.
 
 ## 2. Components and dependencies
 
@@ -20,6 +20,8 @@ Not implemented: examples, datasets, metrics and reducers, repeated trials, a re
 | `core/schemas/response/result.py` | `Result(name, records, duration_sec)`: one record per task input in order, with computed `trials` (a count per status), `usage` and `summary` (per scorer a `ScoreSummary`: mean, standard error, valid count `n` and `invalid` count, computed with `velari_core`'s `calc_column_stats`) |
 | `core/execution/config.py` | `HarnessConfig` (`name`) and building it from OmegaConf (frozen dataclass, checked at construction) |
 | `core/schemas/dataset.py` | `Example` (`input`, `reference`, `uid`): one thing to measure; `Dataset(name, examples)`: an ordered, immutable collection with uids and a `fingerprint`; `Task(name, dataset, version)`: what is measured (all frozen dataclasses) |
+| `core/schemas/skill.py` | `Skill` and `SkillValidator`: a skill folder read and checked against the Agent Skills rules (frozen dataclass); `SkillRegistry`: the skills under folders as a table, with `get`, filters and `catalog_text`, built on `RecordRegistry` |
+| `velari_data/registry.py` (package `velari-data`) | `RecordRegistry`: named records in a DataFrame, with `get`, `list(**filters)`, `to_dataframe` and `to_xml`; the base `Registry` it extends already existed |
 | `core/schemas/request/environment.py` | `Environment`: the base seed and repeatable per-trial seeds (frozen dataclass) |
 | `core/protocols/candidate.py` | `Candidate` (protocol with a per-trial lifecycle) and `CallableCandidate` |
 | `core/execution/harness.py` | `Harness`: holds a task, a candidate, scorers and an `Environment`; `run()` chains run, score and package; `score()` scores records; `for_task()` builds one |
@@ -40,6 +42,9 @@ graph LR
     init["__init__.py"] --> core2["velari_core: package_version"]
     candidate["protocols/candidate.py"]
     dataset["schemas/dataset.py"]
+    skill["schemas/skill.py"] --> velarireg["velari_data: RecordRegistry"]
+    skill --> pyyaml["pyyaml"]
+    skill --> pandas["pandas"]
     environment["schemas/request/environment.py"]
     record["schemas/response/record.py"] --> types
     record --> dataset
@@ -53,7 +58,7 @@ graph LR
     harness --> record
 ```
 
-`protocols/candidate.py` imports only the standard library; only `runner.py` imports it. `harness.py` imports `runner.py`, `Task` (from `dataset.py`), `Candidate`, `TrialRecord` and `Result`; the Runner does not import `harness.py`. `schemas/dataset.py` imports only the standard library; `record.py`, `runner.py` and `harness.py` import it. `schemas/request/environment.py` imports only the standard library and nothing imports it yet. `schemas/response/result.py` imports `calc_column_stats` from `velari_core` for the summary statistics, as `config.py` imports `ConfigOmegaConf`.
+`protocols/candidate.py` imports only the standard library; only `runner.py` imports it. `harness.py` imports `runner.py`, `Task` (from `dataset.py`), `Candidate`, `TrialRecord` and `Result`; the Runner does not import `harness.py`. `schemas/dataset.py` imports only the standard library; `record.py`, `runner.py` and `harness.py` import it. `schemas/request/environment.py` imports only the standard library and nothing imports it yet. `schemas/response/result.py` imports `calc_column_stats` from `velari_core` for the summary statistics, as `config.py` imports `ConfigOmegaConf`. `schemas/skill.py` imports `RecordRegistry` from `velari_data`, plus `pandas` and `yaml`; nothing in the core imports it (only the skills example does).
 
 `velari-ai` and `pandas` are declared in `pyproject.toml` but not imported (*verified* by grep).
 
@@ -117,6 +122,10 @@ A scorer is a plain function `fn(output, reference)` returning a number (a `bool
 | No inputs | none | empty list | | |
 
 One `ERROR` log line is written per failed trial. There are no limits, timeouts or retries, and trials are sequential.
+
+### Skills
+
+`SkillRegistry(*roots)` scans each folder at any depth for folders holding a `SKILL.md`, skips hidden folders, and builds a `Skill` from each, which checks its name, description, folder name and optional fields against the Agent Skills rules. It fails fast: a missing root, an invalid skill (the message names its folder) or a duplicate name raises. The table has one row per skill, sorted by name, with the attributes and one `meta.<key>` column per metadata key. `get(name)` rebuilds and re-validates a `Skill`; `instructions()` and `resources()` read the body and bundled files only when asked. `catalog_text(names)` renders name, category, tags and description through `RecordRegistry.to_xml`, leaving out what a skill lacks. The harness never reads skills: a candidate chooses and uses them (`examples/ai/harness/skills/`).
 
 ## 4. Configuration flow
 
@@ -186,6 +195,8 @@ None open. Three were found while reading the code and fixed in increment 7:
 
 ### Gaps and hygiene
 
+- Skill loading is strict: one invalid skill aborts the whole load, a duplicate name raises, and there is no precedence between folders, no scan bounds and no fallback for malformed YAML (the integration guide recommends lenient loading and a project-over-user precedence).
+- A `Skill` holds a dict (`metadata`), so it is not hashable.
 - `config.py` defines a module `logger` that nothing uses.
 - `velari-ai` and `pandas` are declared dependencies with no import.
 - `Candidate.run(input)` names its parameter `input`, which shadows the builtin (the lint rule for it is not enabled), and an output's `value` is untyped (`Any`) until a schema check exists.
@@ -226,6 +237,8 @@ Run with `uv run pytest tests/harness`.
 | `tests/harness/core/schemas/response/test_result.py` | Negative duration; `trials` counts, including in the JSON, and zero counts without records; `usage` totals per key in the JSON; `summary`: mean and counts in the JSON and a round trip, the standard error, no standard error below two valid scores, no mean when every score is invalid |
 | `tests/harness/core/schemas/request/test_environment.py` | Pinned derived seeds; same arguments give the same seed; a changed seed, key or trial changes it; 32-bit range; global random state untouched; non-int seed `TypeError`; immutability |
 | `tests/harness/core/schemas/test_dataset.py` | Examples kept in order and copied into a tuple; a given uid kept, a missing one hashed from the content; empty name, no examples or duplicate uids `ValueError`; the fingerprint changes with an input, a reference or the order and is stable for identical data; `Task` name check and immutability; one task run against two candidates |
+| `tests/harness/core/schemas/test_skill.py` | 27 tests: a skill read from its frontmatter; each name, description, folder and `compatibility` rule; the optional fields and stringified metadata; `instructions()` and `resources()`; the registry (columns, nested folders, merged roots, hidden folders, duplicates, an invalid skill, a missing root, `get`, filters) and `catalog_text` |
+| `tests/data/test_registry.py` | 17 `RecordRegistry` tests: records as rows, `get`, `list` with filters, the inherited `has`, `in`, `len`, iteration, `to_dataframe` as a copy, invalid records, a custom key, and `to_xml` (missing values, dotted tags, escaping, `names`, empty); the existing registry tests are unchanged |
 | `tests/harness/core/execution/test_runner.py` | One record per input in order; lifecycle once per input; empty inputs; a failing input recorded while later inputs run; failing `setup` skips `run` and still tears down; `teardown` failure after success keeps the output; `teardown` failure not masking an earlier error; `KeyboardInterrupt` propagates after `teardown` ran; the candidate receives only the example's input, never its reference; a returned `Output` is kept and a plain return is wrapped in one; each record's seed is the environment's derived seed (for the example's uid, or its index), is repeatable, changes with the base seed, and defaults to seed 42 |
 | `tests/harness/core/schemas/response/test_record.py` | `TrialRecord` JSON round trip; negative duration; `status` derived from the failure |
 | `tests/harness/core/protocols/test_candidate.py` | `CallableCandidate` returns the function's result and propagates exceptions; a subclass with only `run` inherits no-op hooks; overridden hooks run in order; a subclass without `run` cannot be instantiated |
@@ -237,3 +250,4 @@ Not covered by any test: the global-RNG guarantee.
 - [Glossary](../glossary.md): definitions, and implemented versus planned.
 - [Environment note](environment.md): what an environment is, how the layers use it, and how it grows.
 - [Plan](../plan/plan.md) and [stage 2](../plan/stage-2-base-framework.md): what comes next and why.
+- The examples: [core](../../../../examples/ai/harness/core/README.md) and [skills](../../../../examples/ai/harness/skills/README.md).

@@ -1,0 +1,28 @@
+id,request,expected_skill
+1,Draw a sequence diagram of the checkout flow in Mermaid,diagramming
+2,Make a flowchart of our deployment pipeline,diagramming
+3,Create an architecture spec for the new billing service,architecture-spec
+4,Write a system design doc for a notification platform,architecture-spec
+5,Generate an invoice for Acme Corp for 12 hours of consulting,write-invoice
+6,Prepare an invoice PDF for a client from the XLSX template,write-invoice
+7,Build a slide deck from this markdown outline,marp
+8,Render my notes as a Marp presentation,marp
+9,Review my local changes and list the action items,review
+10,Do a code review of this change before I merge it,review
+11,Write unit and integration tests for the parser module,testing
+12,Fix the flaky end-to-end test in the checkout suite,testing
+13,Profile this CSV and tell me about missing values,profiling
+14,Explore the dataset and describe its columns and quality,profiling
+15,Create a data dictionary in YAML for this table,schema
+16,Generate a synthetic customer dataset with realistic columns,synthetic-dataset
+17,Brainstorm recurring team workflows that AI could automate,identify
+18,Prioritize these workflows using the 3V framework,prioritize
+19,Write docstrings for this module,write-docstring
+20,Refactor this function to remove the duplication,refactor
+21,Export my Granola meeting transcripts,granola
+22,Summarize this article for me,summarize
+23,Explain how this repository is structured,explain
+24,What will AI look like in 2035?,futurism
+25,What is the capital of France?,none
+26,Thanks that is all for today,none
+27,Tell me a joke about cats,none

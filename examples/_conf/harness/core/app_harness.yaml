@@ -9,4 +9,4 @@ app:
 task:
   name: customer-validation
   version: "1"
-  inputs_path: examples/ai/harness/data/customers.csv   # relative to the repository root
+  inputs_path: examples/ai/harness/core/data/customers.csv   # relative to the repository root

@@ -7084,8 +7084,10 @@ dependencies = [
     { name = "omegaconf" },
     { name = "pandas" },
     { name = "pydantic" },
+    { name = "pyyaml" },
     { name = "velari-ai" },
     { name = "velari-core" },
+    { name = "velari-data" },
 ]
 
 [package.metadata]
@@ -7093,8 +7095,10 @@ requires-dist = [
     { name = "omegaconf", specifier = ">=2.3" },
     { name = "pandas", specifier = ">=2.0" },
     { name = "pydantic", specifier = ">=2.9" },
+    { name = "pyyaml", specifier = ">=6.0" },
     { name = "velari-ai", editable = "packages/velari-ai" },
     { name = "velari-core", editable = "packages/velari-core" },
+    { name = "velari-data", editable = "packages/velari-data" },
 ]
 
 [[package]]
