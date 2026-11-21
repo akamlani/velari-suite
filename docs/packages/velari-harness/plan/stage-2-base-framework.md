@@ -33,10 +33,9 @@ Stage 2 is built in small increments, each with its own tests, instead of all at
 | 13 | `Dataset`: ordered, immutable examples with uids (a content hash when none is given) and a `fingerprint`; `Example` (now with `uid`), `Dataset` and `Task` live in `schemas/dataset.py`, and `request/task.py` is removed; `Task(name, dataset, version)` | Implemented |
 | 14 | `Environment` wired in: the `Harness` takes one (default `Environment()`), the `Runner` derives each trial's seed from it and `TrialRecord.seed` records it; the candidate is not told the seed | Implemented |
 | 15 | `Result.summary` replaces `Result.scores`: per scorer a `ScoreSummary(mean, stderr, n, invalid)`; the run spec is deferred until the record store needs it | Implemented |
-| 16 | `Registry[T]`: `register`, `get` and `names`; an unknown or duplicate name raises `ValueError`; the first user is the skill catalog (17) | Planned |
-| 17 | `Skill` and `load_skills`: parse and validate a skill's frontmatter, discover skills under given directories into a `Registry`, read the body and bundled files on demand; the core never runs a skill's scripts | Planned |
-| 18 | `TrialContext` with `emit(name, data)`: the derived seed reaches the candidate, a trial working directory exists, events land on the `TrialRecord`; a `skill_triggered` event records which skill a candidate used | Planned |
-| 19 onward | Not yet planned: metrics and reducers, store and `rescore`, limits and error policies, repeated trials, `ExampleView`, `Sandbox`. Added one increment at a time, each re-planned when the previous one is done | |
+| 16 | Skills layer: `Skill` and `SkillValidator` (the open Agent Skills rules), `SkillRegistry` (a table of skills on the new generic `RecordRegistry`, which reuses `velari_data`'s `Registry`), `catalog_text` for prompts; a skill-trigger example; the harness examples split into `core/` and `skills/` | Implemented |
+| 17 | `TrialContext` with `emit(name, data)`: the derived seed reaches the candidate, a trial working directory exists, events land on the `TrialRecord`; a `skill_triggered` event records which skill a candidate used | Planned |
+| 18 onward | Not yet planned: metrics and reducers, store and `rescore`, limits and error policies, repeated trials, `ExampleView`, `Sandbox`. Added one increment at a time, each re-planned when the previous one is done | |
 
 ### Increment 1: Harness and its config
 
@@ -212,6 +211,31 @@ Tests: `test_harness.py` is one `TestHarness` class (the scoring cases moved her
 
 A breaking change worth knowing: a run has no `status` or `failure` of its own. Failed trials are data in their records, and anything else (a `KeyboardInterrupt`, a bad argument) raises.
 
+### Increment 16: Skills
+
+The core needed to load, validate and describe skills without knowing how an agent uses them. The design is in the "Skills" note under "Design rules"; this is what was built, in small steps, each checked against the real skills (43 across the repository and `~/.claude/skills`).
+
+| Change | Where |
+|---|---|
+| `Skill(name, description, path, license, compatibility, allowed_tools, metadata)`, frozen; `Skill.from_dir` reads the frontmatter (the first YAML document); `instructions()` and `resources()` read the body and the bundled files on demand | `schemas/skill.py` |
+| `SkillValidator`: the name rules as `skills-ref` applies them (at most 64 characters, lowercase, letters, digits and hyphens, no leading, trailing or double hyphen), a folder named after the skill, a description of 1 to 1,024 characters, `compatibility` of at most 500, string fields and a string-to-string `metadata`; plus two Anthropic platform rules (no `anthropic` or `claude` in a name, no XML tags in a description). The limits are class constants | `schemas/skill.py` |
+| `RecordRegistry(Registry)`: named records in a DataFrame, with `get`, `list(**filters)`, `to_dataframe` and `to_xml(columns, root, row, names)`; nothing about skills in it | `velari_data/registry.py` |
+| `SkillRegistry(*roots)`: a `RecordRegistry` of the skills under folders (any depth, hidden folders skipped, strict), with the columns `name`, `description`, `path`, `location`, `license`, `compatibility`, `allowed_tools` and one `meta.<key>` per metadata key; `get` returns a `Skill`; `catalog_text(names)` renders name, category, tags and description | `schemas/skill.py` |
+| `velari-harness` declares `velari-data` and `pyyaml` | `packages/velari-harness/pyproject.toml` |
+| The harness examples are split into `core/` and `skills/`, each with its data, config and README; `skills_cli.py` runs a skill-trigger evaluation with a keyword `SkillTrigger` and `SkillScorer.skill_match` | `examples/ai/harness/`, `examples/_conf/harness/` |
+
+Tests: `test_skill.py` (27 tests, 42 cases) and 17 `RecordRegistry` tests in `tests/data/test_registry.py` (22 cases); the 12 existing registry tests pass unchanged. The example scores 22 of 27 requests (accuracy 0.81, standard error 0.08).
+
+Decisions: reuse `velari_data`'s `Registry` instead of a new harness `Registry[T]`, with the generic table class kept generic and the concrete one in `skill.py`; skills belong to the candidate; loading is strict; the platform rules are kept and unknown frontmatter fields are ignored; category and tags come from a skill's `metadata` and nothing is derived from plugin manifests; the scorer only scores.
+
+Reference implementations used: the Agent Skills [specification](https://agentskills.io/specification) and the source of its `skills-ref` library (the rules were copied, not the code: it is for demonstration only), the [integration guide](https://agentskills.io/integrate-skills) for the catalog format, and, as ideas, `zerodep`'s keyword and BM25 selectors and `agentskills-core`.
+
+Differences from the integration guide, on purpose, and open choices: an empty catalog is `''` and every value is escaped, including the path; loading is strict, where the guide recommends warning and loading anyway on cosmetic problems; a duplicate name raises, where the guide recommends a precedence rule (project over user) with a warning; there are no scan bounds, no fallback for malformed YAML, and no trust gating of project skills.
+
+Not in this increment: the candidate triggering skills with `TrialContext` events, the Stage 3 agent adapter, precedence between folders, lenient loading, and a keyword or BM25 pre-selection of skills.
+
+A breaking change worth knowing: none; the skills layer is new.
+
 ### Increment 15: Result summary
 
 `Result.scores` gave only the mean per scorer, which hid how many scores it rested on, how uncertain it was and how many scorers could not judge. `Result.summary` replaces it.
@@ -221,7 +245,7 @@ A breaking change worth knowing: a run has no `status` or `failure` of its own. 
 | `ScoreSummary(mean, stderr, n, invalid)`: `n` counts the scores that have a value, `invalid` those that have none (the scorer raised); a failed trial is never scored, so it is in neither count | `schemas/response/result.py` |
 | `Result.summary: Dict[str, ScoreSummary]`, sorted by scorer name, replaces `Result.scores`; `mean` is `None` with no valid score, and `stderr` (the sample standard deviation over `sqrt(n)`) is `None` below two; computed by the shared `calc_column_stats` | `schemas/response/result.py` |
 | `calc_column_stats(df_values, column, by=None, stats=())`: a DataFrame with one row per group and one column per statistic function, named after it. Always computed: count, mean, std, sem, min, median, max, ci_low (95%) and ci_high; `stats` adds more (pandas' var, skew and kurt, and this module's n_na, spread, iqr, mad, `percentile(q)` and `pct_at(value)`). Callers pick the columns they need; `Result.summary` uses it | `velari_core/core/statistics/stats.py` |
-| The example's scores table shows mean, stderr, n and invalid | `examples/ai/harness/` |
+| The example's scores table shows mean, stderr, n and invalid | `examples/ai/harness/core/` |
 
 Tests: `test_result.py` (mean and counts in the JSON and a round trip, the standard error, no standard error below two valid scores, no mean when every score is invalid) and `test_harness.py` read `result.summary`; `tests/core/test_stats.py` has 10 new tests for `calc_column_stats` (16 cases), checked against the standard library, pandas and the notebook's old code. The example's 0.17 standard error was checked by hand.
 
@@ -242,7 +266,7 @@ Notebook note: `examples/ai/evals/evals.ipynb` computes the same statistics by h
 | `Runner(environment=None)` keeps `environment or Environment()` and, per trial, records `seed_for(example.uid)` (the example's index when it has no uid) | `execution/runner.py` |
 | `TrialRecord.seed: int`: the derived seed of the trial | `schemas/response/record.py` |
 | `Harness(..., environment=None)` and `for_task(..., environment=None)`; read-only `environment` property; `run()` passes it to the `Runner` | `execution/harness.py` |
-| The example sets seed 42 (also as NumPy's seed), passes an `Environment` to the harness and shows each trial's seed | `examples/ai/harness/` |
+| The example sets seed 42 (also as NumPy's seed), passes an `Environment` to the harness and shows each trial's seed | `examples/ai/harness/core/` |
 
 Tests: `test_runner.py` (seed equals `seed_for(uid)`; same environment, same seeds; a different base seed changes them; the index fallback; the default is seed 42), `test_harness.py` (the harness's environment reaches every record), and the two hand-built `TrialRecord`s gain a `seed`.
 
@@ -353,7 +377,7 @@ velari_harness/core/
 │   ├── runner.py         # Runner: examples x trials -> Result
 │   └── harness.py        # Harness: the container (Task + Candidate + scorers) that chains run, score and package
 └── registry/         # naming and construction
-    ├── registry.py       # generic Registry[T]
+    ├── registry.py       # reused from velari_data.registry (Registry, RecordRegistry); not defined here
     ├── registries.py     # the named instances: tasks, candidates, scorers, harnesses
     └── build.py          # from_config(cfg, **overrides), lazy runtime import
 ```
@@ -400,7 +424,7 @@ A folder imports only from folders to its left. Imports across folders are relat
 - **Steps prepare examples, they are not the harness.** `Task.steps` is the one place the pipeline idea (Kedro, ZenML) appears: ordered functions that turn raw data into cases. They run once, before any trial.
 - **Tracking is lazy and opt-in.** `Experiment()` seeds Python's `random` and NumPy's global RNG with seed 42 and reads `.env`, and `Experiment.create(name, tags)` creates the output directory. The environment builds one only when tracking is enabled, so a default run touches neither.
 - **`from_config` mirrors `ModelDriver.from_config`** (`velari_ai/integrations/sklearn/driver.py`): `from_config(cls, cfg: Optional[DictConfig], **overrides) -> Self`, where `None` means defaults and explicit overrides win. It calls `ConfigOmegaConf().resolve()` first. A missing Hydra file yields `None` from `read_hydra`, which the build path turns into a `ValueError`, as `Experiment.create` does.
-- **Registry** is a small dict-backed `Registry[T]`. It raises `ValueError` for an unknown name (the same error type as `_AdapterRegistry.resolve` in `velari_ai`) and for a duplicate registration. Existing registries do not fit: `_AdapterRegistry` is private and built around provider/model resolution, and `velari_data.registry.Registry` is a static catalog.
+- **Registry** is the existing `velari_data.registry.Registry`, reused rather than redefined as a harness `Registry[T]`. It is a contract (`get` and `list`) with `has`, `in`, `len`, iteration and `to_dataframe()`; the harness adds `RecordRegistry` (named records as a table) in `velari-data` and `SkillRegistry` in `schemas/skill.py`. `_AdapterRegistry` in `velari_ai` stays separate: it is private and built around provider and model resolution.
 - **The candidate never sees the reference.** The runner passes a `ExampleView`; `target` and `grader_files` reach only the scorer. This is what makes hidden-label tasks (MLE-bench, DSBench) possible.
 - **Artifacts are collected, then scored.** After `run`, the runner copies the candidate's declared artifacts into the trial directory. Scorers read those copies and never touch the live sandbox, so scoring can happen later, elsewhere, or again.
 - **Invalid is not zero.** A score that could not be computed is marked invalid and excluded from metrics; the Task says whether a missing or invalid trial counts as `exclude` or `zero`. A pass threshold is kept apart from the continuous value.
@@ -409,16 +433,16 @@ A folder imports only from folders to its left. Imports across folders are relat
 - **Teardown always runs.** `Candidate.teardown` and the sandbox `stop` run after a failed `run`, so a failed trial cannot leave state behind.
 - **Runtimes that need an extra are imported lazily** by the registry, with an error naming the extra (stage 1 convention). The kernel itself needs none.
 
-### Skills (planned)
+### Skills
 
 A skill (see **Skill** in the [glossary](../glossary.md#component-glossary)) is a directory with a `SKILL.md`, loaded in three levels: name and description always, the body when the skill is triggered, bundled files as needed. The description is the only trigger signal.
 
-- **The core loads, the candidate triggers.** The core gets a `Skill` type that parses and validates the frontmatter and a catalog on the `Registry` (16, 17), plus name-and-description text a candidate's prompt can include. Which skill is used, and when, is decided inside the candidate; the harness only observes it, through a `skill_triggered` event from `TrialContext` (18).
+- **The core loads, the candidate triggers.** The core gets a `Skill` type that parses and validates the frontmatter and a catalog on `RecordRegistry` (increment 16), plus name-and-description text a candidate's prompt can include. Which skill is used, and when, is decided inside the candidate; the harness only observes it, through a `skill_triggered` event from `TrialContext` (planned, increment 17).
 - **Skills belong to the candidate.** Whether an agent has a skill is what you vary ("with and without", or one skill against another), so it is part of how a candidate is built, not of the `Environment` (held fixed) or the `Task` (what is measured).
-- **Testable before the loader exists.** Skill-trigger evaluation fits the current core: an `Example` whose `input` is a request and whose `reference` is the expected skill name (or `None`), a candidate that returns the skill it would trigger from the descriptions, and `exact_match` as the scorer.
+- **Skill-trigger evaluation runs on the core as it is** (`examples/ai/harness/skills/`): an `Example` whose `input` is a request and whose `reference` is the expected skill name (or `None`), a candidate that returns the skill it would trigger from the descriptions, and `exact_match` as the scorer.
 - **Security.** The core parses a skill and never runs its scripts. Scripts run only inside a `Sandbox`, and skills from outside the repository are untrusted.
 - **Stage 3, not core:** an agent adapter that exposes the catalog to an agent, trigger scorers (did the expected skill fire; precision and recall), and an LLM judge that uses a skill as its rubric.
-- **Sources:** Anthropic's [Agent Skills overview](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview) (read 2026-11-17) and this repository's skill template, `_build/agent-skills/templates/skill-name/SKILL.md`.
+- **Sources:** Anthropic's [Agent Skills overview](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview), the [specification](https://agentskills.io/specification) and [integration guide](https://agentskills.io/integrate-skills) (all read 2026-11-17), the `skills-ref` source, and this repository's skill template, `_build/agent-skills/templates/skill-name/SKILL.md`.
 
 ## Deliberately not in stage 2
 
@@ -441,7 +465,7 @@ The detailed read of the references turned up more than stage 2 should carry. Th
 ## Style
 
 - Core schemas are pydantic models in the style of the `velari_ai` schemas: aligned fields with `Field(description=...)`. `HarnessConfig` is a dataclass because it is an OmegaConf config. Other dataclasses use `field()` and aligned annotations (`dev_guides.md`). Enums are `StrEnum` with `auto()` and right-aligned `=` columns across the file.
-- Plain classes inherit from `object`. `Candidate` and `Scorer` are `typing.Protocol`s (a meaningful base, so exempt); `Registry` is `Generic[T]`.
+- Plain classes inherit from `object`. `Candidate` and `Scorer` are `typing.Protocol`s (a meaningful base, so exempt); `Registry` and `RecordRegistry` come from `velari_data` (an abstract base, so exempt).
 - `from __future__ import annotations` is the first line of any file whose classmethods return their own class or `Self`.
 - Imports follow the aligned-column and relative-import rules in `import_guides.md`. No `TYPE_CHECKING`.
 - Google-style docstrings with a realistic `Examples:` that shows the setup flow (build a task, a candidate, run, read the summary). Vary scenarios across modules.
@@ -461,7 +485,7 @@ High-signal only, per `test_guides.md`. Small local fakes, no `unittest.mock`. T
 - `rescore()` with a different scorer gives new scores and the candidate's call count does not change.
 - `save()` then `load()` round-trips inside `tmp_path`, and nothing is written elsewhere.
 - With tracking off, no `Experiment` is built and no directory is created.
-- Registry: a registered name resolves; an unknown name and a duplicate each raise `ValueError`.
+- Registry: tested in `velari-data` (`tests/data/test_registry.py`); the skill registry is tested in `tests/harness/core/schemas/test_skill.py`.
 - Config build: an OmegaConf config produces the expected harness, and `None` uses defaults.
 - A candidate cannot read `target` or `grader_files`: the `ExampleView` it receives has neither.
 - A file the candidate declares as an artifact is present in the trial directory when the scorer runs.
