@@ -35,11 +35,15 @@ The design and what was built are in [stage 2, Increment 16](../../../../docs/pa
 
 ## Prerequisites
 
-No extras. From the repository root:
+The skills come from a separate repository that is not part of this one (`SKILLS_REPO` and `SKILLS_DIR` in `config/runtime/runtime.env`).
+From the repository root, clone it into `_build/` (gitignored) and install the dependencies:
 
 ```
+git clone https://github.com/akamlani/agent-skills _build/agent-skills
 uv sync
 ```
+
+To use other skills, point `skills.root` in `examples/_conf/harness/skills/app_skills.yaml` at a folder of skill folders; the output below is for these.
 
 ## Run
 

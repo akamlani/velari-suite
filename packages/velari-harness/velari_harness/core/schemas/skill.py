@@ -181,7 +181,8 @@ class Skill(object):
         meta = next(yaml.safe_load_all(skill_file.read_text()), None)   # the first YAML document is the frontmatter
         if not isinstance(meta, dict):
             raise ValueError(f"{skill_file} has no YAML frontmatter")
-        raw = meta.get("metadata") or {}
+        raw = meta.get("metadata")
+        raw = {} if raw is None else raw   # only an absent field defaults; other non-mappings reach the validator
         metadata = {str(key): str(value) for key, value in raw.items()} if isinstance(raw, dict) else raw   # stringified, as skills-ref does
         return cls(
             name          = meta.get("name", ""),
@@ -203,12 +204,12 @@ class Skill(object):
             FileNotFoundError: If the skill's `SKILL.md` is gone.
 
         Examples:
-            >>> skill = Skill.from_dir("_build/agent-skills/packages/architect/skills/architecture-spec")
+            >>> skill = Skill.from_dir("_build/agent-skills/packages/architect/skills/diagramming")
             >>> skill.instructions().splitlines()[0]
-            '# Architecture Spec'
+            '# Diagramming'
         """
-        _, _, body = (self.path / "SKILL.md").read_text().partition("\n---\n")   # the text after the closing fence
-        return body.strip()
+        parts = re.split(r"^---[ \t]*$", (self.path / "SKILL.md").read_text(), maxsplit=2, flags=re.MULTILINE)   # fences may have trailing spaces
+        return parts[2].strip() if len(parts) == 3 else ""
 
     def resources(self) -> List[Path]:
         """List the files bundled with the skill, other than its `SKILL.md`, relative to its folder.
@@ -217,9 +218,9 @@ class Skill(object):
             List[Path]: Sorted; hidden files such as `.DS_Store` are left out, and the list is empty when there are none.
 
         Examples:
-            >>> skill = Skill.from_dir("_build/agent-skills/packages/architect/skills/architecture-spec")
+            >>> skill = Skill.from_dir("_build/agent-skills/packages/finance/skills/write-invoice")
             >>> skill.resources()
-            [PosixPath('references/adr.md'), PosixPath('references/discovery.md'), PosixPath('references/spec-template.md')]
+            [PosixPath('references/{name}_{client}_{date}.xlsx')]
         """
         files = (path.relative_to(self.path) for path in self.path.rglob("*") if path.is_file())
         return sorted(path for path in files if path != Path("SKILL.md") and not any(part.startswith(".") for part in path.parts))

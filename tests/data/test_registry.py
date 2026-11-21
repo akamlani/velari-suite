@@ -129,152 +129,175 @@ def _scorers():
     })
 
 
-def test_record_registry_implements_registry():
-    from velari_data.registry import RecordRegistry, Registry
+class TestRecordRegistry:
+    def test_implements_registry(self):
+        from velari_data.registry import RecordRegistry, Registry
 
-    assert issubclass(RecordRegistry, Registry)
-
-
-def test_record_registry_get_returns_the_row_as_a_dict_with_none_for_a_missing_value():
-    from velari_data.registry import RecordRegistry
-
-    assert RecordRegistry(_scorers()).get("tool_call_accuracy") == {"name": "tool_call_accuracy", "kind": "heuristic", "cost": None}
+        assert issubclass(RecordRegistry, Registry)
 
 
-def test_record_registry_get_unknown_name_raises_keyerror():
-    from velari_data.registry import RecordRegistry
+    def test_get_returns_the_row_as_a_dict_with_none_for_a_missing_value(self):
+        from velari_data.registry import RecordRegistry
 
-    with pytest.raises(KeyError):
-        RecordRegistry(_scorers()).get("missing")
-
-
-@pytest.mark.parametrize("filters, expected", [
-    ({},                                  ["exact_match", "llm_judge", "tool_call_accuracy"]),
-    ({"kind": "heuristic"},               ["exact_match", "tool_call_accuracy"]),
-    ({"kind": "heuristic", "cost": "low"}, ["exact_match"]),
-])
-def test_record_registry_list_returns_the_names_that_match_every_filter(filters, expected):
-    from velari_data.registry import RecordRegistry
-
-    assert RecordRegistry(_scorers()).list(**filters) == expected
+        assert RecordRegistry(_scorers()).get("tool_call_accuracy") == {"name": "tool_call_accuracy", "kind": "heuristic", "cost": None}
 
 
-def test_record_registry_list_unknown_filter_column_raises_keyerror():
-    from velari_data.registry import RecordRegistry
+    def test_get_unknown_name_raises_keyerror(self):
+        from velari_data.registry import RecordRegistry
 
-    with pytest.raises(KeyError):
-        RecordRegistry(_scorers()).list(color="red")
-
-
-def test_record_registry_has_contains_len_and_iteration_work_through_the_base_class():
-    from velari_data.registry import RecordRegistry
-
-    registry = RecordRegistry(_scorers())
-
-    assert (registry.has("llm_judge"), "missing" in registry, len(registry), list(registry)) == (True, False, 3, ["exact_match", "llm_judge", "tool_call_accuracy"])
+        with pytest.raises(KeyError):
+            RecordRegistry(_scorers()).get("missing")
 
 
-def test_record_registry_to_dataframe_returns_a_copy():
-    from velari_data.registry import RecordRegistry
+    @pytest.mark.parametrize("filters, expected", [
+        ({},                                  ["exact_match", "llm_judge", "tool_call_accuracy"]),
+        ({"kind": "heuristic"},               ["exact_match", "tool_call_accuracy"]),
+        ({"kind": "heuristic", "cost": "low"}, ["exact_match"]),
+    ])
+    def test_list_returns_the_names_that_match_every_filter(self, filters, expected):
+        from velari_data.registry import RecordRegistry
 
-    registry = RecordRegistry(_scorers())
-    df_copy = registry.to_dataframe()
-    df_copy.loc[0, "name"] = "changed"
-
-    assert registry.get("exact_match")["name"] == "exact_match"
-
-
-@pytest.mark.parametrize("records", [
-    pd.DataFrame({"kind": ["heuristic"]}),
-    pd.DataFrame({"name": [""]}),
-    pd.DataFrame({"name": [1]}),
-    pd.DataFrame({"name": ["a", "a"]}),
-])
-def test_record_registry_create_invalid_records_raises_valueerror(records):
-    from velari_data.registry import RecordRegistry
-
-    with pytest.raises(ValueError):
-        RecordRegistry(records)
+        assert RecordRegistry(_scorers()).list(**filters) == expected
 
 
-def test_record_registry_empty_has_no_names_and_keeps_the_key_column():
-    from velari_data.registry import RecordRegistry
+    def test_list_unknown_filter_column_raises_keyerror(self):
+        from velari_data.registry import RecordRegistry
 
-    registry = RecordRegistry()
-
-    assert (len(registry), list(registry.to_dataframe().columns)) == (0, ["name"])
-
-
-def test_record_registry_uses_a_custom_key_column():
-    from velari_data.registry import RecordRegistry
-
-    registry = RecordRegistry(pd.DataFrame({"id": ["a", "b"], "kind": ["x", "y"]}), key="id")
-
-    assert registry.list(kind="y") == ["b"]
+        with pytest.raises(KeyError):
+            RecordRegistry(_scorers()).list(color="red")
 
 
-def test_record_registry_to_xml_renders_the_chosen_columns_one_row_per_record():
-    from velari_data.registry import RecordRegistry
+    @pytest.mark.parametrize("column, value", [("kind", "x"), ("n", 1)])
+    def test_list_skips_a_missing_value_in_a_nullable_column(self, column, value):
+        from velari_data.registry import RecordRegistry
 
-    registry = RecordRegistry(pd.DataFrame({"name": ["exact_match", "llm_judge"], "kind": ["heuristic", "model"], "cost": ["low", "high"]}))
+        df_records = pd.DataFrame({
+            "name": ["a", "b"],
+            "kind": pd.array(["x", None], dtype="string"),
+            "n":    pd.array([1, None], dtype="Int64"),
+        })
 
-    assert registry.to_xml(["name", "kind"], root="scorers", row="scorer") == (
-        "<scorers>\n"
-        "  <scorer>\n"
-        "    <name>exact_match</name>\n"
-        "    <kind>heuristic</kind>\n"
-        "  </scorer>\n"
-        "  <scorer>\n"
-        "    <name>llm_judge</name>\n"
-        "    <kind>model</kind>\n"
-        "  </scorer>\n"
-        "</scorers>"
-    )
+        assert RecordRegistry(df_records).list(**{column: value}) == ["a"]
 
 
-def test_record_registry_to_xml_leaves_out_a_missing_value_and_a_column_the_records_lack():
-    from velari_data.registry import RecordRegistry
+    def test_has_contains_len_and_iteration_work_through_the_base_class(self):
+        from velari_data.registry import RecordRegistry
 
-    registry = RecordRegistry(pd.DataFrame({"name": ["exact_match"], "kind": [None]}))
+        registry = RecordRegistry(_scorers())
 
-    assert registry.to_xml(["name", "kind", "color"]) == "<records>\n  <record>\n    <name>exact_match</name>\n  </record>\n</records>"
-
-
-def test_record_registry_to_xml_uses_the_part_of_a_dotted_column_after_the_last_dot_as_the_tag():
-    from velari_data.registry import RecordRegistry
-
-    registry = RecordRegistry(pd.DataFrame({"name": ["a"], "meta.category": ["support"]}))
-
-    assert "<category>support</category>" in registry.to_xml(["name", "meta.category"])
+        assert (registry.has("llm_judge"), "missing" in registry, len(registry), list(registry)) == (True, False, 3, ["exact_match", "llm_judge", "tool_call_accuracy"])
 
 
-def test_record_registry_to_xml_escapes_markup_characters():
-    from velari_data.registry import RecordRegistry
+    def test_to_dataframe_returns_a_copy(self):
+        from velari_data.registry import RecordRegistry
 
-    registry = RecordRegistry(pd.DataFrame({"name": ["a"], "note": ["a & b < c"]}))
+        registry = RecordRegistry(_scorers())
+        df_copy = registry.to_dataframe()
+        df_copy.loc[0, "name"] = "changed"
 
-    assert "<note>a &amp; b &lt; c</note>" in registry.to_xml(["name", "note"])
-
-
-def test_record_registry_to_xml_with_names_renders_only_those_records_in_table_order():
-    from velari_data.registry import RecordRegistry
-
-    registry = RecordRegistry(pd.DataFrame({"name": ["a", "b", "c"]}))
-
-    xml = registry.to_xml(["name"], names=["c", "a"])
-
-    assert "<name>a</name>" in xml and "<name>b</name>" not in xml and xml.index("<name>a</name>") < xml.index("<name>c</name>")
+        assert registry.get("exact_match")["name"] == "exact_match"
 
 
-def test_record_registry_to_xml_with_an_unknown_name_raises_keyerror():
-    from velari_data.registry import RecordRegistry
+    @pytest.mark.parametrize("records", [
+        pd.DataFrame({"kind": ["heuristic"]}),
+        pd.DataFrame({"name": [""]}),
+        pd.DataFrame({"name": [1]}),
+        pd.DataFrame({"name": ["a", "a"]}),
+    ])
+    def test_create_invalid_records_raises_valueerror(self, records):
+        from velari_data.registry import RecordRegistry
 
-    with pytest.raises(KeyError):
-        RecordRegistry(pd.DataFrame({"name": ["a"]})).to_xml(["name"], names=["missing"])
+        with pytest.raises(ValueError):
+            RecordRegistry(records)
 
 
-def test_record_registry_to_xml_without_records_is_empty():
-    from velari_data.registry import RecordRegistry
+    def test_empty_has_no_names_and_keeps_the_key_column(self):
+        from velari_data.registry import RecordRegistry
 
-    assert RecordRegistry().to_xml(["name"]) == ""
+        registry = RecordRegistry()
 
+        assert (len(registry), list(registry.to_dataframe().columns)) == (0, ["name"])
+
+
+    def test_uses_a_custom_key_column(self):
+        from velari_data.registry import RecordRegistry
+
+        registry = RecordRegistry(pd.DataFrame({"id": ["a", "b"], "kind": ["x", "y"]}), key="id")
+
+        assert registry.list(kind="y") == ["b"]
+
+
+    def test_to_xml_renders_the_chosen_columns_one_row_per_record(self):
+        from velari_data.registry import RecordRegistry
+
+        registry = RecordRegistry(pd.DataFrame({"name": ["exact_match", "llm_judge"], "kind": ["heuristic", "model"], "cost": ["low", "high"]}))
+
+        assert registry.to_xml(["name", "kind"], root="scorers", row="scorer") == (
+            "<scorers>\n"
+            "  <scorer>\n"
+            "    <name>exact_match</name>\n"
+            "    <kind>heuristic</kind>\n"
+            "  </scorer>\n"
+            "  <scorer>\n"
+            "    <name>llm_judge</name>\n"
+            "    <kind>model</kind>\n"
+            "  </scorer>\n"
+            "</scorers>"
+        )
+
+
+    def test_to_xml_leaves_out_a_missing_value_and_a_column_the_records_lack(self):
+        from velari_data.registry import RecordRegistry
+
+        registry = RecordRegistry(pd.DataFrame({"name": ["exact_match"], "kind": [None]}))
+
+        assert registry.to_xml(["name", "kind", "color"]) == "<records>\n  <record>\n    <name>exact_match</name>\n  </record>\n</records>"
+
+
+    def test_to_xml_joins_a_list_cell_with_spaces_and_skips_an_empty_one(self):
+        from velari_data.registry import RecordRegistry
+
+        df_records = pd.DataFrame({"name": ["a", "b"], "tags": [["refunds", "returns"], []]})
+
+        xml = RecordRegistry(df_records).to_xml(["name", "tags"])
+
+        assert "<tags>refunds returns</tags>" in xml and xml.count("<tags>") == 1
+
+
+    def test_to_xml_uses_the_part_of_a_dotted_column_after_the_last_dot_as_the_tag(self):
+        from velari_data.registry import RecordRegistry
+
+        registry = RecordRegistry(pd.DataFrame({"name": ["a"], "meta.category": ["support"]}))
+
+        assert "<category>support</category>" in registry.to_xml(["name", "meta.category"])
+
+
+    def test_to_xml_escapes_markup_characters(self):
+        from velari_data.registry import RecordRegistry
+
+        registry = RecordRegistry(pd.DataFrame({"name": ["a"], "note": ["a & b < c"]}))
+
+        assert "<note>a &amp; b &lt; c</note>" in registry.to_xml(["name", "note"])
+
+
+    def test_to_xml_with_names_renders_only_those_records_in_table_order(self):
+        from velari_data.registry import RecordRegistry
+
+        registry = RecordRegistry(pd.DataFrame({"name": ["a", "b", "c"]}))
+
+        xml = registry.to_xml(["name"], names=["c", "a"])
+
+        assert "<name>a</name>" in xml and "<name>b</name>" not in xml and xml.index("<name>a</name>") < xml.index("<name>c</name>")
+
+
+    def test_to_xml_with_an_unknown_name_raises_keyerror(self):
+        from velari_data.registry import RecordRegistry
+
+        with pytest.raises(KeyError):
+            RecordRegistry(pd.DataFrame({"name": ["a"]})).to_xml(["name"], names=["missing"])
+
+
+    def test_to_xml_without_records_is_empty(self):
+        from velari_data.registry import RecordRegistry
+
+        assert RecordRegistry().to_xml(["name"]) == ""

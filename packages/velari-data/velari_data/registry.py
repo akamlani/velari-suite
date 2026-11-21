@@ -105,7 +105,7 @@ class RecordRegistry(Registry):
         Raises:
             KeyError: If a filter names a column the records do not have.
         """
-        matches = (self._frame[[*filters]] == pd.Series(filters, dtype=object)).all(axis=1)
+        matches = (self._frame[[*filters]] == pd.Series(filters, dtype=object)).fillna(False).all(axis=1)
         return self._frame.loc[matches, self._key].tolist()
 
     def to_dataframe(self) -> pd.DataFrame:
@@ -148,8 +148,13 @@ class RecordRegistry(Registry):
             element = ET.SubElement(tree, row)
             for column, value in record.items():
                 *_, tag = str(column).split(".")
-                if pd.notna(value):
-                    ET.SubElement(element, tag).text = str(value)
+                text = None
+                if isinstance(value, (list, tuple)):
+                    text = " ".join(map(str, value)) or None   # a list cell is one text; an empty list is missing
+                elif pd.notna(value):
+                    text = str(value)
+                if text is not None:
+                    ET.SubElement(element, tag).text = text
         ET.indent(tree)
         return ET.tostring(tree, encoding="unicode") if len(tree) else ""
 

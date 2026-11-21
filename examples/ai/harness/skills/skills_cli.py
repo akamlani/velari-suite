@@ -45,6 +45,10 @@ class SkillTrigger(Candidate):
 
     Each word is weighted by how rare it is across the skills (IDF), so "invoice" counts for more than "create". A model that reads
     the skill catalog would replace this class; the harness around it would not change.
+
+    Args:
+        registry (SkillRegistry): The skills to choose from; each one's name and description make up its keywords.
+        min_score (float): The lowest total word weight that counts as a match; below it the candidate picks no skill.
     """
     STOPWORDS        = {"the", "and", "for", "with", "this", "that", "from", "when", "use", "into", "your", "their", "are", "can", "how"}
     MIN_TOKEN_LENGTH = 2
@@ -80,8 +84,11 @@ class SkillScorer(object):
 
 
 class SkillsCli(object):
-    """Load the skills, run the matcher on every request through a Harness, then print the results. Calls chain: `cli.run().render()`."""
+    """Load the skills, run the matcher on every request through a Harness, then print the results. Calls chain: `cli.run().render()`.
 
+    Args:
+        cfg (DictConfig): The `app_skills.yaml` config: `skills.root` and `skills.min_score`, and the `task` name, version and requests CSV.
+    """
     def __init__(self, cfg: DictConfig) -> None:
         self.cfg = cfg
         # the skills the candidate chooses from: one row per skill, with its name, description and the rest of its frontmatter as columns
