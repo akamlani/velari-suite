@@ -13,7 +13,7 @@ A **world** holds state that a candidate changes by acting; it says when the epi
 | Reactive | tau², MLflow `ConversationSimulator`, Coval: an LLM plays the user | A second party answers back |
 | Continuous | HUD robot cookbook: a physics simulator stepped at a control rate | Time advances in ticks |
 
-Inspect and Harbor provision a real sandbox, which is isolation, not simulation. lm-evaluation-harness, HELM and MLE-bench have no simulation. Simile simulates people, not an agent's world, so it is out of scope. The per-framework comparison is in [framework-comparison.xlsx](../framework-comparison.xlsx), and the sources are in the [research references](plan.md#research-references).
+Inspect and Harbor provision a real sandbox, which is isolation, not simulation. lm-evaluation-harness, HELM and MLE-bench have no simulation. Simile simulates people, not an agent's world, so it is out of scope. The per-framework comparison is in [framework-comparison.xlsx](../framework-comparison.xlsx), and the sources are in the [research references](plan.md#research-references). The full taxonomy of worlds and purposes is on the Taxonomy sheet of [framework-comparison.xlsx](../framework-comparison.xlsx).
 
 The base runner does not change: none of the references puts the loop in its runner. The shared base is dataset, candidate, scorer and repeats, which the core already has.
 
@@ -24,7 +24,7 @@ The base runner does not change: none of the references puts the loop in its run
 | Placement | A separate `velari_harness/simulation/` package that depends on `core/` only | The core stays free of the loop and the world concept; static harnesses never use them |
 | Sequencing | Increment 17 (`TrialContext`) first, then this layer as increment 18 | A world cannot be seeded until the candidate receives its seed, and a trajectory needs events on the record |
 | First slice | A deterministic world and an LLM-played user, both runnable offline | Proves one abstraction over both kinds, and runs in CI |
-| Scorers (assumed, not yet confirmed) | `fn(output, reference)` stays; the final world state is returned inside the output | Keeps "the scorer only scores" and the existing contract; tau² and HUD also grade from the final state |
+| Scorers (assumed, not yet confirmed) | `fn(output, reference)` stays; the final world state is returned inside the output | Keeps "the scorer only scores" and the existing contract; tau² and HUD also grade from the final state (a side-effects check needs both states; see [reward functions](../reward-functions.md)) |
 | Step cap | Reaching it is a recorded termination, not a failure | The scorer decides what an unfinished episode means |
 
 ## Design
@@ -40,7 +40,7 @@ simulation/
 
 - **`World`**: `reset(input, seed, workdir)` builds the world from the example's input and the trial seed and returns what the agent sees first. `step(action)` returns a `Step(observation, done, info)`. `state()` is what graders read, and `close()` always runs. A static world returns `done=True` on its first step, a conversation returns the user's reply, and a physics world would advance a tick.
 - **`Policy`**: `act(observation) -> action`. It is the thing under test, and any callable fits.
-- **`run_episode`**: reset, then act and step until `done` or `max_steps`. Each step is a `Turn(action, observation)` and is emitted as an event through `TrialContext.emit`. It returns `EpisodeResult(final_state, trajectory, termination, steps)`. An exception propagates to the Runner's existing `Failure` handling.
+- **`run_episode`**: reset, then act and step until `done` or `max_steps`. Each step is a `Turn(action, observation)` and is emitted as an event through `TrialContext.emit`. It returns `EpisodeResult(initial_state, final_state, trajectory, termination, steps)`; `initial_state` lets a scorer compute what the episode changed, for a side-effects check (see [reward functions](../reward-functions.md)). An exception propagates to the Runner's existing `Failure` handling.
 - **`SimulatedCandidate(make_world, make_policy, max_steps)`**: a core `Candidate` that runs one episode per example, using its trial seed and working directory, and returns an `Output` whose value is the `EpisodeResult`. `Runner` and `Harness` are unchanged. The candidate never sees `Example.reference`, so the expected end state stays hidden, as with tau² and HUD.
 - **`ScriptedUser`**: a conversation partner that follows a script (replies by turn, or by seed among scripted variants) and stops on a marker. It uses no model, so the same seed gives the same trajectory.
 - **`LLMUser`**: plays the user from a goal and an optional persona and rules (the split MLflow and Coval use), and sees only the conversation, never the tool calls (as in tau-bench). It depends on a small `UserModel` protocol (`reply(history) -> str`), so offline runs and tests inject a scripted or recorded responder. `llm_user.py` adds a `UserModel` backed by `LLMGateway.chat`. LLM output is only best-effort deterministic.
