@@ -1,5 +1,5 @@
 from __future__ import annotations
-from    typing       import Any, ClassVar, Dict, Optional, Type
+from    typing       import Any, ClassVar, Dict, List, Optional, Type
 from    pydantic     import BaseModel, Field, computed_field
 # package modules
 from    ...errors    import TrialError
@@ -97,13 +97,33 @@ class Score(BaseModel):
     metadata:     Dict[str, Any]     = Field(default_factory=dict)
 
 
+class Event(BaseModel):
+    """Something a candidate recorded while a trial ran: what happened, its details and when.
+
+    Args:
+        name (str): What happened, such as `skill_triggered` or `tool_called`.
+        data (Dict[str, Any]): Its details; keep to values that serialize to JSON.
+        elapsed_sec (float): Seconds from the start of the trial.
+
+    Examples:
+        A support-routing candidate noting which rule decided a ticket:
+
+        >>> Event(name="rule_matched", data={"rule": "refund"}, elapsed_sec=0.004)
+    """
+    name:         str
+    data:         Dict[str, Any]  = Field(default_factory=dict)
+    elapsed_sec:  float           = Field(ge=0)
+
+
 class TrialRecord(BaseModel):
     """One trial: the example and its position, how it ended (`outcome`), the `seed` derived for it, and its `scores`.
 
     `scores` holds each scorer's `Score` by name (its `failure` is set when it raised), and is empty when the trial failed.
+    `events` holds what the candidate emitted during the trial, in order.
     """
     index:    int
     example:  Example
     outcome:  Outcome
     seed:     int
     scores:   Dict[str, Score]            = Field(default_factory=dict)
+    events:   List[Event]                 = Field(default_factory=list)

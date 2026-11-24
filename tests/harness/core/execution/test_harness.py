@@ -9,7 +9,7 @@ def _recording_candidate():
     from velari_harness.core.protocols.candidate import Candidate
 
     class RecordingCandidate(Candidate):
-        def run(self, input):
+        def run(self, input, ctx):
             if input == "bad":
                 raise ValueError("unreadable ticket")
             return input.upper()

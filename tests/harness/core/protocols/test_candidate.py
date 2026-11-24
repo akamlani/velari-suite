@@ -5,73 +5,101 @@ from typing import Any
 import pytest
 
 
-@pytest.mark.parametrize("fn, value, expected", [
-    (str.upper,                          "card charged twice", "CARD CHARGED TWICE"),
-    (lambda ticket: len(ticket.split()), "login fails again",  3),
-    (sorted,                             [3, 1, 2],            [1, 2, 3]),
-])
-def test_callable_candidate_run_returns_function_result(fn, value, expected):
-    from velari_harness.core.protocols.candidate import CallableCandidate
+@pytest.fixture
+def ctx(tmp_path):
+    from velari_harness.core.protocols.candidate import TrialContext
 
-    assert CallableCandidate(fn).run(value) == expected
+    return TrialContext(seed=0, workdir=tmp_path)
 
 
-def test_callable_candidate_run_propagates_exceptions():
-    from velari_harness.core.protocols.candidate import CallableCandidate
+class TestCallableCandidate:
+    @pytest.mark.parametrize("fn, value, expected", [
+        (str.upper,                          "card charged twice", "CARD CHARGED TWICE"),
+        (lambda ticket: len(ticket.split()), "login fails again",  3),
+        (sorted,                             [3, 1, 2],            [1, 2, 3]),
+    ])
+    def test_run_returns_function_result(self, fn, value, expected, ctx):
+        from velari_harness.core.protocols.candidate import CallableCandidate
 
-    def failing(ticket):
-        raise ValueError("unreadable ticket")
+        assert CallableCandidate(fn).run(value, ctx) == expected
 
-    with pytest.raises(ValueError):
-        CallableCandidate(failing).run("any")
+    def test_run_propagates_exceptions(self, ctx):
+        from velari_harness.core.protocols.candidate import CallableCandidate
 
+        def failing(ticket):
+            raise ValueError("unreadable ticket")
 
-def test_subclass_with_only_run_inherits_noop_lifecycle():
-    from velari_harness.core.protocols.candidate import Candidate
-
-    class EchoCandidate(Candidate):
-        def run(self, input):
-            return input
-
-    candidate = EchoCandidate()
-
-    assert candidate.setup() is None
-    assert candidate.run("ticket") == "ticket"
-    assert candidate.teardown() is None
+        with pytest.raises(ValueError):
+            CallableCandidate(failing).run("any", ctx)
 
 
-def test_subclass_overriding_lifecycle_runs_hooks_in_order():
-    from velari_harness.core.protocols.candidate import Candidate
+class TestCandidate:
+    def test_subclass_with_only_run_inherits_noop_lifecycle(self, ctx):
+        from velari_harness.core.protocols.candidate import Candidate
 
-    class RecordingCandidate(Candidate):
-        def __init__(self):
-            self.calls = []
+        class EchoCandidate(Candidate):
+            def run(self, input, ctx):
+                return input
 
-        def setup(self):
-            self.calls.append("setup")
+        candidate = EchoCandidate()
 
-        def run(self, input):
-            self.calls.append("run")
-            return input
+        assert candidate.setup(ctx) is None
+        assert candidate.run("ticket", ctx) == "ticket"
+        assert candidate.teardown(ctx) is None
 
-        def teardown(self):
-            self.calls.append("teardown")
+    def test_subclass_overriding_lifecycle_runs_hooks_in_order(self, ctx):
+        from velari_harness.core.protocols.candidate import Candidate
 
-    candidate = RecordingCandidate()
-    candidate.setup()
-    candidate.run("ticket")
-    candidate.teardown()
+        class RecordingCandidate(Candidate):
+            def __init__(self):
+                self.calls = []
 
-    assert candidate.calls == ["setup", "run", "teardown"]
+            def setup(self, ctx):
+                self.calls.append("setup")
+
+            def run(self, input, ctx):
+                self.calls.append("run")
+                return input
+
+            def teardown(self, ctx):
+                self.calls.append("teardown")
+
+        candidate = RecordingCandidate()
+        candidate.setup(ctx)
+        candidate.run("ticket", ctx)
+        candidate.teardown(ctx)
+
+        assert candidate.calls == ["setup", "run", "teardown"]
+
+    def test_subclass_without_run_raises_typeerror(self):
+        from velari_harness.core.protocols.candidate import Candidate
+
+        class Incomplete(Candidate):
+            pass
+
+        incomplete_cls: Any = Incomplete
+
+        with pytest.raises(TypeError):
+            incomplete_cls()
 
 
-def test_subclass_without_run_raises_typeerror():
-    from velari_harness.core.protocols.candidate import Candidate
+class TestTrialContext:
+    def test_emit_records_events_in_order_with_nondecreasing_offsets(self, tmp_path):
+        from velari_harness.core.protocols.candidate import TrialContext
 
-    class Incomplete(Candidate):
-        pass
+        ctx = TrialContext(seed=7, workdir=tmp_path)
+        ctx.emit("skill_triggered", {"skill": "write-invoice"})
+        ctx.emit("answered")
 
-    incomplete_cls: Any = Incomplete
+        first, second = ctx.events
+        assert (first.name, first.data, second.name) == ("skill_triggered", {"skill": "write-invoice"}, "answered")
+        assert 0 <= first.elapsed_sec <= second.elapsed_sec
 
-    with pytest.raises(TypeError):
-        incomplete_cls()
+    def test_events_returns_a_copy(self, tmp_path):
+        from velari_harness.core.protocols.candidate import TrialContext
+
+        ctx = TrialContext(seed=7, workdir=tmp_path)
+        ctx.emit("answered")
+        ctx.events.clear()
+
+        assert [event.name for event in ctx.events] == ["answered"]

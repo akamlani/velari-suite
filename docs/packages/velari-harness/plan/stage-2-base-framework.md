@@ -31,11 +31,12 @@ Stage 2 is built in small increments, each with its own tests, instead of all at
 | 11 | `Output` (value, usage, artifacts): a candidate may return one or a plain value; `Outcome.output` is an `Output`; the Harness scores the plain value; `Result.usage` totals usage | Implemented |
 | 12 | Structured `Score` (value, passed, label, explanation, failure, metadata); `Case` renamed `Example` and moved into `record.py` (`Task.examples`, `TrialRecord.example`); a scorer may return a number, a bool or a `Score` | Implemented |
 | 13 | `Dataset`: ordered, immutable examples with uids (a content hash when none is given) and a `fingerprint`; `Example` (now with `uid`), `Dataset` and `Task` live in `schemas/dataset.py`, and `request/task.py` is removed; `Task(name, dataset, version)` | Implemented |
-| 14 | `Environment` wired in: the `Harness` takes one (default `Environment()`), the `Runner` derives each trial's seed from it and `TrialRecord.seed` records it; the candidate is not told the seed | Implemented |
+| 14 | `Environment` wired in: the `Harness` takes one (default `Environment()`), the `Runner` derives each trial's seed from it and `TrialRecord.seed` records it; the candidate gets the seed through `TrialContext` since increment 17 | Implemented |
 | 15 | `Result.summary` replaces `Result.scores`: per scorer a `ScoreSummary(mean, stderr, n, invalid)`; the run spec is deferred until the record store needs it | Implemented |
 | 16 | Skills layer: `Skill` and `SkillValidator` (the open Agent Skills rules), `SkillRegistry` (a table of skills on the new generic `RecordRegistry`, which reuses `velari_data`'s `Registry`), `catalog_text` for prompts; a skill-trigger example; the harness examples split into `core/` and `skills/` | Implemented |
-| 17 | `TrialContext` with `emit(name, data)`: the derived seed reaches the candidate, a trial working directory exists, events land on the `TrialRecord`; a `skill_triggered` event records which skill a candidate used | Planned |
-| 18 onward | Not yet planned: metrics and reducers, store and `rescore`, limits and error policies, repeated trials, `ExampleView`, `Sandbox`. Added one increment at a time, each re-planned when the previous one is done | |
+| 17 | `TrialContext(seed, workdir)` with `emit(name, data)`: the derived seed reaches the candidate, a trial working directory exists, events land on `TrialRecord.events`; the candidate lifecycle becomes `setup(ctx)`, `run(input, ctx)`, `teardown(ctx)`; the skills example emits `skill_triggered` | Implemented |
+| 18 | Simulation base layer (`simulation/`): `World`, `run_episode`, `SimulatedCandidate`, a scripted and an LLM-played user; see [simulation.md](simulation.md) | Planned |
+| 19 onward | Not yet planned: metrics and reducers, store and `rescore`, limits and error policies, repeated trials, `ExampleView`, `Sandbox`. Added one increment at a time, each re-planned when the previous one is done | |
 
 ### Increment 1: Harness and its config
 
@@ -59,6 +60,8 @@ Behavior:
 Tests: `tests/harness/core/execution/test_config.py`, `tests/harness/core/execution/test_harness.py` and `tests/harness/core/schemas/response/test_result.py` (20 tests with the package smoke tests). `pydantic>=2.9` is declared in the package's `pyproject.toml`.
 
 ### Increment 2: Candidate
+
+> **Changed in increment 17:** the lifecycle methods now take a `TrialContext`: `setup(ctx)`, `run(input, ctx)`, `teardown(ctx)`.
 
 A [Candidate](../glossary.md#component-glossary) is the thing a harness runs and measures: anything that takes an input and returns an output.
 
@@ -211,6 +214,27 @@ Tests: `test_harness.py` is one `TestHarness` class (the scoring cases moved her
 
 A breaking change worth knowing: a run has no `status` or `failure` of its own. Failed trials are data in their records, and anything else (a `KeyboardInterrupt`, a bad argument) raises.
 
+### Increment 17: TrialContext
+
+A candidate was a black box: `run(input) -> output`. The Runner derived a seed for each trial and recorded it, but never told the candidate, and a candidate could not collect files or record what happened inside. `TrialContext` hands a candidate those per-trial facilities.
+
+| Change | Where |
+|---|---|
+| `Event(name, data, elapsed_sec)`: something a candidate recorded during a trial; `elapsed_sec` counts from the start of the trial and cannot be negative | `schemas/response/record.py` |
+| `TrialRecord.events: List[Event]`: what the candidate emitted, in order, also when the trial failed | `schemas/response/record.py` |
+| `TrialContext(seed, workdir)` with `emit(name, data=None)` and a read-only `events` (a copy) | `protocols/candidate.py` |
+| `Candidate.setup(ctx)`, `run(input, ctx)`, `teardown(ctx)`: the context is the last parameter; `CallableCandidate(fn)` ignores it and still calls `fn(input)` | `protocols/candidate.py` |
+| The Runner derives the trial's seed once, makes a working directory, passes one `TrialContext` to all three calls and copies its events onto the record. `Runner(environment, workdir=None)`: without a root each trial gets a temporary directory removed when it ends, even if it raised; with a root, `<root>/<index>` is kept | `execution/runner.py` |
+| `CustomerValidator` takes the new signatures; `SkillTrigger` emits `skill_triggered` and the example prints the number of such events | `examples/ai/harness/core/`, `examples/ai/harness/skills/` |
+
+Tests: `test_runner.py` (the candidate receives the seed recorded on its record, one context reaches `setup`, `run` and `teardown`, the working directory exists during a trial and is removed after it with and without a failure, each trial gets its own directory, a root keeps each trial's files under its index, events are recorded in order also when the trial fails), `test_candidate.py` (events keep order with non-decreasing offsets, `events` returns a copy; the existing tests use a `ctx` fixture), `test_record.py` (a negative offset raises, a record with events round-trips through JSON).
+
+Decisions: the context is passed explicitly to each method, as the glossary specified, so nothing is stored on the candidate and trials could later run concurrently; `run` takes `input` for now and `ExampleView` replaces it in its own increment; the temporary directory is the default so a run leaves no files behind; a failure to create a kept root stops the run instead of being a trial failure, since it is the environment's problem and not the candidate's; there is no `sandbox` field until `Sandbox` exists.
+
+Not in this increment: `ExampleView`, `Sandbox`, a lazy working directory (every trial makes one, even if unused), concurrent trials, checking that event data is JSON-serializable, and event durations, nesting and exporters to Phoenix or MLflow (see [stage 7](stage-7-observability.md)).
+
+A breaking change worth knowing: every `Candidate` subclass changes to `setup(self, ctx)`, `run(self, input, ctx)`, `teardown(self, ctx)`; `CallableCandidate(fn)` is unaffected.
+
 ### Increment 16: Skills
 
 The core needed to load, validate and describe skills without knowing how an agent uses them. The design is in the "Skills" note under "Design rules"; this is what was built, in small steps, each checked against the real skills (43 across the repository and `~/.claude/skills`).
@@ -270,7 +294,7 @@ Notebook note: `examples/ai/evals/evals.ipynb` computes the same statistics by h
 
 Tests: `test_runner.py` (seed equals `seed_for(uid)`; same environment, same seeds; a different base seed changes them; the index fallback; the default is seed 42), `test_harness.py` (the harness's environment reaches every record), and the two hand-built `TrialRecord`s gain a `seed`.
 
-Decisions: the `Harness` holds the environment (not the `Task`, which says what is measured, and not `HarnessConfig`, which must not carry a second seed); the seed is recorded but not handed to the candidate, which waits for `TrialContext`; the `Result` reports no base seed until the run spec exists.
+Decisions: the `Harness` holds the environment (not the `Task`, which says what is measured, and not `HarnessConfig`, which must not carry a second seed); the seed is recorded but not handed to the candidate, which waited for `TrialContext` (done in increment 17); the `Result` reports no base seed until the run spec exists.
 
 Not in this increment: handing the seed to a candidate, limits, `ErrorPolicy` and `RetryPolicy`, repeated trials (the trial number stays 0), and a base seed on the `Result`.
 
@@ -360,7 +384,7 @@ velari_harness/core/
 │   │   └── environment.py    # Environment: seed, limits, failure policy, lazy Experiment (increment 5: seed)
 │   └── response/         # what a run produces
 │       ├── result.py         # Result: what one run returned (increment 1)
-│       ├── record.py         # TrialRecord (increment 3); Event (planned)
+│       ├── record.py         # TrialRecord (increment 3); Event (increment 17)
 │       ├── output.py         # Output: value, artifacts, usage, latency (planned)
 │       └── score.py          # Score: value, passed, valid, error (planned)
 ├── protocols/        # extension points that users and later layers implement

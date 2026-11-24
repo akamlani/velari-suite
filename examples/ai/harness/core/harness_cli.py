@@ -17,7 +17,7 @@ from    velari_ai.ai.evals.heuristics import exact_match
 from    velari_core.core import read_root_dir
 from    velari_core.core.io.partition.hydra import read_hydra
 from    velari_harness.core.execution.harness import Harness
-from    velari_harness.core.protocols.candidate import Candidate
+from    velari_harness.core.protocols.candidate import Candidate, TrialContext
 from    velari_harness.core.schemas.dataset import Dataset, Example, Task
 from    velari_harness.core.schemas.response.record import Score
 from    velari_harness.core.schemas.request.environment import Environment
@@ -49,11 +49,11 @@ class CustomerValidator(Candidate):
     EMAIL     = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
     COUNTRIES = {"US", "GB", "CA", "ES", "IT", "FR", "DE", "CN", "KR", "AE", "CZ", "JP"}
 
-    def setup(self) -> None:
+    def setup(self, ctx: TrialContext) -> None:
         # the resource this candidate holds: the compiled email pattern (the Runner calls setup once per input)
         self.email = re.compile(self.EMAIL)
 
-    def run(self, input: Any) -> Any:
+    def run(self, input: Any, ctx: TrialContext) -> Any:
         name, email = (input.get("name") or "").strip(), (input.get("email") or "").strip()
         age, country = (input.get("age") or "").strip(), (input.get("country") or "").strip()
         # collect every problem with the row; raising is how a candidate reports a failed trial
@@ -70,7 +70,7 @@ class CustomerValidator(Candidate):
             raise ValueError("; ".join(problems))
         return {"id": int(input["id"]), "name": name, "email": email.lower(), "age": int(age), "country": country}
 
-    def teardown(self) -> None:
+    def teardown(self, ctx: TrialContext) -> None:
         del self.email
 
 
