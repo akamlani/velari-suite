@@ -199,7 +199,7 @@ None open. Three were found while reading the code and fixed in increment 7:
 - Skill loading is strict: one invalid skill aborts the whole load, a duplicate name raises, and there is no precedence between folders, no scan bounds and no fallback for malformed YAML (the integration guide recommends lenient loading and a project-over-user precedence).
 - A `Skill` holds a dict (`metadata`), so it is not hashable.
 - `config.py` defines a module `logger` that nothing uses.
-- `velari-ai` and `pandas` are declared dependencies with no import.
+- `velari-ai` is a declared dependency that the package does not import (only the examples do).
 - `Candidate.run(input, ctx)` names its parameter `input`, which shadows the builtin (the lint rule for it is not enabled), and an output's `value` is untyped (`Any`) until a schema check exists.
 - A `BaseException` in a trial discards the records of the trials that already finished.
 - Two examples with the same content and no `uid` raise (they hash to the same uid); repeated inputs need explicit uids.
@@ -210,9 +210,9 @@ None open. Three were found while reading the code and fixed in increment 7:
 - The `Result` reports no base seed, and the `Environment` has no limits, error or retry policies, fail-fast settings, artifacts directory or lazy `Experiment`.
 - Event `data` is not checked to be JSON-serializable, and every trial creates a working directory even if its candidate never uses it.
 - An `Event` is a point in time, with no duration, parent or status, so a tool call's latency or a call nested in another cannot be expressed; planned in [stage 7](../plan/stage-7-observability.md).
-- `Task` has no dataset, preparation steps, trials or missing-score policy and the Runner does not accept a `Task`; callers pass `task.examples`.
+- `Task` has no preparation steps, trials or missing-score policy, and the Runner does not accept a `Task`: it takes examples (the `Harness` passes its task's dataset).
 - A score has no `Scorer` protocol, and there are no metrics or reducers beyond the mean, standard error and counts in `Result.summary` (`invalid` counts scores without a value, not failed trials). `Harness.score()` can score records again, but there is no `score=False` and no stored records to re-score; scorers receive only the output's value, not the whole `Output` or the example's input.
-- The Runner does not limit, retry, time out, seed or run trials concurrently.
+- The Runner does not limit, retry, time out or run trials concurrently, and it does not seed global random state (a candidate seeds itself from `ctx.seed`).
 - Not verified: whether importing `velari_core` configures logging as a side effect.
 
 ## 9. Open architectural questions

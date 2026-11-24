@@ -156,7 +156,7 @@ Behavior:
 - **Two lifecycles.** The harness's own `setup()` and `teardown()` (inherited no-ops, for subclasses) wrap the whole run; the candidate's `setup`, `run` and `teardown` run once per input inside the Runner.
 - **`for_task`, not `from_config`.** The inherited `from_config(cfg, **overrides)` cannot supply a task and a candidate, and adding required arguments to it would break the base signature, so `TaskHarness` has its own constructor method. Calling the inherited `from_config` on it raises `TypeError`.
 
-**Harness or TaskHarness?** `Harness` is the extension base: you subclass it and write `execute()`. `TaskHarness` is the ready-made harness for the usual case, measuring a candidate on a task. The table in the [glossary](../glossary.md#harness-or-taskharness) says which to use. The two names are a known source of confusion; renaming the base to `BaseHarness` was deferred.
+**Harness or TaskHarness?** `Harness` is the extension base: you subclass it and write `execute()`. `TaskHarness` is the ready-made harness for the usual case, measuring a candidate on a task. The table in the [glossary](../glossary.md#harness-vocabulary) says which to use. The two names are a known source of confusion; renaming the base to `BaseHarness` was deferred.
 
 Not in this increment: `Environment` (not read yet), scorers (added in increment 8), repeated trials, an error count or summary, concurrency, building a task and candidate from config.
 
@@ -377,16 +377,18 @@ One folder per concern, matching how the rest of the repo is organised (`velari_
 
 ```
 velari_harness/core/
+├── errors.py         # TrialError: raised by a candidate to declare why its trial failed
 ├── schemas/          # plain data, no behavior
-│   ├── types.py          # StrEnums: Status (SUCCESS, ERROR; TIMEOUT planned)
+│   ├── types.py          # StrEnums: Status (SUCCESS, ERROR; TIMEOUT planned), ReasonCode
 │   ├── dataset.py        # Example, Dataset, Task (increments 4, 10, 13); ExampleView planned
+│   ├── skill.py          # Skill, SkillValidator, SkillRegistry (increment 16)
 │   ├── request/          # what a run is run under
 │   │   └── environment.py    # Environment: seed, limits, failure policy, lazy Experiment (increment 5: seed)
 │   └── response/         # what a run produces
 │       ├── result.py         # Result: what one run returned (increment 1)
-│       ├── record.py         # TrialRecord (increment 3); Event (increment 17)
-│       ├── output.py         # Output: value, artifacts, usage, latency (planned)
-│       └── score.py          # Score: value, passed, valid, error (planned)
+│       ├── record.py         # TrialRecord (increment 3), Output (11), Score (12), Event (17)
+│       ├── output.py         # Output: value, artifacts, usage, latency (today in record.py; may split out later)
+│       └── score.py          # Score: value, passed, valid, error (today in record.py; may split out later)
 ├── protocols/        # extension points that users and later layers implement
 │   ├── candidate.py        # Candidate protocol, TrialContext, CallableCandidate
 │   ├── sandbox.py        # Sandbox protocol
@@ -398,7 +400,7 @@ velari_harness/core/
 │   ├── config.py         # HarnessConfig (increment 1)
 │   ├── limits.py         # time limit, error budget, ErrorPolicy, RetryPolicy
 │   ├── sandbox.py        # LocalSandbox: per-trial working directory
-│   ├── runner.py         # Runner: examples x trials -> Result
+│   ├── runner.py         # Runner: runs a candidate over examples, one TrialRecord per example
 │   └── harness.py        # Harness: the container (Task + Candidate + scorers) that chains run, score and package
 └── registry/         # naming and construction
     ├── registry.py       # reused from velari_data.registry (Registry, RecordRegistry); not defined here

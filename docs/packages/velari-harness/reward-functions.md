@@ -302,14 +302,13 @@ A reward is code that can be wrong. HUD's QA agents audit completed traces for r
 ## What this means for the harness
 
 - **The scorer is the reward function in its evaluation form.** `Score` already carries what a combined reward needs: `value`, `passed` (for a gate), `label`, `explanation` and `metadata` (for the named parts). Multiple scorers give a vector.
-- **State-based and side-effect rewards need the initial state as well as the final one.** The [simulation plan](plan/simulation.md) lists `EpisodeResult(final_state, trajectory, termination, steps)`; it should also carry `initial_state`, so a scorer can compute a diff. This is an open point to settle at 18a.
+- **State-based and side-effect rewards need the initial state as well as the final one.** The [simulation plan](plan/simulation.md) lists `EpisodeResult(initial_state, final_state, trajectory, termination, steps)`, so a scorer can compute a diff.
 - **A per-step shaped reward belongs in the world's `step`**, not in the harness, and is out of scope here.
 - **Terminated and truncated stay distinct**, so a scorer can treat "reached the goal" and "ran out of steps" differently.
 - **The reward does not change the Runner or the Harness**: it is a scorer over the episode result, as in the plan.
 
 ## Open questions
 
-- **Initial state in the result:** confirm `EpisodeResult` carries it (above).
 - **Where gates live:** as a field on `Score` (a `vetoed` flag), or only via `passed` plus `label`.
 - **Reward helpers:** whether a small shared module for `combine`, state `diff` and `pass^k` belongs in the simulation layer or in each example.
 - **Delayed outcomes:** how a world should model a consequence that arrives after the episode (a later chargeback), if at all in the first slice.
