@@ -98,6 +98,7 @@ Output (shown at 150 columns; it is deterministic):
 │ Thanks that is all for today                                 │ none              │ identify               │ miss  │
 │ Tell me a joke about cats                                    │ none              │ strategic-storytelling │ miss  │
 └──────────────────────────────────────────────────────────────┴───────────────────┴────────────────────────┴───────┘
+skill_triggered events: 27
 ```
 
 Reading it: the baseline picks the expected skill for 22 of 27 requests (accuracy 0.81, standard error 0.08). Two misses are arguable
@@ -106,3 +107,4 @@ Reading it: the baseline picks the expected skill for 22 of 27 requests (accurac
 some word in common, so `min_score` is a weak way to say "nothing applies". Replacing `SkillTrigger` with a model that reads
 `registry.catalog_text()` would change only that class; the registry, task, scorer and harness stay as they are. The catalog printed in the first table is the
 text such a model would be given.
+The last line counts the `skill_triggered` events `SkillTrigger` emitted through its `TrialContext` (one per request, including the `none` picks); they are kept on each trial's record.

@@ -18,7 +18,7 @@ from    velari_ai.ai.evals.heuristics import exact_match
 from    velari_core.core import read_root_dir
 from    velari_core.core.io.partition.hydra import read_hydra
 from    velari_harness.core.execution.harness import Harness
-from    velari_harness.core.protocols.candidate import Candidate
+from    velari_harness.core.protocols.candidate import Candidate, TrialContext
 from    velari_harness.core.schemas.dataset import Dataset, Example, Task
 from    velari_harness.core.schemas.response.record import Score
 from    velari_harness.core.schemas.response.result import Result
@@ -45,6 +45,7 @@ class SkillTrigger(Candidate):
 
     Each word is weighted by how rare it is across the skills (IDF), so "invoice" counts for more than "create". A model that reads
     the skill catalog would replace this class; the harness around it would not change.
+    Each pick is recorded as a `skill_triggered` event through the trial's `TrialContext`.
 
     Args:
         registry (SkillRegistry): The skills to choose from; each one's name and description make up its keywords.
@@ -67,11 +68,13 @@ class SkillTrigger(Candidate):
         words = re.findall(r"[a-z0-9]+", text.lower())
         return {word.removesuffix("s") for word in words if len(word) > cls.MIN_TOKEN_LENGTH and word not in cls.STOPWORDS}
 
-    def run(self, input: Any) -> Any:
+    def run(self, input: Any, ctx: TrialContext) -> Any:
         request = self.tokens(input)
         scores = {name: sum(self.idf[token] for token in request & tokens) for name, tokens in self.skills.items()}
         best = max(scores, key=lambda name: scores[name])
-        return best if scores[best] >= self.min_score else "none"
+        picked = best if scores[best] >= self.min_score else "none"
+        ctx.emit("skill_triggered", {"skill": picked, "score": round(scores[best], 2)})
+        return picked
 
 
 class SkillScorer(object):
@@ -147,6 +150,8 @@ class SkillsCli(object):
         console.print(skills)
         console.print(summary)
         console.print(requests)
+        # the events the candidate emitted are kept on each trial's record
+        console.print(f"skill_triggered events: {sum(event.name == 'skill_triggered' for record in result.records for event in record.events)}")
         return self
 
 

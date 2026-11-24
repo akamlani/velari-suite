@@ -87,7 +87,7 @@ Only the first row exists today.
 | Component | Reads from the environment | Status |
 |---|---|---|
 | Per-trial seeds | `seed`, through `seed_for(key, trial)` | Implemented; the Runner records each trial's seed |
-| **Runner** | Seed for each trial (recorded since increment 14; handing it to the candidate through `TrialContext` is planned); time limit per trial; error and retry policy; fail-fast and error ratio; where artifacts go | Planned |
+| **Runner** | Seed for each trial (recorded since increment 14 and handed to the candidate through `TrialContext` since increment 17); time limit per trial; error and retry policy; fail-fast and error ratio; where artifacts go | Planned |
 | **Harness** | Holds the environment together with a task and a candidate, and passes it to the Runner | Implemented (increment 14) |
 | **Result / store** | Records the environment (or a hash of it) in the result's spec, so comparisons can check that two runs match | Planned |
 | **Comparison** (later) | Refuses or warns when two results have different environments | Planned |

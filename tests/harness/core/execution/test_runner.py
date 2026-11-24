@@ -30,18 +30,18 @@ def _recording_candidate(fail_run_on=None, fail_setup=False, fail_teardown=False
         def __init__(self):
             self.calls = []
 
-        def setup(self):
+        def setup(self, ctx):
             self.calls.append("setup")
             if fail_setup:
                 raise RuntimeError("setup failed")
 
-        def run(self, input):
+        def run(self, input, ctx):
             self.calls.append("run")
             if input == fail_run_on:
                 raise (run_exc or ValueError)(f"cannot route {input!r}")
             return input.upper()
 
-        def teardown(self):
+        def teardown(self, ctx):
             self.calls.append("teardown")
             if fail_teardown:
                 raise OSError("teardown failed")
@@ -270,3 +270,107 @@ def test_run_default_environment_is_seed_42():
     records = Runner().run(CallableCandidate(str.upper), _examples("a"))
 
     assert records[0].seed == Environment(seed=42).seed_for(0)
+
+
+def test_run_passes_each_trial_the_seed_recorded_on_its_record():
+    from velari_harness.core.execution.runner import Runner
+    from velari_harness.core.protocols.candidate import Candidate
+
+    seen = []
+
+    class SeedCandidate(Candidate):
+        def run(self, input, ctx):
+            seen.append(ctx.seed)
+            return input
+
+    records = Runner().run(SeedCandidate(), _examples("a", "b"))
+
+    assert seen == [record.seed for record in records]
+
+
+def test_run_passes_the_same_context_to_setup_run_and_teardown():
+    from velari_harness.core.execution.runner import Runner
+    from velari_harness.core.protocols.candidate import Candidate
+
+    contexts = []
+
+    class HookCandidate(Candidate):
+        def setup(self, ctx):
+            contexts.append(ctx)
+
+        def run(self, input, ctx):
+            contexts.append(ctx)
+            return input
+
+        def teardown(self, ctx):
+            contexts.append(ctx)
+
+    Runner().run(HookCandidate(), _examples("a"))
+
+    assert len(contexts) == 3 and len({id(ctx) for ctx in contexts}) == 1
+
+
+@pytest.mark.parametrize("fail", [False, True])
+def test_run_gives_each_trial_a_workdir_that_exists_during_it_and_is_removed_after(fail):
+    from velari_harness.core.execution.runner import Runner
+    from velari_harness.core.protocols.candidate import Candidate
+
+    seen = []
+
+    class DirCandidate(Candidate):
+        def run(self, input, ctx):
+            seen.append((ctx.workdir, ctx.workdir.is_dir()))
+            if fail:
+                raise ValueError("unreadable ticket")
+            return input
+
+    Runner().run(DirCandidate(), _examples("a", "b"))
+
+    assert all(existed for _, existed in seen) and not any(path.exists() for path, _ in seen)
+
+
+def test_run_gives_each_trial_its_own_workdir():
+    from velari_harness.core.execution.runner import Runner
+    from velari_harness.core.protocols.candidate import Candidate
+
+    seen = []
+
+    class DirCandidate(Candidate):
+        def run(self, input, ctx):
+            seen.append(ctx.workdir)
+            return input
+
+    Runner().run(DirCandidate(), _examples("a", "b"))
+
+    assert len(set(seen)) == 2
+
+
+def test_run_with_a_workdir_root_keeps_each_trials_files_under_its_index(tmp_path):
+    from velari_harness.core.execution.runner import Runner
+    from velari_harness.core.protocols.candidate import Candidate
+
+    class WriterCandidate(Candidate):
+        def run(self, input, ctx):
+            (ctx.workdir / "note.txt").write_text(input)
+            return input
+
+    Runner(workdir=tmp_path).run(WriterCandidate(), _examples("first", "second"))
+
+    assert [(tmp_path / str(index) / "note.txt").read_text() for index in (0, 1)] == ["first", "second"]
+
+
+def test_run_records_emitted_events_in_order_also_when_the_trial_fails():
+    from velari_harness.core.execution.runner import Runner
+    from velari_harness.core.protocols.candidate import Candidate
+
+    class EmittingCandidate(Candidate):
+        def run(self, input, ctx):
+            ctx.emit("started")
+            ctx.emit("lookup", {"account": input})
+            raise ValueError("unreadable ticket")
+
+    record = Runner().run(EmittingCandidate(), _examples("ACC-10293"))[0]
+
+    assert [(event.name, event.data) for event in record.events] == [("started", {}), ("lookup", {"account": "ACC-10293"})]
+    assert record.outcome.failure is not None
+

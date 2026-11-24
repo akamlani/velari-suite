@@ -1,14 +1,14 @@
 # velari-harness architecture
 
-Matches `velari_harness` as of stage 2, increment 16. Update it when an increment changes behavior. It describes the code that exists; planned components are in [../plan/](../plan/plan.md) and marked **Planned** in the [glossary](../glossary.md#component-glossary). Statements marked *verified* were checked by running the code; anything else is read from the source.
+Matches `velari_harness` as of stage 2, increment 17. Update it when an increment changes behavior. It describes the code that exists; planned components are in [../plan/](../plan/plan.md) and marked **Planned** in the [glossary](../glossary.md#component-glossary). Statements marked *verified* were checked by running the code; anything else is read from the source.
 
 Audience: contributors who extend or review the harness core. Definitions of terms live in the glossary and are not repeated here.
 
 ## 1. Scope
 
-Today the package provides these things. A `Harness`: the container for one measurement, which holds a task, a candidate and optional scorers and whose `run()` chains three steps (run the candidate on every example, score each successful trial, package a serialisable `Result`). The `Candidate` contract: the thing being measured, with a function wrapper. A `Runner` that runs a candidate over a sequence of examples and returns one `TrialRecord` per example. A `Example`: one input for the candidate and, optionally, the reference a scorer compares with. A `Task`: a named, versioned, immutable set of examples that says nothing about who is measured. Scorers as plain functions. An `Environment`: the base seed, with a repeatable seed derived for each trial; the Runner derives each trial's seed from it and records the seed on the trial. A skills layer: `Skill` and `SkillValidator` read and check a skill folder against the Agent Skills rules, and `SkillRegistry` holds the skills under folders as a table (built on `RecordRegistry` in `velari-data`) and renders a catalog for a prompt. The core never runs a skill's scripts, and the harness itself does not use skills: a candidate does.
+Today the package provides these things. A `Harness`: the container for one measurement, which holds a task, a candidate and optional scorers and whose `run()` chains three steps (run the candidate on every example, score each successful trial, package a serialisable `Result`). The `Candidate` contract: the thing being measured, with a function wrapper. A `Runner` that runs a candidate over a sequence of examples and returns one `TrialRecord` per example. A `Example`: one input for the candidate and, optionally, the reference a scorer compares with. A `Task`: a named, versioned, immutable set of examples that says nothing about who is measured. Scorers as plain functions. An `Environment`: the base seed, with a repeatable seed derived for each trial; the Runner derives each trial's seed from it and records the seed on the trial. A `TrialContext`: the seed, a private working directory and `emit()` for events, built per trial and passed to the candidate; its events are kept on the `TrialRecord`. A skills layer: `Skill` and `SkillValidator` read and check a skill folder against the Agent Skills rules, and `SkillRegistry` holds the skills under folders as a table (built on `RecordRegistry` in `velari-data`) and renders a catalog for a prompt. The core never runs a skill's scripts, and the harness itself does not use skills: a candidate does.
 
-Not implemented: metrics and reducers, repeated trials, `TrialContext`, a registry of named harness components, a result store, tracking, an output directory, retries, limits. The core does not seed global random state.
+Not implemented: metrics and reducers, repeated trials, a `Sandbox`, a registry of named harness components, a result store, tracking, an output directory, retries, limits. The core does not seed global random state.
 
 ## 2. Components and dependencies
 
@@ -16,16 +16,16 @@ Not implemented: metrics and reducers, repeated trials, `TrialContext`, a regist
 |---|---|
 | `__init__.py` | `__version__` (from installed metadata via `velari-core`) and the package `logger` |
 | `core/schemas/types.py` | `Status` (`SUCCESS`, `ERROR`): how a run or one trial ended; `ReasonCode` (`INVALID_INPUT`, `NOT_FOUND`, `PERMISSION_DENIED`, `TIMEOUT`, `UNAVAILABLE`, `UNEXPECTED`): why a trial failed, by cause. `core/errors.py` has `TrialError`, which a candidate raises to declare its own code |
-| `core/schemas/response/record.py` | `Output` (`value`, `usage`, `artifacts`): what a candidate may return; `Outcome` (`output`, an `Output`, `failure`, `duration_sec`, derived `status`) and `Failure(error, reason_code)` with the exception-to-reason-code rules; `Score` (`value`, `passed`, `label`, `explanation`, `failure`, `metadata`): a scorer's verdict; `TrialRecord(index, example, outcome, seed, scores)`: what one trial produced, with the seed derived for it |
+| `core/schemas/response/record.py` | `Output` (`value`, `usage`, `artifacts`): what a candidate may return; `Outcome` (`output`, an `Output`, `failure`, `duration_sec`, derived `status`) and `Failure(error, reason_code)` with the exception-to-reason-code rules; `Score` (`value`, `passed`, `label`, `explanation`, `failure`, `metadata`): a scorer's verdict; `Event(name, data, elapsed_sec)`: something a candidate recorded during a trial; `TrialRecord(index, example, outcome, seed, scores, events)`: what one trial produced, with the seed derived for it and the events its candidate emitted |
 | `core/schemas/response/result.py` | `Result(name, records, duration_sec)`: one record per task input in order, with computed `trials` (a count per status), `usage` and `summary` (per scorer a `ScoreSummary`: mean, standard error, valid count `n` and `invalid` count, computed with `velari_core`'s `calc_column_stats`) |
 | `core/execution/config.py` | `HarnessConfig` (`name`) and building it from OmegaConf (frozen dataclass, checked at construction) |
 | `core/schemas/dataset.py` | `Example` (`input`, `reference`, `uid`): one thing to measure; `Dataset(name, examples)`: an ordered, immutable collection with uids and a `fingerprint`; `Task(name, dataset, version)`: what is measured (all frozen dataclasses) |
 | `core/schemas/skill.py` | `Skill` and `SkillValidator`: a skill folder read and checked against the Agent Skills rules (frozen dataclass); `SkillRegistry`: the skills under folders as a table, with `get`, filters and `catalog_text`, built on `RecordRegistry` |
 | `velari_data/registry.py` (package `velari-data`) | `RecordRegistry`: named records in a DataFrame, with `get`, `list(**filters)`, `to_dataframe` and `to_xml`; the base `Registry` it extends already existed |
 | `core/schemas/request/environment.py` | `Environment`: the base seed and repeatable per-trial seeds (frozen dataclass) |
-| `core/protocols/candidate.py` | `Candidate` (protocol with a per-trial lifecycle) and `CallableCandidate` |
+| `core/protocols/candidate.py` | `Candidate` (protocol with a per-trial lifecycle: `setup(ctx)`, `run(input, ctx)`, `teardown(ctx)`), `TrialContext(seed, workdir)` with `emit`, and `CallableCandidate` |
 | `core/execution/harness.py` | `Harness`: holds a task, a candidate, scorers and an `Environment`; `run()` chains run, score and package; `score()` scores records; `for_task()` builds one |
-| `core/execution/runner.py` | `Runner(environment)`: runs a candidate over examples, one trial each, and records the outcome and the trial's seed; it does not score |
+| `core/execution/runner.py` | `Runner(environment, workdir)`: runs a candidate over examples, one trial each, gives each a `TrialContext`, and records the outcome, the trial's seed and its events; it does not score |
 
 Field-level detail is in the source docstrings and the glossary, not here. Subfolders have no `__init__.py`.
 
@@ -41,6 +41,7 @@ graph LR
     harness --> omegaconf
     init["__init__.py"] --> core2["velari_core: package_version"]
     candidate["protocols/candidate.py"]
+    candidate --> record
     dataset["schemas/dataset.py"]
     skill["schemas/skill.py"] --> velarireg["velari_data: RecordRegistry"]
     skill --> pyyaml["pyyaml"]
@@ -58,7 +59,7 @@ graph LR
     harness --> record
 ```
 
-`protocols/candidate.py` imports only the standard library; only `runner.py` imports it. `harness.py` imports `runner.py`, `Task` (from `dataset.py`), `Candidate`, `TrialRecord` and `Result`; the Runner does not import `harness.py`. `schemas/dataset.py` imports only the standard library; `record.py`, `runner.py` and `harness.py` import it. `schemas/request/environment.py` imports only the standard library and nothing imports it yet. `schemas/response/result.py` imports `calc_column_stats` from `velari_core` for the summary statistics, as `config.py` imports `ConfigOmegaConf`. `schemas/skill.py` imports `RecordRegistry` from `velari_data`, plus `pandas` and `yaml`; nothing in the core imports it (only the skills example does).
+`protocols/candidate.py` imports `Event` from `schemas/response/record.py`; `runner.py` and `harness.py` import it. `harness.py` imports `runner.py`, `Task` (from `dataset.py`), `Candidate`, `TrialRecord` and `Result`; the Runner does not import `harness.py`. `schemas/dataset.py` imports only the standard library; `record.py`, `runner.py` and `harness.py` import it. `schemas/request/environment.py` imports only the standard library and nothing imports it yet. `schemas/response/result.py` imports `calc_column_stats` from `velari_core` for the summary statistics, as `config.py` imports `ConfigOmegaConf`. `schemas/skill.py` imports `RecordRegistry` from `velari_data`, plus `pandas` and `yaml`; nothing in the core imports it (only the skills example does).
 
 `velari-ai` and `pandas` are declared in `pyproject.toml` but not imported (*verified* by grep).
 
@@ -86,7 +87,7 @@ A task run has no run-level status or failure. A trial that raises (in `setup`, 
 | `Outcome.duration_sec >= 0` and `Result.duration_sec >= 0` | pydantic `Field(ge=0)` | At construction only; pydantic does not validate on assignment |
 | `Result` round-trips through JSON | test | Only for JSON-serialisable outputs and inputs |
 | The core never seeds global RNG | absence in the code; a test for `Environment.seed_for` | No test for the other modules |
-| A trial's recorded seed is `Environment.seed_for(example.uid)` (the index for an example without a uid), the same on every run | `Runner._trial`; tests | The candidate is not told it |
+| A trial's recorded seed is `Environment.seed_for(example.uid)` (the index for an example without a uid), the same on every run | `Runner._trial`; tests | The candidate receives it as `ctx.seed` |
 | A trial's seed is the same on every run, in any process | SHA-256 derivation; a pinned-value test | Nothing passes the seed to a candidate yet |
 | A candidate's `teardown` runs after a failed `setup` or `run`, including `BaseException` | `try/finally` in `Runner._trial`; tests | |
 | A failed trial is never scored, and a scorer that raises is `None`, never a zero | `Harness.score`; tests | |
@@ -101,7 +102,7 @@ A scorer is a plain function `fn(output, reference)` returning a number (a `bool
 
 ### Environment
 
-`Environment(seed=42)` is a frozen dataclass; a `seed` that is not an `int`, or is a `bool`, raises `TypeError`. `seed_for(key, trial=0)` returns `sha256("{seed}:{key}:{trial}")` reduced to `[0, 2**32)`. Covered by tests in `test_environment.py`: pinned values (so the derivation cannot change silently), identical results for identical arguments, a different result when the seed, key or trial changes, the 32-bit range, and global random state left untouched. The values are the same under a different `PYTHONHASHSEED` (*verified*), because SHA-256 is used rather than `hash()`. `1` and `"1"` give the same seed (*verified*), since the key goes through `str`. Since increment 14 the Harness holds an `Environment` (default seed 42) and passes it to the Runner, which calls `seed_for(example.uid)` for each trial (the example's index when it has no uid) and stores the result as `TrialRecord.seed`; the candidate is not told the seed.
+`Environment(seed=42)` is a frozen dataclass; a `seed` that is not an `int`, or is a `bool`, raises `TypeError`. `seed_for(key, trial=0)` returns `sha256("{seed}:{key}:{trial}")` reduced to `[0, 2**32)`. Covered by tests in `test_environment.py`: pinned values (so the derivation cannot change silently), identical results for identical arguments, a different result when the seed, key or trial changes, the 32-bit range, and global random state left untouched. The values are the same under a different `PYTHONHASHSEED` (*verified*), because SHA-256 is used rather than `hash()`. `1` and `"1"` give the same seed (*verified*), since the key goes through `str`. Since increment 14 the Harness holds an `Environment` (default seed 42) and passes it to the Runner, which calls `seed_for(example.uid)` for each trial (the example's index when it has no uid) and stores the result as `TrialRecord.seed`; the candidate receives the seed as `ctx.seed`.
 
 ### Harness
 
@@ -109,7 +110,7 @@ A scorer is a plain function `fn(output, reference)` returning a number (a `bool
 
 ### Runner
 
-`Runner().run(candidate, examples)` returns one `TrialRecord` per example, in order; it only runs the trials and never scores them. For each example it runs `candidate.setup()`, `candidate.run(example.input)` and `candidate.teardown()` (the lifecycle runs once per input). A candidate may return an `Output` (a value plus `usage` and `artifacts`); a plain return is wrapped in one, so a record's `outcome.output` is an `Output`, or `None` for a failed trial. Outcomes, each covered by a test in `test_runner.py`:
+`Runner().run(candidate, examples)` returns one `TrialRecord` per example, in order; it only runs the trials and never scores them. For each example it runs `candidate.setup(ctx)`, `candidate.run(example.input, ctx)` and `candidate.teardown(ctx)` with one `TrialContext` per trial (the lifecycle runs once per input). A candidate may return an `Output` (a value plus `usage` and `artifacts`); a plain return is wrapped in one, so a record's `outcome.output` is an `Output`, or `None` for a failed trial. Outcomes, each covered by a test in `test_runner.py`:
 
 | Scenario | Candidate calls | Record `outcome.status` | `outcome.output.value` | `outcome.failure.error` |
 |---|---|---|---|---|
@@ -121,7 +122,7 @@ A scorer is a plain function `fn(output, reference)` returning a number (a `bool
 | `KeyboardInterrupt` in `run` | `setup`, `run`, `teardown`, then it propagates | no records returned | | |
 | No inputs | none | empty list | | |
 
-One `ERROR` log line is written per failed trial. There are no limits, timeouts or retries, and trials are sequential.
+A trial's events are kept on its record in every case above. Each trial's working directory is a temporary one removed when the trial ends, or `<workdir>/<index>` when the Runner is given a root. One `ERROR` log line is written per failed trial. There are no limits, timeouts or retries, and trials are sequential.
 
 ### Skills
 
@@ -146,7 +147,7 @@ Harness.for_task(task, candidate, cfg, **overrides)
 
 ## 5. Extension
 
-The extension points are the things a harness holds, not subclasses of it: write a `Candidate` (`run(input)` is required, `setup()` and `teardown()` optional; `CallableCandidate(fn)` wraps a plain function), a scorer function, or a `Task`. The caller owns the order `setup`, `run`, `teardown` and must call `teardown` even when `run` raised; the Runner does exactly that. To add settings, define a frozen `HarnessConfig` subclass and pass an instance to the harness's constructor (`for_task` builds only a plain `HarnessConfig`). To run candidates without a harness, use `Runner().run(candidate, inputs)`.
+The extension points are the things a harness holds, not subclasses of it: write a `Candidate` (`run(input, ctx)` is required, `setup(ctx)` and `teardown(ctx)` optional; `CallableCandidate(fn)` wraps a plain function), a scorer function, or a `Task`. The caller owns the order `setup`, `run`, `teardown` and must call `teardown` even when `run` raised; the Runner does exactly that. To add settings, define a frozen `HarnessConfig` subclass and pass an instance to the harness's constructor (`for_task` builds only a plain `HarnessConfig`). To run candidates without a harness, use `Runner().run(candidate, inputs)`.
 
 ## 6. Design decisions
 
@@ -177,7 +178,7 @@ The extension points are the things a harness holds, not subclasses of it: write
 |---|---|
 | Re-entrancy | `run()` can be called again on the same instance (*verified*: second run succeeds); it re-runs the candidate lifecycle for every input, and any state a candidate keeps persists between runs |
 | Thread safety | Not designed or tested. The OmegaConf resolver registration is idempotent |
-| Determinism | The only seed is `Environment.seed`; each record shows its derived seed, but a candidate is not told it yet |
+| Determinism | The only seed is `Environment.seed`; each record shows its derived seed, and the candidate receives it as `ctx.seed` |
 | Observability | One `ERROR` log line per failed trial and per raising scorer; `duration_sec` on the outcome and the result |
 | Consumer contract | `Result` fields as in the source; `trials` counts trials per status; each record's `outcome.status` is `success` or `error`, and an `error` record can still carry an `output` (a teardown failure after success), so check `status` first |
 
@@ -199,14 +200,16 @@ None open. Three were found while reading the code and fixed in increment 7:
 - A `Skill` holds a dict (`metadata`), so it is not hashable.
 - `config.py` defines a module `logger` that nothing uses.
 - `velari-ai` and `pandas` are declared dependencies with no import.
-- `Candidate.run(input)` names its parameter `input`, which shadows the builtin (the lint rule for it is not enabled), and an output's `value` is untyped (`Any`) until a schema check exists.
+- `Candidate.run(input, ctx)` names its parameter `input`, which shadows the builtin (the lint rule for it is not enabled), and an output's `value` is untyped (`Any`) until a schema check exists.
 - A `BaseException` in a trial discards the records of the trials that already finished.
 - Two examples with the same content and no `uid` raise (they hash to the same uid); repeated inputs need explicit uids.
 - A uid or fingerprint is a hash of `json.dumps(..., default=str)`, so a non-JSON input hashes through its `str()`, which must be stable across runs (a DataFrame or an object with a default repr is not).
 - The `Result` has no run spec, so the dataset fingerprint, task version and base seed are not saved with it; it comes with the record store, when something reads it.
 - `outcome.output.value` and `example.input` are `Any`; the JSON round trip needs JSON-serialisable values.
-- `Output.artifacts` are recorded, not copied; collecting files needs a trial working directory (`TrialContext`).
-- A candidate cannot use its trial's seed yet (that needs `TrialContext`), the `Result` reports no base seed, and the `Environment` has no limits, error or retry policies, fail-fast settings, artifacts directory or lazy `Experiment`.
+- `Output.artifacts` are recorded, not copied; a candidate can write into `ctx.workdir`, but a temporary directory is removed when the trial ends, so files worth keeping need a `Runner(workdir=...)` root.
+- The `Result` reports no base seed, and the `Environment` has no limits, error or retry policies, fail-fast settings, artifacts directory or lazy `Experiment`.
+- Event `data` is not checked to be JSON-serializable, and every trial creates a working directory even if its candidate never uses it.
+- An `Event` is a point in time, with no duration, parent or status, so a tool call's latency or a call nested in another cannot be expressed; planned in [stage 7](../plan/stage-7-observability.md).
 - `Task` has no dataset, preparation steps, trials or missing-score policy and the Runner does not accept a `Task`; callers pass `task.examples`.
 - A score has no `Scorer` protocol, and there are no metrics or reducers beyond the mean, standard error and counts in `Result.summary` (`invalid` counts scores without a value, not failed trials). `Harness.score()` can score records again, but there is no `score=False` and no stored records to re-score; scorers receive only the output's value, not the whole `Output` or the example's input.
 - The Runner does not limit, retry, time out, seed or run trials concurrently.
@@ -239,9 +242,9 @@ Run with `uv run pytest tests/harness`.
 | `tests/harness/core/schemas/test_dataset.py` | Examples kept in order and copied into a tuple; a given uid kept, a missing one hashed from the content; empty name, no examples or duplicate uids `ValueError`; the fingerprint changes with an input, a reference or the order and is stable for identical data; `Task` name check and immutability; one task run against two candidates |
 | `tests/harness/core/schemas/test_skill.py` | 27 tests: a skill read from its frontmatter; each name, description, folder and `compatibility` rule; the optional fields and stringified metadata; `instructions()` and `resources()`; the registry (columns, nested folders, merged roots, hidden folders, duplicates, an invalid skill, a missing root, `get`, filters) and `catalog_text` |
 | `tests/data/test_registry.py` | 17 `RecordRegistry` tests: records as rows, `get`, `list` with filters, the inherited `has`, `in`, `len`, iteration, `to_dataframe` as a copy, invalid records, a custom key, and `to_xml` (missing values, dotted tags, escaping, `names`, empty); the existing registry tests are unchanged |
-| `tests/harness/core/execution/test_runner.py` | One record per input in order; lifecycle once per input; empty inputs; a failing input recorded while later inputs run; failing `setup` skips `run` and still tears down; `teardown` failure after success keeps the output; `teardown` failure not masking an earlier error; `KeyboardInterrupt` propagates after `teardown` ran; the candidate receives only the example's input, never its reference; a returned `Output` is kept and a plain return is wrapped in one; each record's seed is the environment's derived seed (for the example's uid, or its index), is repeatable, changes with the base seed, and defaults to seed 42 |
-| `tests/harness/core/schemas/response/test_record.py` | `TrialRecord` JSON round trip; negative duration; `status` derived from the failure |
-| `tests/harness/core/protocols/test_candidate.py` | `CallableCandidate` returns the function's result and propagates exceptions; a subclass with only `run` inherits no-op hooks; overridden hooks run in order; a subclass without `run` cannot be instantiated |
+| `tests/harness/core/execution/test_runner.py` | One record per input in order; lifecycle once per input; empty inputs; a failing input recorded while later inputs run; failing `setup` skips `run` and still tears down; `teardown` failure after success keeps the output; `teardown` failure not masking an earlier error; `KeyboardInterrupt` propagates after `teardown` ran; the candidate receives only the example's input, never its reference; a returned `Output` is kept and a plain return is wrapped in one; each record's seed is the environment's derived seed (for the example's uid, or its index), is repeatable, changes with the base seed, and defaults to seed 42; the candidate receives the seed recorded on its record; one context reaches `setup`, `run` and `teardown`; the working directory exists during a trial and is removed after it, also after a failure; each trial gets its own directory; a root keeps each trial's files under its index; events are recorded in order, also when the trial fails |
+| `tests/harness/core/schemas/response/test_record.py` | `TrialRecord` JSON round trip; negative duration; `status` derived from the failure; a negative event offset raises; a record with events round-trips through JSON |
+| `tests/harness/core/protocols/test_candidate.py` | `CallableCandidate` returns the function's result and propagates exceptions; a subclass with only `run` inherits no-op hooks; overridden hooks run in order; a subclass without `run` cannot be instantiated; a `TrialContext` keeps events in emission order with non-decreasing offsets, and `events` returns a copy |
 
 Not covered by any test: the global-RNG guarantee.
 

@@ -33,9 +33,9 @@ not change the exit code.
 |---|---|
 | `Task(name, dataset, version)` | Built from the `task:` section; the dataset is `data/customers.csv`, read with pandas, one example per row: the input is the row as a dict keyed by the header, and the reference is its `expected_email` column (not part of the input, so the candidate never sees it) |
 | `Dataset(name, examples)` | The rows as an ordered, immutable collection; each example's `uid` is the CSV `id` column (without one, it would get a hash of its content). Its `fingerprint` hash is shown in the third table's title, so a run says which data it used |
-| `Candidate` subclass | `CustomerValidator`: `setup()` compiles the email pattern, `run(row)` returns a cleaned record or raises, `teardown()` releases the pattern. The Runner calls them once per row |
+| `Candidate` subclass | `CustomerValidator`: `setup(ctx)` compiles the email pattern, `run(row, ctx)` returns a cleaned record or raises, `teardown(ctx)` releases the pattern. The Runner calls them once per row |
 | Scorer function | `email_match(output, reference)`: a plain function returning a number, a `bool` or a `Score` (here a `Score` with a label and the expected value, built from `exact_match` in `velari_ai.ai.evals.heuristics`); its name is the key in each record's `scores`. Score and status are separate: row 11 succeeds and scores `0.0`; a failed trial has no output, so it gets no score |
-| `Environment(seed)` | Passed to the harness: the fixed conditions, here base seed 42, which the script also sets as NumPy's seed (as `Experiment.seed_init` does); every trial's seed is derived from it, so the seeds are the same on every run. Each record carries its seed (a column in the third table); the candidate is not told it yet |
+| `Environment(seed)` | Passed to the harness: the fixed conditions, here base seed 42, which the script also sets as NumPy's seed (as `Experiment.seed_init` does); every trial's seed is derived from it, so the seeds are the same on every run. Each record carries its seed (a column in the third table); the candidate receives it as `ctx.seed` |
 | `Harness.for_task(task, candidate, scorers=[...], environment=...)` | The container, named after the task. Its `run()` chains three steps: run the candidate on every input, score each successful trial, package the result |
 | `Runner` and `TrialRecord` (through `Harness`) | The result's `records` hold one trial record per row, in order |
 | Failures are data | A bad row (an email with no domain, a negative or non-numeric age, an unknown country, a missing name or age) fails its own trial with the reasons; later rows still run, and the other rows are unaffected |
@@ -181,7 +181,7 @@ own; it only chains run, score and package.
 - **Comparing candidates.** A harness is one candidate on one task. Lining several runs up (two candidates,
   or two environments) needs a run group and result set, which the core does not have yet.
 - No metrics or reducers beyond the summary (mean, standard error, counts), no repeated trials, and the `Environment` holds only a seed
-  (no limits or policies yet; the candidate is not told its seed).
+  (no limits or policies yet; the candidate gets its seed as `ctx.seed`, which this one does not use).
 - The candidate is defined in the script, not built from config.
 - The evaluation and data science categories and the planned core components (metrics, `TrialContext`, a registry of named
   harness components) are not implemented. Skills have their own example: see [`../skills/README.md`](../skills/README.md).
