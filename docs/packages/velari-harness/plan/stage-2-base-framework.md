@@ -296,7 +296,7 @@ Tests: `test_runner.py` (seed equals `seed_for(uid)`; same environment, same see
 
 Decisions: the `Harness` holds the environment (not the `Task`, which says what is measured, and not `HarnessConfig`, which must not carry a second seed); the seed is recorded but not handed to the candidate, which waited for `TrialContext` (done in increment 17); the `Result` reports no base seed until the run spec exists.
 
-Not in this increment: handing the seed to a candidate, limits, `ErrorPolicy` and `RetryPolicy`, repeated trials (the trial number stays 0), and a base seed on the `Result`.
+Not in this increment: handing the seed to a candidate (done in increment 17), limits, `ErrorPolicy` and `RetryPolicy`, repeated trials (the trial number stays 0), and a base seed on the `Result`.
 
 A breaking change worth knowing: `TrialRecord` requires `seed`, so a record built by hand needs one.
 

@@ -61,7 +61,7 @@ graph LR
 
 `protocols/candidate.py` imports `Event` from `schemas/response/record.py`; `runner.py` and `harness.py` import it. `harness.py` imports `runner.py`, `Task` (from `dataset.py`), `Candidate`, `TrialRecord` and `Result`; the Runner does not import `harness.py`. `schemas/dataset.py` imports only the standard library; `record.py`, `runner.py` and `harness.py` import it. `schemas/request/environment.py` imports only the standard library and nothing imports it yet. `schemas/response/result.py` imports `calc_column_stats` from `velari_core` for the summary statistics, as `config.py` imports `ConfigOmegaConf`. `schemas/skill.py` imports `RecordRegistry` from `velari_data`, plus `pandas` and `yaml`; nothing in the core imports it (only the skills example does).
 
-`velari-ai` and `pandas` are declared in `pyproject.toml` but not imported (*verified* by grep).
+`velari-ai` is declared in `pyproject.toml` but not imported by the package (*verified* by grep); `pandas` is imported by `result.py` and `skill.py`.
 
 Folder convention: within `core/`, a folder imports only from folders to its left in `schemas` <- `protocols` <- `execution`. Nothing enforces it (no lint rule or test); it holds because the package is small. Imports inside the package are relative; imports of other packages are absolute.
 
@@ -88,7 +88,7 @@ A task run has no run-level status or failure. A trial that raises (in `setup`, 
 | `Result` round-trips through JSON | test | Only for JSON-serialisable outputs and inputs |
 | The core never seeds global RNG | absence in the code; a test for `Environment.seed_for` | No test for the other modules |
 | A trial's recorded seed is `Environment.seed_for(example.uid)` (the index for an example without a uid), the same on every run | `Runner._trial`; tests | The candidate receives it as `ctx.seed` |
-| A trial's seed is the same on every run, in any process | SHA-256 derivation; a pinned-value test | Nothing passes the seed to a candidate yet |
+| A trial's seed is the same on every run, in any process | SHA-256 derivation; a pinned-value test | The Runner passes it to the candidate as `ctx.seed` (since increment 17) |
 | A candidate's `teardown` runs after a failed `setup` or `run`, including `BaseException` | `try/finally` in `Runner._trial`; tests | |
 | A failed trial is never scored, and a scorer that raises is `None`, never a zero | `Harness.score`; tests | |
 
