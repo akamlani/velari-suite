@@ -222,7 +222,7 @@ A candidate was a black box: `run(input) -> output`. The Runner derived a seed f
 |---|---|
 | `Event(name, data, elapsed_sec)`: something a candidate recorded during a trial; `elapsed_sec` counts from the start of the trial and cannot be negative | `schemas/response/record.py` |
 | `TrialRecord.events: List[Event]`: what the candidate emitted, in order, also when the trial failed | `schemas/response/record.py` |
-| `TrialContext(seed, workdir)` with `emit(name, data=None)` and a read-only `events` (a copy) | `protocols/candidate.py` |
+| `TrialContext(seed, workdir)` with `emit(name, data=None)`, which copies `data` when it is called, and a read-only `events` that returns independent copies | `protocols/candidate.py` |
 | `Candidate.setup(ctx)`, `run(input, ctx)`, `teardown(ctx)`: the context is the last parameter; `CallableCandidate(fn)` ignores it and still calls `fn(input)` | `protocols/candidate.py` |
 | The Runner derives the trial's seed once, makes a working directory, passes one `TrialContext` to all three calls and copies its events onto the record. `Runner(environment, workdir=None)`: without a root each trial gets a temporary directory removed when it ends, even if it raised; with a root, `<root>/<index>` is kept | `execution/runner.py` |
 | `CustomerValidator` takes the new signatures; `SkillTrigger` emits `skill_triggered` and the example prints the number of such events | `examples/ai/harness/core/`, `examples/ai/harness/skills/` |

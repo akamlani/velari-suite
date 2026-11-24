@@ -1,3 +1,4 @@
+import  copy
 import  time
 from    abc      import abstractmethod
 from    pathlib  import Path
@@ -31,16 +32,16 @@ class TrialContext(object):
 
     @property
     def events(self) -> List[Event]:
-        return list(self._events)
+        return [event.model_copy(deep=True) for event in self._events]
 
     def emit(self, name: str, data: Optional[Dict[str, Any]] = None) -> None:
         """Record that `name` happened, with optional details, stamped with the time since the trial began.
 
         Args:
             name (str): What happened, such as `skill_triggered`.
-            data (Optional[Dict[str, Any]]): Its details; keep to values that serialize to JSON.
+            data (Optional[Dict[str, Any]]): Its details, copied when emitted; keep to values that serialize to JSON.
         """
-        self._events.append(Event(name=name, data=data or {}, elapsed_sec=time.perf_counter() - self._start))
+        self._events.append(Event(name=name, data=copy.deepcopy(data or {}), elapsed_sec=time.perf_counter() - self._start))
 
 
 class Candidate(Protocol):

@@ -103,10 +103,12 @@ The same world and the same reward logic serve both. What differs is **when the 
 
 RL training is outside our scope; this section explains the contrast so the evaluation form is clear.
 
-**RL view, with shaping from milestones.** Gymnasium's `step` returns `(observation, reward, terminated, truncated, info)`, where *terminated* is the task's own end state and *truncated* is an outside stop such as a time limit. A common technique is potential-based shaping, which adds `Φ(next) - Φ(current)` to the reward so that intermediate progress is rewarded without changing which behavior is best.
+**RL view, with shaping from milestones.** Gymnasium's `step` returns `(observation, reward, terminated, truncated, info)`, where *terminated* is the task's own end state and *truncated* is an outside stop such as a time limit. A common technique is potential-based shaping, which adds `γΦ(next) - Φ(current)` to each step's reward, where `Φ` is a progress measure and `γ` is the discount factor of the return (1 when there is no discounting). It leaves the best behavior unchanged only under two conditions: the potential of a terminal state is 0, and `γ` is the same one the return uses. Otherwise the shaping terms add up to `γ^T Φ(final) - Φ(initial)` (just `Φ(final) - Φ(initial)` without discounting), so an episode that ends with more progress earns a bigger bonus, and a run that makes progress but misses the real objective can score higher than one that achieves it.
 
 ```python
 # pseudo-code, not implemented
+GAMMA = 1.0                                          # the discount factor of the return; 1.0 means no discounting
+
 def potential(state, spec):                          # progress toward the goal, 0..1
     # A milestone is a checkable intermediate goal, e.g. "identity verified" or "ledger entry created".
     # Progress = the fraction of milestones the world's current state satisfies.
@@ -116,15 +118,17 @@ def step(self, action):                              # Gymnasium-style
     # Progress before the action, measured on the world's state.
     before = potential(self.world.state(), self.spec)
     obs, done = self.world.step(action)
-    # Progress after it; the world has now changed.
-    after = potential(self.world.state(), self.spec)
+    # Progress after it; the world has now changed. The potential of a terminal state must be 0: otherwise the shaping
+    # terms add up to (final progress - starting progress), which rewards where an episode ends and can change which behavior is best.
+    after = 0.0 if done else potential(self.world.state(), self.spec)
     # The terminal reward scores the whole episode, once, and only when the episode ends.
     terminal = self.reward_fn(self.spec, self.trajectory, self.initial, self.world.state()).value if done else 0.0
-    # Reward for this step = progress this action made, plus the terminal reward on the last step.
-    # (after - before) is the potential-based shaping term: it pays for progress
-    # without changing which overall behavior is best.
-    # `truncated` (a step cap stopped the episode, not the goal) and `info` are set elsewhere in the class.
-    return obs, (after - before) + terminal, done, truncated, info
+    # Reward for this step = the shaping term, plus the terminal reward on the last step.
+    # GAMMA * after - before is the potential-based shaping term. With a terminal potential of 0 and the same GAMMA as the
+    # return, it pays for progress without changing which overall behavior is best (Ng, Harada and Russell, 1999).
+    # `truncated` (a step cap stopped the episode, not the goal) and `info` are set elsewhere in the class; whether a cut
+    # episode also gets a potential of 0 is a choice to make explicitly.
+    return obs, (GAMMA * after - before) + terminal, done, truncated, info
 ```
 
 **Non-RL view, matching our `Score` and `fn(output, reference)`.**
@@ -318,5 +322,6 @@ A reward is code that can be wrong. HUD's QA agents audit completed traces for r
 - AppWorld state-based tests: [repo](https://github.com/StonyBrookNLP/appworld)
 - HUD graders and QA: [ops cookbook](https://docs.hud.ai/v6/cookbooks/ops-diagnostics.md), [environment guide](https://docs.hud.ai/v6/guides/creating-an-environment.md), [QA agents](https://docs.hud.ai/platform/qa-agents.md), [evaluations](https://docs.hud.ai/platform/evaluations.md)
 - Gymnasium step and seeding: [Env API](https://gymnasium.farama.org/api/env/)
+- Potential-based reward shaping and its conditions: Ng, Harada and Russell (1999), "Policy invariance under reward transformations" (cited from memory; not re-read for this note)
 - MLE-bench seeds and grading: [repo](https://github.com/openai/mle-bench)
 - MLflow scorers: [conversation simulation](https://www.mlflow.org/docs/latest/genai/eval-monitor/running-evaluation/conversation-simulation)

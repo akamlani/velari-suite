@@ -103,3 +103,16 @@ class TestTrialContext:
         ctx.events.clear()
 
         assert [event.name for event in ctx.events] == ["answered"]
+
+    def test_emit_copies_details_so_later_changes_do_not_alter_the_event(self, ctx):
+        tools = ["lookup"]
+        ctx.emit("step", {"tools": tools})
+        tools.append("refund")
+
+        assert ctx.events[0].data == {"tools": ["lookup"]}
+
+    def test_events_returns_independent_events(self, ctx):
+        ctx.emit("step", {"tools": ["lookup"]})
+        ctx.events[0].data["tools"].append("refund")
+
+        assert ctx.events[0].data == {"tools": ["lookup"]}
