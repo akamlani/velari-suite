@@ -54,6 +54,8 @@ In a physical world the reward can lean on physics (distance, collision, balance
 | **Weighted sum** | Strength in one part pays for weakness in another | Parts are genuinely substitutable | HUD's `combine`, which weights several graders |
 | **Gate, then score** | A hard rule vetoes; otherwise score normally | Safety, compliance, permissions | A design choice; weights should not buy back a violation |
 | **Vector, not collapsed** | Report each part separately | Trade-offs are a decision for a person, such as fairness versus accuracy | Our multiple scorers, one `Score` each |
+| **Capped penalty** | Failed negative criteria subtract from the score, up to a cap | A penalty should not erase credit for the rest | Archipelago: negative criteria scaled, a universal penalty capped at 0.2, a floor of 0 and a ceiling of 1 |
+| **Normalized to anchors** | `(raw − baseline) / (ceiling − baseline)`, with a floor, baseline and ceiling per task | Raw measures differ across tasks, such as a speedup or an error | OpenWorldEngineer: anchors in each task file; a model's score is the mean of 8 attempts |
 
 ```python
 # pseudo-code, not implemented
@@ -280,6 +282,7 @@ A reward is code that can be wrong. HUD's QA agents audit completed traces for r
 | Check | How | Catches |
 |---|---|---|
 | **Known-good trajectories** | Hand-write a few correct runs; they must score near 1 | A grader that rejects correct work (false negatives) |
+| **Do-nothing baseline** | Score an untouched world; it must score near 0 | A grader that gives credit for nothing (verifiers: `vf-validate` also checks that the gold answer scores 1.0) |
 | **Known-bad trajectories** | Hand-write wrong runs, including plausible shortcuts; they must score near 0 | A grader that passes broken work (false positives) |
 | **Cheat probes** | Run the easy cheats from the table above (always approve, isolate everything) | Rewards that pay for degenerate behavior |
 | **Perturbation tests** | Change irrelevant details of a good run (wording, order); the score should hold | Brittle checks |
@@ -298,6 +301,9 @@ A reward is code that can be wrong. HUD's QA agents audit completed traces for r
 | Simulator not matching reality | The mock database is too forgiving, so good scores do not transfer | Compare simulated and real traces where possible; keep the simulator's limits in the record |
 | Underspecified spec | A correct agent scores badly | Review the spec; run known-good trajectories |
 | Noisy simulated user | The same agent passes one run and fails the next | Repeats, `pass^k`, and seeded variants |
+| Ungradeable counted as zero | A judge that fails scores 0 and the candidate takes the blame | Return no value and void or exclude the run (Archipelago's ungradeable result; our `Score.value=None`) |
+| Held-out data leaks into training | Held-out test data is published and ends up in a training corpus | Keep it private, or mark it with a canary string and run agents without network access to the repository (OpenWorldEngineer) |
+| A missing output makes the grader fail | The agent writes no answer file and the verifier raises, so the run is voided instead of scored | Write a placeholder before the agent starts so an untouched task scores zero (verifiers' file-sum example) |
 
 ## What this means for the harness
 
@@ -324,3 +330,5 @@ A reward is code that can be wrong. HUD's QA agents audit completed traces for r
 - Potential-based reward shaping and its conditions: Ng, Harada and Russell (1999), "Policy invariance under reward transformations" (cited from memory; not re-read for this note)
 - MLE-bench seeds and grading: [repo](https://github.com/openai/mle-bench)
 - MLflow scorers: [conversation simulation](https://www.mlflow.org/docs/latest/genai/eval-monitor/running-evaluation/conversation-simulation)
+- Archipelago grading: [repo](https://github.com/Mercor-Intelligence/archipelago/); OpenWorldEngineer scoring: [repo](https://github.com/Mercor-Intelligence/OpenWorldEngineer)
+- verifiers: [docs](https://docs.primeintellect.ai/verifiers/overview), [building a taskset](https://docs.primeintellect.ai/verifiers/building-environments.md)
