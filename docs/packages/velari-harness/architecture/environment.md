@@ -54,6 +54,29 @@ Many agentic harnesses borrow the *shape* of a reinforcement-learning environmen
 
 So our `Environment` holds the rules and budgets of an episode, while the *world* the agent acts in has no home under that name. The name now conflicts with two outside meanings: the container or stack, and the world the agent acts in. An agentic data science candidate also needs a way to reach the world, which `TrialContext` is meant to provide, but today a candidate is a black box, `run(input) -> output`, and the harness cannot see its steps. See open questions 8 and 9.
 
+### How well-adopted RL frameworks structure environments
+
+Read from the class source or docs; the members of each class are on the Environment API sheet of [framework-comparison.xlsx](../framework-comparison.xlsx).
+
+| Pattern | Seen in | What it means for ours |
+|---|---|---|
+| The reset-and-step thing is called `Environment` | Gymnasium, dm_env, PettingZoo, gymnax, RLlib, tau-bench, HUD | Our run conditions are a different thing under the same word |
+| The simulation is separate from the task | dm_control (`Physics` and `Task`), Habitat (simulator, task and dataset), OpenSpiel (`Game` and `State`), Isaac Lab (simulation and environment) | Our world and our scorer are separate, and reward is not in the world |
+| Reward lives in a wrapper, a task or a term, not in the base world | Habitat `RLEnv`, dm_control `Task.get_reward`, Isaac Lab terms | A scorer reads `state()` |
+| Termination and truncation are both modeled | Gymnasium, PettingZoo, gymnax (two flags); dm_env, dm_control, OpenSpiel (a LAST step and a discount) | `Termination` records both |
+| The time limit sits outside the world | dm_control `time_limit`, Habitat `max_episode_steps`, ML-Agents Max Steps | `max_steps` is on `run_episode` |
+| Seeding happens at `reset` | Gymnasium, PettingZoo | `reset(..., seed=...)` |
+| Auto-reset is a hazard: the observation on a done step belongs to the next episode | Stable-Baselines3, gymnax | `run_episode` runs one episode and never resets itself |
+| Only CARLA names its main type `World` | CARLA | `World` is defensible; renaming our `Environment` stays deferred |
+| "World model" means a learned predictor of the next observation | Qwen-AgentWorld and RL world-model work | `World` covers coded, prompted and trained simulators behind one interface |
+| The final state is graded against the initial state | tau², AppWorld, Archipelago | `initial_state` and `final_state` on `EpisodeResult` |
+| One world is shared by many tasks (a simulated company with its files and apps) | Archipelago and its SkyRL recipe (one Docker image per world) | A group of examples may share one world, which fits scenarios as groups |
+| The verifier runs apart from the agent, after it finishes | OpenWorldEngineer (a separate container with no network) | Our scorer runs after the run, but an isolated verifier is a stronger guarantee against tampering and leaked held-out data |
+| 'Environment' can mean the control flow across agents | verifiers v1 (best-of-n, a judge, a simulated user) | A third meaning, which supports a separate name for our interactive world |
+| Scoring is shared or isolated | verifiers v1, OpenWorldEngineer | A scorer could read an isolated copy of the final state instead of the live world |
+| A rollout with an error is not scored | verifiers v1 | Our scorer returns no value for a failed trial; the same rule |
+| Base classes add shared plumbing (seeding, limits, a context manager, delegation), not domain logic | Gymnasium, gymnax, PettingZoo, Stable-Baselines3 | `World` stays a Protocol with one default until shared plumbing appears |
+
 ## 3. What it is not
 
 The word "environment" is easy to read as "the place the code runs". Here it is not.
@@ -139,5 +162,5 @@ Growth by **subclassing**, the way a category adds settings with a `HarnessConfi
 5. **Shape of limits.** Flat fields on the environment, or a nested `Limits` object that categories extend?
 6. **What gets recorded.** The full environment in each result, or a hash plus a copy in the run's metadata.
 7. **When to connect.** Resolved in increment 14: the Harness holds an `Environment` and passes it to the Runner.
-8. **Scope and name of `Environment`.** In agentic harnesses (DSGym, DA-Code, Spider2-V, OpenHands, OSWorld) the environment is the stateful world the agent acts in: a sandbox, tools, a starting state set by the task, budgets, and a seed passed at reset. Ours is the run conditions. Either rename ours (for example `RunConditions`) and let "Environment" mean the world, or widen ours to be the world together with its conditions, with the Sandbox as the mechanism.
-9. **Who drives the loop.** In some harnesses the framework runs the step loop: DSGym provides the loop and a default agent and lets others plug in, and OpenHands separates the agent from a runtime that executes its actions. In others the agent owns the loop. Our `Candidate` is a black box, `run(input) -> output`, which suits an agent with its own loop but hides its steps. Whether the harness should expose step-level interaction (actions and observations) is open.
+8. **Scope and name of `Environment`.** In agentic harnesses (DSGym, DA-Code, Spider2-V, OpenHands, OSWorld) the environment is the stateful world the agent acts in: a sandbox, tools, a starting state set by the task, budgets, and a seed passed at reset. Ours is the run conditions. Either rename ours (for example `RunConditions`) and let "Environment" mean the world, or widen ours to be the world together with its conditions, with the Sandbox as the mechanism. **For the simulation layer, for now:** the world gets its own name, `World`, in `simulation/`; `Environment` stays the run conditions and renaming it is deferred. Gymnasium-style environments combine the world with reward and limits, which we keep apart, and CARLA is the one reference that names its main type `World`.
+9. **Who drives the loop.** In some harnesses the framework runs the step loop: DSGym provides the loop and a default agent and lets others plug in, and OpenHands separates the agent from a runtime that executes its actions. In others the agent owns the loop. Our `Candidate` is a black box, `run(input) -> output`, which suits an agent with its own loop but hides its steps. Whether the harness should expose step-level interaction (actions and observations) is open. **Evidence:** the loop is harness-driven in Gymnasium's documented loop and in DSGym, and agent-driven in HUD (agents attach to capabilities directly) and Raindrop Simulate (the agent's real code runs its own loop and simulated services answer its tool calls). One `World` interface serves both, since the difference is only who calls `step`; `run_episode` covers the harness-driven case, and an agent-driven candidate would hand the world's tools to the agent, as an applied-layer piece.
